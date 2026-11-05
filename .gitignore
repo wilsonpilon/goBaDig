@@ -46,3 +46,9 @@ go.work.sum
 # where to download each item from.
 /resource/*
 !/resource/README.md
+
+# badig/ is the original Python "Basic Dignified Suite" project, kept
+# on disk only as a local reference (architecture, dialect spec, golden
+# tests) while porting to Go. Confirmed by the user on 2026-11-05: it
+# must never be committed. See docs/RESOURCES.md.
+/badig/

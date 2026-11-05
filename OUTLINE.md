@@ -46,9 +46,13 @@ para a reescrita.
 
 ## 2. Achado importante: estado real do repositório `badig/`
 
-- O repositório Go (`goBaDig`) está em commit único (`4fb3b7d Initial commit`),
-  branch `main`, sem outras branches locais. `badig/` está **untracked** —
-  ainda não foi commitado.
+- O repositório Go (`goBaDig`) já tem releases publicados (ver
+  `CHANGELOG.md`/`docs/releases/`). **`badig/` nunca é commitado** —
+  decisão confirmada pelo usuário em 2026-11-05: ele existe só
+  localmente, em disco, como referência de arquitetura/dialeto/testes
+  durante o port, nada além disso. Está listado em `.gitignore` por
+  segurança. Quem for reproduzir o ambiente em outra máquina precisa
+  copiar essa pasta manualmente — ela não vem do `git clone`.
 - **Vários arquivos de documentação têm marcadores de merge conflict (`<<<<<<< HEAD`
   / `=======` / `>>>>>>> suporte-zx-spectrum`) ainda não resolvidos**:
   `README.md`, `documentation/BASIC_DIGNIFIED.md`, `documentation/INSTALLATION.md`,

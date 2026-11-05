@@ -224,12 +224,16 @@ do msx.org (CAS/DSK), nota técnica
 ## Material do projeto Python original (`badig/`)
 
 O diretório `badig/` (projeto Python original + extensões ZX81/ZXSpectrum
-do usuário) **continua dentro do repositório** por enquanto, como
-referência de arquitetura, especificação de dialeto e oráculo de testes
-(golden vectors) — não é um "recurso externo" no sentido desta página.
-Sua forma final de convivência com o Git (manter rastreado, mover para
-fora do histórico quando o port terminar, etc.) é uma decisão em aberto
-— ver `OUTLINE.md`, seção "Perguntas em aberto".
+do usuário) existe **só localmente, em disco, como referência** de
+arquitetura, especificação de dialeto e oráculo de testes (golden
+vectors) — não é um "recurso externo" no sentido desta página, mas
+também **não é parte do histórico do Git deste repositório**.
+
+**Decisão confirmada pelo usuário em 2026-11-05**: `badig/` nunca deve
+ser commitado — serve só de referência durante o port, nada além disso.
+Está listado em `.gitignore` para evitar que um `git add` amplo o inclua
+por engano. Quem for reproduzir o ambiente em outra máquina precisa
+copiar essa pasta manualmente (ela não vem do `git clone`).
 
 ---
 

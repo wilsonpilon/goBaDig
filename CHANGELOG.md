@@ -35,8 +35,11 @@ exata do pacote.
 
 ## [Não lançado]
 
-_(nada ainda — o trabalho em andamento desde o release 1.1.1 aparece
-aqui até o próximo release ser publicado.)_
+### Confirmado
+
+- `badig/` (projeto Python original) **nunca será commitado** — decisão
+  confirmada pelo usuário: serve só de referência local durante o port,
+  nada além disso. Adicionado a `.gitignore`. Ver `docs/RESOURCES.md`.
 
 ---
 
