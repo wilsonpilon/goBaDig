@@ -221,6 +221,52 @@ do msx.org (CAS/DSK), nota técnica
 
 ---
 
+## Projetos próprios do usuário (reaproveitáveis, não públicos)
+
+Citados pelo usuário em 2026-11-05 como material já construído em
+outros locais, fora deste repositório. **Nenhum foi lido ou localizado
+nesta sessão** — os caminhos/links ficam para quando o trabalho que os
+usa for de fato começar (ver `OUTLINE.md`, seção 10.7 e Blocos 5-7).
+Não invente caminhos aqui; peça ao usuário quando chegar a hora.
+
+### fwMSX
+
+- **O que é**: projeto próprio do usuário com material de referência do
+  MSX Basic já construído.
+- **Para que serve**: fonte de conteúdo para o manual de sintaxe MSX
+  embutido no sistema de ajuda (`--man` da CLI e visualizador de manual
+  da TUI/GUI — ver `OUTLINE.md`, seção 10.7).
+- **Onde obter**: a confirmar com o usuário.
+
+### go81
+
+- **O que é**: projeto próprio do usuário, equivalente ao `fwMSX` para
+  ZX81.
+- **Para que serve**: fonte de conteúdo para o manual de sintaxe ZX81
+  embutido.
+- **Onde obter**: a confirmar com o usuário.
+
+### paleobasic
+
+- **O que é**: projeto próprio do usuário que contém, entre outras
+  coisas, uma implementação do Norton Editor 2.0.
+- **Para que serve**: referência/base para o editor próprio mencionado
+  no `OUTLINE.md` (seção 10.6, item 3) — **fora de escopo de
+  implementação por enquanto**, só registrado aqui.
+- **Onde obter**: a confirmar com o usuário.
+
+### msxide
+
+- **O que é**: projeto próprio do usuário com um clone do Norton Editor
+  2.0 **para TUI** e um editor **GUI** com as mesmas teclas/funções do
+  NE2.
+- **Para que serve**: mesma observação do `paleobasic` acima — base
+  real para quando o editor próprio for retomado, não um recurso a
+  integrar agora.
+- **Onde obter**: a confirmar com o usuário.
+
+---
+
 ## Material do projeto Python original (`badig/`)
 
 O diretório `badig/` (projeto Python original + extensões ZX81/ZXSpectrum

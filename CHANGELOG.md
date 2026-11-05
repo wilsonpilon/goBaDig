@@ -35,11 +35,50 @@ exata do pacote.
 
 ## [Não lançado]
 
-### Confirmado
+_(nada ainda — o trabalho em andamento desde o release 1.1.2 aparece
+aqui até o próximo release ser publicado.)_
 
-- `badig/` (projeto Python original) **nunca será commitado** — decisão
-  confirmada pelo usuário: serve só de referência local durante o port,
-  nada além disso. Adicionado a `.gitignore`. Ver `docs/RESOURCES.md`.
+---
+
+## [1.1.2] — 2026-11-05 — bloco **NEW**, feature **outline** (build 2)
+
+**Primeiro código Go do projeto.** Programa STUB real: compila, roda e
+tem CLI (`--help`/`--man`), TUI e GUI mínimas, com paridade de menu
+entre as três interfaces. Ainda sem conversor/tokenizer de BASIC.
+
+### Adicionado
+
+- Módulo Go inicializado (`github.com/wilsonpilon/goBaDig`), com
+  `cmd/goBaDig` e `internal/{about,cli,gui,tui,version}`.
+- **CLI**: `--help` (lista de opções), `--man` (referência estilo
+  `man`, só o "about" nesta versão), banner padrão sem argumentos.
+- **TUI** (`tview`/`tcell`): menu `File > Exit` e `Help > About`.
+- **GUI** (`Fyne`): janela com menu `File > Exit` e `Help > About`
+  (diálogo nativo).
+- Texto "about" centralizado em `internal/about`, compartilhado pelas
+  três interfaces, para não divergirem (ver `OUTLINE.md`, seção 6,
+  item "Paridade de opções entre interfaces").
+- Testes unitários do dispatch de modo da CLI (`internal/cli`).
+- Build, `go vet` e `go test` passando; binário testado em runtime no
+  Windows (CLI, TUI e GUI abrem e fecham sem erro).
+- `docs/RESOURCES.md`: registrados os projetos próprios do usuário
+  `fwMSX`, `go81` (conteúdo para os futuros manuais de BASIC
+  embutidos), `paleobasic` e `msxide` (implementações prontas do
+  Norton Editor — TUI e GUI — para quando o editor próprio for
+  retomado; localizações a confirmar com o usuário).
+- `OUTLINE.md`, seção 10.7: desenho do sistema de ajuda — `--help` +
+  `--man` ao estilo Unix na CLI (cobrindo, no futuro, as opções do
+  BaDig e os manuais de sintaxe BASIC do MSX/ZX81/ZX Spectrum), e
+  `Help > About` tradicional na TUI/GUI.
+- Confirmado: `badig/` (projeto Python original) **nunca será
+  commitado** — decisão do usuário, serve só de referência local
+  durante o port. Adicionado a `.gitignore`.
+
+### Observações
+
+- Esta release já distribui um executável real (Windows) no pacote
+  `goBaDig-v1.1.2.zip`, mas é um stub: nenhuma conversão de BASIC
+  acontece ainda.
 
 ---
 

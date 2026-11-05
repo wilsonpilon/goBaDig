@@ -4,9 +4,10 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **em planejamento**. Nenhum código Go foi escrito ainda — o
-> trabalho atual é de análise e arquitetura. Ver [`OUTLINE.md`](OUTLINE.md)
-> para o plano completo e o estado real de cada bloco de trabalho, e
+> Status: **stub inicial** (v1.1.2). Existe um binário real com `--help`,
+> `--man`, e TUI/GUI mínimas (`File > Exit`, `Help > About`) — ainda sem
+> conversor/tokenizer de BASIC. Ver [`OUTLINE.md`](OUTLINE.md) para o
+> plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.
 

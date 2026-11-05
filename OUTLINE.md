@@ -514,6 +514,12 @@ seção 7). Não é código ainda.
    seção 5.3.
 10. **Z80/SNA via emulador Z80 em Go é trabalho de fase tardia** — não
     bloqueia MVP (texto + TAP/TZX cobre carregar e rodar em emulador).
+11. **Paridade de opções entre interfaces**: CLI, TUI e GUI devem expor,
+    na medida do possível, o mesmo conjunto de opções/funções — cada uma
+    só muda a forma de apresentação (flags vs. menus vs. telas), não o
+    conjunto de recursos disponível. Um texto "about"/"man" central
+    (`internal/about` no stub) é compartilhado pelas três, para não
+    divergirem. Ver seção 10.7 para o desenho do sistema de ajuda.
 
 ---
 
@@ -531,9 +537,16 @@ de código Go começa do zero.
   `docs/` (`MANUAL.md`, `RESOURCES.md`, `releases/`), `README.md`,
   `CHANGELOG.md` e esquema de versionamento `X.Y.Z` registrados (ver
   seção 10). — 2026-11-05.
-- [ ] Inicializar módulo Go (`go.mod`), estrutura de pastas de código
-  (`cmd/`, `internal/...`, ver seção 10.4), lint/format, pipeline de
-  build/CI. — peso **B**, prioridade **1**
+- [x] Módulo Go inicializado (`github.com/wilsonpilon/goBaDig`), com
+  `cmd/goBaDig` + `internal/{about,cli,gui,tui,version}` — primeira
+  fatia da árvore da seção 10.4. Dependências buscadas: `rivo/tview`,
+  `gdamore/tcell/v2`, `fyne.io/fyne/v2`. Build (`go build ./...`),
+  `go vet` e `go test ./...` passando; binário testado em runtime (CLI,
+  TUI e GUI abrem e fecham sem erro no Windows). — 2026-11-05 (release
+  1.1.2). Pendente ainda: lint/format formal e pipeline de CI.
+- [ ] Completar `internal/core`, `internal/config`, `internal/platforms`,
+  `internal/emulator` (ver seção 10.4) — esta fatia inicial só cobre
+  CLI/TUI/GUI stub, não o motor. — **B**, **1**
 - [ ] Escolher driver SQLite (puro-Go, ex. `modernc.org/sqlite`, para
   evitar CGO e manter build de binário único simples). — **B**, **1**
 - [ ] Desenhar schema SQLite inicial: config global, config por projeto,
@@ -628,8 +641,21 @@ de código Go começa do zero.
 
 ### Bloco 5 — CLI
 
-- [ ] Parser de argumentos (flags core + flags por módulo compostas,
-  equivalente aos `parent_parsers`). — **M**, **1**
+- [x] **Stub** (release 1.1.2): `--help` (lista de opções), `--man`
+  (referência estilo man — só o "about" do projeto nesta versão),
+  `--tui`/`--gui` (despacho para as interfaces interativas), banner
+  padrão sem argumentos. Código em `internal/cli`, `internal/about`,
+  `internal/version`. — 2026-11-05.
+- [ ] Parser de argumentos real (flags core + flags por módulo
+  compostas, equivalente aos `parent_parsers`), substituindo o
+  dispatch simples do stub. — **M**, **1**
+- [ ] **Sistema de "man" completo** (ver seção 10.7): comandos/opções do
+  BaDig em detalhe + manuais de sintaxe BASIC do MSX, ZX81 e ZX
+  Spectrum embutidos, navegáveis por tópico (ex. `goBaDig --man print`
+  ou um modo paginado tipo `less`). Reaproveitar conteúdo de referência
+  já existente do usuário (`fwMSX` para MSX, `go81` para ZX81) e a
+  documentação Spectrum já extraída de `badig/documentation/ZX_SPECTRUM.md`
+  — ver seção 10.7 para detalhes. — **A**, **2**
 - [ ] Modo de comando interativo (REPL simples) além do modo "um tiro"
   por linha de comando. — **M**, **2**
 - [ ] Detecção automática de plataforma pela extensão do arquivo (com
@@ -637,19 +663,34 @@ de código Go começa do zero.
 
 ### Bloco 6 — TUI (tview/tcell)
 
+- [x] **Stub** (release 1.1.2): menu `File > Exit` e `Help > About`,
+  navegação por `Enter`/`Esc`. Código em `internal/tui`. — 2026-11-05.
 - [ ] Tela de configuração (equivalente ao que hoje são os `.ini`/remtags):
   editar config SQLite global/projeto. — **M**, **2**
 - [ ] Tela de pré-processamento em lote (escolher arquivos, plataforma,
   opções, rodar e ver log/erros). — **M**, **2**
 - [ ] Navegação entre MSX/ZX81/Spectrum sem reiniciar o programa. — **B**, **2**
+- [ ] Visualizador de manual BASIC embutido (mesmo conteúdo do `--man`
+  da CLI), acessível pelo menu Help. — **M**, **2**
+- [ ] Avaliar reaproveitar o **Norton Editor para TUI já pronto no
+  projeto `msxide`** do usuário como base do editor de texto integrado
+  (ver seção 10.7) — ainda fora de escopo de implementação, só
+  registrado como opção futura. — **A**, **3**
 
 ### Bloco 7 — GUI (Fyne)
 
+- [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
+  `Help > About` (diálogo nativo Fyne). Código em `internal/gui`. — 2026-11-05.
 - [ ] Janela principal com gerenciador de projetos/arquivos. — **M**, **2**
 - [ ] Tela de configuração equivalente à TUI, mas gráfica. — **M**, **2**
 - [ ] Execução de pré-processamento com feedback visual de erro
   (aproveitando `Position` para apontar linha/coluna exata). — **M**, **2**
 - [ ] Integração com emuladores (botão "rodar no emulador"). — **M**, **2**
+- [ ] Visualizador de manual BASIC embutido, mesmo conteúdo do `--man`. — **M**, **2**
+- [ ] Avaliar reaproveitar o **editor GUI com teclas/funções do Norton
+  Editor 2 já pronto no projeto `msxide`** do usuário como editor de
+  texto integrado (ver seção 10.7) — ainda fora de escopo de
+  implementação, só registrado como opção futura. — **A**, **3**
 
 ### Bloco 8 — Suporte a editores
 
@@ -871,13 +912,59 @@ Prioridade confirmada pelo usuário:
    baixo, estrutura quase idêntica entre plataformas já no projeto
    Python). Prioridade 2.
 3. **Editor próprio, baseado no Norton Editor 2.0** — o usuário já tem
-   uma base pronta em outro local. **Fora de escopo por enquanto**,
-   tratado como projeto futuro separado; não iniciar nenhum trabalho
-   aqui até ser pedido explicitamente.
+   bases prontas em outros projetos próprios: **`msxide`** tem um clone
+   do Norton Editor tanto para **TUI** quanto uma versão **GUI** com as
+   mesmas teclas/funções do NE2, e **`paleobasic`** também contém uma
+   implementação do NE. **Continua fora de escopo de implementação por
+   enquanto** (instrução explícita do usuário em 2026-11-05: "o Norton
+   Editor fica de fora, mas deve ser mencionado") — registrado aqui como
+   opção real de reaproveitamento futuro, não um projeto do zero. Não
+   iniciar nenhum trabalho de integração aqui até ser pedido
+   explicitamente. Ver seção 10.7 e `docs/RESOURCES.md`.
 4. **Notepad++ e UltraEdit** — "se for possível": avaliar viabilidade
    (arquivos de realce de sintaxe próprios de cada um — UDL no
    UltraEdit, por exemplo) como item de prioridade baixa/esforço a
    avaliar, sem compromisso de entrega.
+
+### 10.7 Sistema de ajuda/man e manuais de BASIC embutidos
+
+Decisão do usuário em 2026-11-05: as três interfaces terão ajuda, mas de
+formas diferentes, apropriadas a cada paradigma —
+
+- **TUI e GUI**: ajuda "tradicional" de aplicativo: menu `Help > About`
+  (implementado no stub da release 1.1.2) e, depois, um visualizador de
+  manual embutido (mesmo conteúdo do `--man` da CLI, apresentado de
+  forma navegável).
+- **CLI**: dois níveis. `--help` lista as opções de linha de comando
+  (como qualquer CLI comum — implementado no stub). Um sistema mais
+  profundo, **ao estilo do `man` do Unix**, cobre em detalhe as
+  funções/opções do próprio BaDig **e também os manuais de sintaxe
+  BASIC das três plataformas**, para consulta rápida sem sair do
+  terminal (ex. `goBaDig --man` ou um subcomando `man` navegando por
+  tópico/palavra-chave). Isso é uma funcionalidade nova, sem equivalente
+  no projeto Python original.
+
+**Conteúdo de referência já disponível, a reaproveitar** (projetos
+próprios do usuário, fora deste repositório — ver `docs/RESOURCES.md`
+para o registro formal; localização exata a obter com o usuário quando
+o trabalho desta seção começar):
+
+- **`fwMSX`** — tem material de referência do MSX Basic já construído,
+  reaproveitável para o manual MSX embutido.
+- **`go81`** — idem para ZX81.
+- **ZX Spectrum**: sem um projeto equivalente citado ainda; a base mais
+  próxima hoje é `badig/documentation/ZX_SPECTRUM.md` (já extraído nesta
+  sessão de planejamento) mais os links do manual oficial Sinclair já
+  catalogados em `badig/OUTLINE.md`, seção "Referências consultadas".
+- **`paleobasic`** e **`msxide`** — não são manuais de sintaxe, mas
+  contêm as implementações do Norton Editor (TUI e GUI) citadas no
+  item 3 acima; relevantes para quando a integração de editor for
+  retomada, não para o sistema de ajuda em si.
+
+Nenhum destes quatro projetos foi lido nesta sessão (são locais, fora
+deste repositório) — quando o Bloco 5/6/7 "sistema de man completo"
+começar de verdade, pedir ao usuário o caminho de cada um para avaliar
+o que é diretamente reaproveitável vs. o que precisa ser reescrito.
 
 ---
 

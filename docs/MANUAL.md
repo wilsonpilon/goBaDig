@@ -58,21 +58,17 @@ aberto")**
 
 ## 3. Download
 
-**(pendente — sem release publicado ainda)**
-
-Quando houver uma versão compilada, os pacotes `.zip` (um por release,
-nomeados `goBaDig-vX.Y.Z.zip`) ficarão disponíveis nos *Releases* do
+A partir da release `v1.1.2`, os pacotes `.zip` (um por release,
+nomeados `goBaDig-vX.Y.Z.zip`) estão disponíveis nos *Releases* do
 repositório no GitHub. Cada pacote contém o executável, documentação
 mínima e exemplos — pronto para extrair e rodar sem instalar nada além
-dos emuladores externos (ver seção 2). Ver `CHANGELOG.md` para a lista
-de versões publicadas.
+dos emuladores externos (ver seção 2), quando a integração de
+emulador existir. Ver `CHANGELOG.md` para a lista de versões
+publicadas. **Estado atual (1.1.2): programa STUB** — só o `--help`,
+`--man`, e as interfaces TUI/GUI com `File > Exit`/`Help > About`
+funcionam; não há conversor/tokenizer ainda.
 
 ## 4. Compilar a partir do código-fonte
-
-**(pendente — `go.mod` ainda não existe)**
-
-Passos previstos (a confirmar quando o Bloco 0 do `OUTLINE.md` for
-concluído):
 
 ```console
 git clone <url-do-repositorio>
@@ -80,18 +76,23 @@ cd goBaDig
 go build ./cmd/goBaDig
 ```
 
+Requer Go 1.21+ e, para a GUI (Fyne), um compilador C (CGO habilitado —
+no Windows, MinGW-w64 funciona). A TUI (`tview`/`tcell`) não precisa de CGO.
+
 ## 5. Executar
 
-**(pendente)**
-
-Previsto:
-
 ```console
-goBaDig --help                 # lista de comandos/flags
-goBaDig <arquivo> -id msx      # converte um fonte Dignified MSX
+goBaDig                        # banner curto
+goBaDig --help                 # lista de opções
+goBaDig --man                  # referência estilo "man" (só o "about" nesta versão)
 goBaDig --tui                  # abre a interface de terminal
 goBaDig --gui                  # abre a interface gráfica (Fyne)
 ```
+
+Nesta versão (stub, release 1.1.2), a TUI mostra um menu
+`File > Exit` / `Help > About`, e a GUI uma janela com o mesmo menu —
+nenhuma conversão de BASIC acontece ainda. O argumento `<arquivo> -id
+msx` (conversão de fato) chega junto com os Blocos 1-4 do `OUTLINE.md`.
 
 ## 6. Converter um programa Dignified
 
@@ -130,12 +131,26 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
    projeto Python.
 2. **Sublime Text** — pacotes equivalentes (syntax, build system,
    snippets), um por plataforma ou unificados, a definir.
-3. **Editor próprio** (baseado no Norton Editor 2.0, já existente em
-   outro local do usuário) — **fora de escopo por enquanto**, tratado
-   como item futuro separado.
+3. **Editor próprio** (baseado no Norton Editor 2.0) — o usuário já tem
+   implementações prontas em outros projetos (`msxide`: Norton Editor
+   para TUI e um editor GUI com as mesmas teclas/funções do NE2;
+   `paleobasic`: também tem o NE) — **fora de escopo de implementação
+   por enquanto**, tratado como item futuro separado. Ver
+   `docs/RESOURCES.md`.
 4. **Notepad++ e UltraEdit** — avaliação de viabilidade (provavelmente
    via arquivos de realce de sintaxe/UDL próprios de cada editor),
    prioridade baixa, "se for possível".
+
+### Sistema de ajuda e manuais de BASIC embutidos
+
+- **CLI**: `--help` (opções) e `--man` (referência estilo `man` do
+  Unix — nesta versão só o "about"; depois vai cobrir as opções do
+  BaDig em detalhe **e os manuais de sintaxe BASIC do MSX, ZX81 e ZX
+  Spectrum**, reaproveitando material já existente do usuário em
+  outros projetos próprios, `fwMSX` e `go81` — ver `docs/RESOURCES.md`
+  e `OUTLINE.md`, seção 10.7).
+- **TUI e GUI**: ajuda tradicional via menu `Help > About` (implementado
+  nesta versão); um visualizador do mesmo manual embutido vem depois.
 
 **(pendente)** — nenhum pacote de editor Go-native existe ainda; os
 pacotes Python (`badig/*/VSCode Extension/`, `badig/*/Sublime Package/`)
