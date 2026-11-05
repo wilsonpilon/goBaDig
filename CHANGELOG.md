@@ -1,0 +1,96 @@
+# Changelog
+
+Todas as versões publicadas do goBaDig, da primeira à mais recente
+(mais recente no topo). Cada entrada aqui tem também um documento de
+release equivalente em [`docs/releases/`](docs/releases/), com o mesmo
+conteúdo publicado na página de Releases do GitHub.
+
+## Esquema de versionamento (`X.Y.Z`)
+
+Convenção definida pelo autor do projeto, diferente de SemVer tradicional:
+
+- **`Z`** — incrementado a **cada compilação/build** gerada.
+- **`Y`** — incrementado a **cada feature nova** (incluída, solicitada
+  ou testada); carrega um **nome resumido** do que foi feito (ex.:
+  `2.3.0-fn-nativo`, `2.4.0-tap-tzx`). `Z` reinicia em `0` quando `Y` sobe.
+- **`X`** — um **bloco grande** de mudanças: um conjunto de features
+  concluídas/testadas que forma um marco maior. Recebe o **nome de um
+  comando de BASIC** (de qualquer um dos três dialetos — MSX, ZX81 ou
+  ZX Spectrum), ex.: `1.0.0-PRINT`, `2.0.0-GOTO`. `Y` e `Z` reiniciam em
+  `0` quando `X` sobe.
+
+> Esta é a interpretação registrada nesta sessão de planejamento — ver
+> `OUTLINE.md`, seção "Perguntas em aberto", para confirmar/ajustar o
+> comportamento exato de reset de `Y`/`Z` e o formato do nome anexado à
+> tag antes do primeiro release real.
+
+## Empacotamento de release
+
+Cada release publicado gera um único pacote `goBaDig-vX.Y.Z.zip`
+(nome do projeto + versão), contendo o executável, documentação mínima e
+exemplos — ver [`dist/README.md`](dist/README.md) para a estrutura
+exata do pacote.
+
+---
+
+## [Não lançado]
+
+_(nada ainda — o trabalho em andamento desde o release 1.1.1 aparece
+aqui até o próximo release ser publicado.)_
+
+---
+
+## [1.1.1] — 2026-11-05 — bloco **NEW**, feature **outline**
+
+> Nomes de bloco (`X`) e feature (`Y`) propostos nesta sessão como
+> primeira aplicação do esquema de versionamento acima — `NEW` por ser
+> o comando BASIC (presente nos três dialetos) que limpa a memória e
+> começa um programa do zero, metáfora para este ser o ponto de partida
+> do projeto; `outline` por esta release conter só o plano e a estrutura,
+> nenhum código funcional. Renomear livremente se preferir outros nomes.
+
+**Release inicial do projeto — "nossa partida".** Nenhuma linha de
+código Go existe ainda; esta versão marca o fim da fase de análise e o
+início formal do repositório, com toda a arquitetura, o escopo e a
+divisão de trabalho documentados.
+
+### Adicionado
+
+- Análise técnica completa do projeto Python original (`badig/`):
+  núcleo do motor (`badig.py`/`support/`), módulos MSX/ZX81/ZX Spectrum,
+  documentação original e as três extensões VSCode existentes.
+- `OUTLINE.md` — plano vivo de arquitetura, decisões e divisão do
+  trabalho em 11 blocos (pesos/prioridades), com perguntas em aberto
+  registradas para o usuário decidir.
+- Estrutura de diretórios do projeto: `dist/`, `resource/` (não
+  versionados, exceto um `README.md` cada), `examples/` (com subpastas
+  por plataforma), `docs/` (`MANUAL.md`, `RESOURCES.md`, `releases/`).
+- Documentação nova: `README.md` (vitrine do projeto), `CHANGELOG.md`
+  (este arquivo, com o esquema de versionamento), `docs/MANUAL.md`
+  (manual de uso, em boa parte "(pendente)" até existir código),
+  `docs/RESOURCES.md` (recursos externos: emuladores, ROMs, fontes).
+- Esquema de versionamento `X.Y.Z` definido (ver seção acima).
+- Escopo de emuladores ampliado: além de openMSX, EightyOne e
+  Spectaculator, o projeto passa a visar também **fMSX** (MSX),
+  **ZEsarUX** (ZX81/ZX Spectrum, com protocolo de controle remoto ZRCP)
+  e **sz81/XZ81** (ZX81, Linux).
+- Escopo de formatos de mídia ampliado: além de TAP/TZX/Z80/SNA
+  (Spectrum) e `.p` (ZX81), o projeto passa a visar `.CAS`/`.DSK` (MSX)
+  e `.81`/`.p81` (ZX81); `.DSK` +3 do Spectrum fica como item opcional
+  de baixa prioridade.
+- Suporte a editores priorizado: VSCode (1), Sublime Text (2). Um
+  editor próprio baseado no Norton Editor 2.0 é mencionado como visão de
+  longo prazo, mas **fica fora de escopo por enquanto**. Notepad++ e
+  UltraEdit ficam como alvos opcionais ("se for possível").
+
+### Observações
+
+- Vários arquivos de documentação do projeto Python original
+  (`badig/README.md`, `badig/documentation/*.md`) têm marcadores de
+  merge conflict não resolvidos entre os branches ZX81 e ZX Spectrum —
+  registrado como pendência em `OUTLINE.md`.
+- `badig/` (o projeto Python original) permanece **fora do controle de
+  versão neste repositório Go** por enquanto — decisão deliberadamente
+  não tomada nesta release, para evitar importar binários (`.exe`,
+  `.pyc`, `.vsix`) para o histórico do Git sem confirmação explícita.
+  Ver `docs/RESOURCES.md`, seção "Material do projeto Python original".
