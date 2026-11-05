@@ -544,6 +544,12 @@ de código Go começa do zero.
   `go vet` e `go test ./...` passando; binário testado em runtime (CLI,
   TUI e GUI abrem e fecham sem erro no Windows). — 2026-11-05 (release
   1.1.2). Pendente ainda: lint/format formal e pipeline de CI.
+- [x] `build.ps1` (raiz do repo): automatiza `go mod download` + `go vet`
+  + `go test` + `go build` + montagem do pacote `dist/goBaDig-vX.Y.Z/`
+  e o zip, lendo a versão direto de `internal/version/version.go`.
+  Testado de ponta a ponta (build completo e com `-SkipDownload
+  -SkipTests`). Não cria tag/release — isso continua manual. Ainda não
+  liberado como release próprio (só o script em si). — 2026-11-05.
 - [ ] Completar `internal/core`, `internal/config`, `internal/platforms`,
   `internal/emulator` (ver seção 10.4) — esta fatia inicial só cobre
   CLI/TUI/GUI stub, não o motor. — **B**, **1**

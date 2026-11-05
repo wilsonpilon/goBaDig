@@ -80,6 +80,24 @@ go build ./cmd/goBaDig
 Requer Go 1.21+ e, para a GUI (Fyne), um compilador C (CGO habilitado —
 no Windows, MinGW-w64 funciona). A TUI (`tview`/`tcell`) não precisa de CGO.
 
+### Build automatizado (`build.ps1`)
+
+No Windows, `build.ps1` (raiz do repositório) automatiza todo o processo
+de release local: baixa as dependências (`go mod download`), roda
+`go vet`/`go test`, compila e monta o pacote completo em
+`dist/goBaDig-vX.Y.Z/` + o zip `dist/goBaDig-vX.Y.Z.zip`, com a versão
+lida direto de `internal/version/version.go` (não precisa editar o
+script a cada release).
+
+```powershell
+.\build.ps1                       # build completo (deps + testes + pacote)
+.\build.ps1 -SkipTests            # pula go vet/go test
+.\build.ps1 -SkipDownload         # pula go mod download (rebuild offline)
+```
+
+Ele **não** cria tag Git nem release no GitHub — isso continua sendo um
+passo manual/deliberado (ver histórico em `docs/releases/`).
+
 ## 5. Executar
 
 ```console

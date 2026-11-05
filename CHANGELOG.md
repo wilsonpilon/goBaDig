@@ -35,8 +35,14 @@ exata do pacote.
 
 ## [Não lançado]
 
-_(nada ainda — o trabalho em andamento desde o release 1.1.4 aparece
-aqui até o próximo release ser publicado.)_
+### Adicionado
+
+- `build.ps1` (raiz do repo): script PowerShell que automatiza o build
+  local completo — baixa dependências (`go mod download`), roda
+  `go vet`/`go test`, compila e monta `dist/goBaDig-vX.Y.Z/` + o zip,
+  lendo a versão direto de `internal/version/version.go`. Não cria tag
+  Git nem release no GitHub (continua manual). Testado de ponta a
+  ponta, inclusive com `-SkipDownload -SkipTests`.
 
 ---
 
