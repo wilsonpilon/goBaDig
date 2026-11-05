@@ -26,5 +26,7 @@ func main() {
 		}
 	case cli.ModeGUI:
 		gui.Run()
+	case cli.ModeConsole:
+		cli.RunConsole(os.Stdin, os.Stdout)
 	}
 }

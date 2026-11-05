@@ -24,6 +24,7 @@ const (
 	ModeMan
 	ModeTUI
 	ModeGUI
+	ModeConsole
 )
 
 // Parse reads args (normally os.Args[1:]) and decides which mode to
@@ -42,6 +43,8 @@ func Parse(args []string) Mode {
 			return ModeTUI
 		case "-gui", "--gui":
 			return ModeGUI
+		case "-cli", "--cli":
+			return ModeConsole
 		}
 	}
 	// Unknown flag: stub behaviour is to show help rather than fail
@@ -62,8 +65,10 @@ OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
                    versao de stub traz so o "about" do projeto
     --tui          abre a interface de terminal (TUI)
     --gui          abre a interface grafica (GUI)
+    --cli          abre o modo console: um prompt interativo que fica
+                   aguardando comandos, um por linha, ate "exit"/"quit"
 
-Sem opcoes, mostra um banner curto.
+Sem opcoes, mostra um banner curto (nao entra no modo console).
 
 As tres interfaces (CLI, TUI, GUI) expoem, na medida do possivel, o
 mesmo conjunto de opcoes - ver OUTLINE.md, secao "Paridade de opcoes

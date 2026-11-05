@@ -645,7 +645,8 @@ de código Go começa do zero.
   (referência estilo man — só o "about" do projeto nesta versão),
   `--tui`/`--gui` (despacho para as interfaces interativas), banner
   padrão sem argumentos. Código em `internal/cli`, `internal/about`,
-  `internal/version`. — 2026-11-05.
+  `internal/version`. — 2026-11-05. **Atualizado na 1.1.4** com `--cli`
+  (console interativo, ver item abaixo).
 - [ ] Parser de argumentos real (flags core + flags por módulo
   compostas, equivalente aos `parent_parsers`), substituindo o
   dispatch simples do stub. — **M**, **1**
@@ -656,8 +657,13 @@ de código Go começa do zero.
   já existente do usuário (`fwMSX` para MSX, `go81` para ZX81) e a
   documentação Spectrum já extraída de `badig/documentation/ZX_SPECTRUM.md`
   — ver seção 10.7 para detalhes. — **A**, **2**
-- [ ] Modo de comando interativo (REPL simples) além do modo "um tiro"
-  por linha de comando. — **M**, **2**
+- [x] Modo de comando interativo (`--cli`, release 1.1.4): console com
+  prompt `goBaDig>` aguardando comandos linha a linha (`help`, `man`,
+  `about`, `version`, `exit`/`quit`, encerra também em EOF/Ctrl-D),
+  além do modo "um tiro" por linha de comando. Código em
+  `internal/cli/console.go`, com testes (saída e parada em EOF) e
+  teste manual via pipe. Comandos reais de conversão chegam com o
+  motor (Blocos 1-4). — 2026-11-05.
 - [ ] Detecção automática de plataforma pela extensão do arquivo (com
   `-id`/flag equivalente como override). — **B**, **2**
 

@@ -14,6 +14,7 @@ func TestParse(t *testing.T) {
 		{"man", []string{"--man"}, ModeMan},
 		{"tui", []string{"--tui"}, ModeTUI},
 		{"gui", []string{"--gui"}, ModeGUI},
+		{"cli", []string{"--cli"}, ModeConsole},
 		{"unknown flag falls back to help", []string{"--nope"}, ModeHelp},
 	}
 
@@ -39,7 +40,7 @@ func TestRunHandlesNonInteractiveModes(t *testing.T) {
 }
 
 func TestRunLeavesInteractiveModesToCaller(t *testing.T) {
-	for _, args := range [][]string{{"--tui"}, {"--gui"}} {
+	for _, args := range [][]string{{"--tui"}, {"--gui"}, {"--cli"}} {
 		handled, _ := Run(args)
 		if handled {
 			t.Fatalf("Run(%v): expected handled=false, caller must launch the mode", args)

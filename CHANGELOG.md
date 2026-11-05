@@ -35,8 +35,33 @@ exata do pacote.
 
 ## [Não lançado]
 
-_(nada ainda — o trabalho em andamento desde o release 1.1.3 aparece
+_(nada ainda — o trabalho em andamento desde o release 1.1.4 aparece
 aqui até o próximo release ser publicado.)_
+
+---
+
+## [1.1.4] — 2026-11-05 — bloco **NEW**, feature **outline** (build 4)
+
+**Modo console interativo** (`--cli`): um prompt de verdade, que fica
+aguardando comandos do usuário — faltava isso para fechar a paridade
+entre CLI/TUI/GUI (as três agora têm um modo interativo dedicado:
+`--cli`, `--tui`, `--gui`).
+
+### Adicionado
+
+- `goBaDig --cli` abre um console com prompt `goBaDig> `, que lê
+  comandos linha a linha até `exit`/`quit` ou fim de entrada (Ctrl-D).
+- Comandos do stub: `help`, `man`, `about`, `version`; comando
+  desconhecido avisa e continua no prompt (não derruba o console).
+- Testes automatizados (saída esperada, parada limpa em EOF) e teste
+  manual via pipe de comandos.
+
+### Observações
+
+- Comandos reais de conversão (abrir arquivo, escolher plataforma,
+  tokenizar, rodar emulador) chegam junto com o motor (Blocos 1-4 do
+  `OUTLINE.md`) — por ora o console só tem os comandos de
+  ajuda/identidade que já existiam como flags.
 
 ---
 

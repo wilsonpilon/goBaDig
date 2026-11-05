@@ -5,7 +5,7 @@ package version
 // Version follows the project's own X.Y.Z scheme (see CHANGELOG.md),
 // not SemVer: X is a named block of finished work, Y a named feature
 // within that block, Z a build counter within that feature.
-const Version = "1.1.3"
+const Version = "1.1.4"
 
 // Block is the BASIC-command name attached to X.
 const Block = "NEW"

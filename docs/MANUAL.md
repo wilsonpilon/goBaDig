@@ -64,8 +64,9 @@ repositório no GitHub. Cada pacote contém o executável, documentação
 mínima e exemplos — pronto para extrair e rodar sem instalar nada além
 dos emuladores externos (ver seção 2), quando a integração de
 emulador existir. Ver `CHANGELOG.md` para a lista de versões
-publicadas. **Estado atual (1.1.3): programa STUB** — só o `--help`,
-`--man`, e as interfaces TUI/GUI com `File > Exit`/`Help > About`
+publicadas. **Estado atual (1.1.4): programa STUB** — só o `--help`,
+`--man`, o console `--cli`, e as interfaces TUI/GUI com
+`File > Exit`/`Help > About`
 funcionam; não há conversor/tokenizer ainda.
 
 ## 4. Compilar a partir do código-fonte
@@ -82,12 +83,19 @@ no Windows, MinGW-w64 funciona). A TUI (`tview`/`tcell`) não precisa de CGO.
 ## 5. Executar
 
 ```console
-goBaDig                        # banner curto
+goBaDig                        # banner curto (não entra no console)
 goBaDig --help                 # lista de opções
 goBaDig --man                  # referência estilo "man" (só o "about" nesta versão)
 goBaDig --tui                  # abre a interface de terminal
 goBaDig --gui                  # abre a interface gráfica (Fyne)
+goBaDig --cli                  # abre o console interativo (prompt "goBaDig>")
 ```
+
+No modo `--cli`, o prompt fica aguardando comandos, um por linha —
+igual a um console de verdade. Comandos disponíveis nesta versão:
+`help`, `man`, `about`, `version`, `exit`/`quit` (ou `Ctrl-D` para
+sair). Comandos reais de conversão chegam junto com o motor (Blocos
+1-4 do `OUTLINE.md`).
 
 Nesta versão (stub, release 1.1.3), a TUI mostra um **menu suspenso
 clássico estilo Turbo Pascal 7 / Norton Commander / Norton Editor**:
