@@ -5,8 +5,14 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05.
-Estado: **fase de análise/planejamento concluída. Nenhum código Go escrito ainda.**
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-05
+(fim da sessão do dia).
+Estado: **stub funcional v1.1.4 publicado** (CLI `--help`/`--man`/`--cli`,
+TUI com menu suspenso estilo DOS, GUI Fyne com `File`/`Help`) +
+`build.ps1` para automatizar build/empacotamento local. O motor de
+conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
+ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
+de verdade.
 
 ---
 
@@ -883,32 +889,41 @@ goBaDig/
 rastreado cada um (ver seção 10.5) e o restante do conteúdo ignorado via
 `.gitignore`.
 
-### 10.4 Estrutura de diretórios do código Go (proposta, ainda não criada)
+### 10.4 Estrutura de diretórios do código Go
 
 Princípio: módulos agrupados por **função lógica**, não por plataforma
-misturada com infraestrutura. Proposta inicial (a refinar no Bloco 0/1):
+misturada com infraestrutura. Estado real em 2026-11-05 (releases
+1.1.2-1.1.4 + `build.ps1`) marcado com `[x]`; o resto é proposta a
+refinar no Bloco 0/1:
 
 ```
 cmd/
-  goBaDig/                main() — CLI/TUI/GUI entrypoint único, flags decidem o modo
+  goBaDig/            [x] main() — CLI/TUI/GUI entrypoint único, flags decidem o modo
 internal/
-  core/                   Token, Position, CompileContext, interfaces Description/Lexer/Parser/Settings/Expose,
-                           scanner manual, pipeline de 5 passes + generate, alocador de variável por categoria
-  config/                 camada SQLite (config global/projeto, keywords/tokens por dialeto)
+  about/              [x] texto "about"/"man" compartilhado pelas 3 interfaces
+  cli/                [x] --help/--man/--cli (console interativo), dispatch
+  tui/                [x] menu suspenso estilo DOS (tview/tcell) — só File/Help por ora
+  gui/                [x] janela com menu File/Help (Fyne) — só stub por ora
+  version/            [x] versão/bloco/feature (X.Y.Z)
+  core/               [ ] Token, Position, CompileContext, interfaces Description/Lexer/
+                          Parser/Settings/Expose, scanner manual, pipeline de 5 passes +
+                          generate, alocador de variável por categoria
+  config/             [ ] camada SQLite (config global/projeto, keywords/tokens por dialeto)
   platforms/
-    msx/                  Description/Lexer/Parser MSX, tokenizer MSX Batoken, DignifieR MSX
-    zx81/                 idem ZX81, formato .p
-    zxspectrum/           idem ZX Spectrum, TAP/TZX, (futuro) Z80/SNA
-  emulator/               interface EmulatorController + implementações (openMSX, EightyOne, Spectaculator)
-  tui/                    telas tview/tcell
-  gui/                    telas Fyne
+    msx/              [ ] Description/Lexer/Parser MSX, tokenizer MSX Batoken, DignifieR MSX
+    zx81/              [ ] idem ZX81, formato .p
+    zxspectrum/        [ ] idem ZX Spectrum, TAP/TZX, (futuro) Z80/SNA
+  emulator/           [ ] interface EmulatorController + implementações (openMSX, EightyOne, Spectaculator)
 editors/
-  vscode/                 fonte do VSIX único (grammars, snippets, tasks, settings)
-  sublime/                pacotes Sublime Text
+  vscode/             [ ] fonte do VSIX único (grammars, snippets, tasks, settings)
+  sublime/            [ ] pacotes Sublime Text
+build.ps1             [x] automatiza build local + empacotamento em dist/
 ```
 
-Esta árvore **ainda não foi criada** — fica registrada aqui como plano;
-será materializada no Bloco 0/1 conforme as perguntas da seção 11 forem
+`internal/core`, `internal/config`, `internal/platforms/*`,
+`internal/emulator` e `editors/*` **ainda não existem** — nenhuma
+conversão de BASIC é possível hoje, só o stub de interface. Serão
+materializados nos Blocos 1-4/8 conforme as perguntas da seção 8 forem
 respondidas.
 
 ### 10.5 Conjunto de documentação
