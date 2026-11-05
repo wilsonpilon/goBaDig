@@ -4,9 +4,10 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **stub inicial** (v1.1.2). Existe um binário real com `--help`,
-> `--man`, e TUI/GUI mínimas (`File > Exit`, `Help > About`) — ainda sem
-> conversor/tokenizer de BASIC. Ver [`OUTLINE.md`](OUTLINE.md) para o
+> Status: **stub inicial** (v1.1.3). Existe um binário real com `--help`,
+> `--man`, e TUI/GUI mínimas (`File > Exit`, `Help > About`) — a TUI já
+> usa um menu suspenso clássico estilo Turbo Pascal 7/Norton Commander
+> — ainda sem conversor/tokenizer de BASIC. Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.

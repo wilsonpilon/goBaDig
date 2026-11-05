@@ -35,8 +35,41 @@ exata do pacote.
 
 ## [Não lançado]
 
-_(nada ainda — o trabalho em andamento desde o release 1.1.2 aparece
+_(nada ainda — o trabalho em andamento desde o release 1.1.3 aparece
 aqui até o próximo release ser publicado.)_
+
+---
+
+## [1.1.3] — 2026-11-05 — bloco **NEW**, feature **outline** (build 3)
+
+**Menu da TUI reescrito** a pedido do usuário: em vez do menu em tela
+cheia da 1.1.2, agora é um **menu suspenso clássico de MS-DOS dos anos
+1990**, no estilo Turbo Pascal 7 / Norton Commander / Norton Editor.
+
+### Adicionado
+
+- Barra de menu fixa no topo (`File`, `Help`), item ativo destacado com
+  cores invertidas (branco sobre azul), paleta clássica DOS (barra
+  clara, "desktop" azul).
+- Caixa suspensa (dropdown) desenhada **sobre** o conteúdo, posicionada
+  diretamente abaixo do item da barra — não substitui a tela como antes.
+- Navegação: setas Esquerda/Direita movem entre itens da barra; com o
+  menu aberto, Esquerda/Direita troca direto para o dropdown vizinho
+  (padrão clássico Turbo Pascal); Cima/Baixo navegam os itens do
+  dropdown; `Enter`/`Down`/`F10` abrem; `Esc` fecha o suspenso;
+  `Alt+letra` abre o menu direto pela primeira letra (`Alt+F`, `Alt+H`).
+- Diálogo "About" recolorido para combinar com a paleta clássica.
+
+### Observações
+
+- Sombra de borda (drop shadow) do visual original do Turbo
+  Pascal/Norton Commander **não foi implementada** — custo de
+  engenharia desproporcional para um stub; pode voltar depois como
+  polimento visual.
+- Clique de mouse funciona nos itens do dropdown (nativo do
+  `tview.List`), mas ainda não na barra superior em si.
+- GUI (Fyne) não muda nesta release — continua com o menu nativo do
+  sistema operacional, como antes.
 
 ---
 

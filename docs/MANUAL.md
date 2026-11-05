@@ -64,7 +64,7 @@ repositório no GitHub. Cada pacote contém o executável, documentação
 mínima e exemplos — pronto para extrair e rodar sem instalar nada além
 dos emuladores externos (ver seção 2), quando a integração de
 emulador existir. Ver `CHANGELOG.md` para a lista de versões
-publicadas. **Estado atual (1.1.2): programa STUB** — só o `--help`,
+publicadas. **Estado atual (1.1.3): programa STUB** — só o `--help`,
 `--man`, e as interfaces TUI/GUI com `File > Exit`/`Help > About`
 funcionam; não há conversor/tokenizer ainda.
 
@@ -89,9 +89,14 @@ goBaDig --tui                  # abre a interface de terminal
 goBaDig --gui                  # abre a interface gráfica (Fyne)
 ```
 
-Nesta versão (stub, release 1.1.2), a TUI mostra um menu
-`File > Exit` / `Help > About`, e a GUI uma janela com o mesmo menu —
-nenhuma conversão de BASIC acontece ainda. O argumento `<arquivo> -id
+Nesta versão (stub, release 1.1.3), a TUI mostra um **menu suspenso
+clássico estilo Turbo Pascal 7 / Norton Commander / Norton Editor**:
+barra fixa no topo (`File`, `Help`), item ativo em destaque invertido,
+caixa flutuante com a submenu sobre o conteúdo (não substitui a tela).
+Navegação: setas ou `Alt+letra` movem/abrem o menu, `Enter` confirma,
+`Esc` fecha o menu suspenso. A GUI mostra uma janela com o mesmo menu
+`File > Exit` / `Help > About` (nativo Fyne) — nenhuma conversão de
+BASIC acontece ainda em nenhuma das duas. O argumento `<arquivo> -id
 msx` (conversão de fato) chega junto com os Blocos 1-4 do `OUTLINE.md`.
 
 ## 6. Converter um programa Dignified

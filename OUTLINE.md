@@ -665,6 +665,21 @@ de código Go começa do zero.
 
 - [x] **Stub** (release 1.1.2): menu `File > Exit` e `Help > About`,
   navegação por `Enter`/`Esc`. Código em `internal/tui`. — 2026-11-05.
+- [x] **Menu suspenso estilo DOS clássico** (release 1.1.3, pedido
+  explícito do usuário): substituído o menu em tela cheia por uma
+  barra fixa no topo (`File`, `Help`) com item ativo em destaque
+  invertido e caixa flutuante sobre o conteúdo — visual e navegação no
+  estilo **Turbo Pascal 7 / Norton Commander / Norton Editor**. Setas
+  movem entre itens da barra; com o menu aberto, Esquerda/Direita troca
+  direto para o menu vizinho (padrão TP7); `Alt+letra` abre direto;
+  `Enter`/`F10` abre; `Esc` fecha o suspenso. Implementado com
+  `tview.Pages` + `Flex` com espaçadores `nil` (truque padrão do tview
+  para sobrepor uma caixa sem apagar o conteúdo por baixo). Testado em
+  runtime (abre/fecha sem erro). **Não implementado ainda**: sombra de
+  borda (drop shadow) característica do visual original — ficou de
+  fora por custo de engenharia desproporcional ao stub; suporte a
+  clique de mouse na barra (os itens do dropdown já aceitam clique,
+  nativo do `tview.List` — só a barra em si ainda não). — 2026-11-05.
 - [ ] Tela de configuração (equivalente ao que hoje são os `.ini`/remtags):
   editar config SQLite global/projeto. — **M**, **2**
 - [ ] Tela de pré-processamento em lote (escolher arquivos, plataforma,
