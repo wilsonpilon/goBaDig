@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/wilsonpilon/goBaDig/internal/cli"
@@ -22,11 +23,18 @@ func main() {
 	switch cli.Parse(args) {
 	case cli.ModeTUI:
 		if err := tui.Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "goBaDig:", err)
 			os.Exit(1)
 		}
 	case cli.ModeGUI:
-		gui.Run()
+		if err := gui.Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "goBaDig:", err)
+			os.Exit(1)
+		}
 	case cli.ModeConsole:
-		cli.RunConsole(os.Stdin, os.Stdout)
+		if err := cli.RunConsole(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "goBaDig:", err)
+			os.Exit(1)
+		}
 	}
 }

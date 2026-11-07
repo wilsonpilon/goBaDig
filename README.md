@@ -4,11 +4,11 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **stub inicial** (v1.1.4). Existe um binário real com `--help`,
-> `--man`, um console interativo (`--cli`, prompt `goBaDig>`) e TUI/GUI
-> mínimas (`File > Exit`, `Help > About`) — a TUI já usa um menu
-> suspenso clássico estilo Turbo Pascal 7/Norton Commander — ainda sem
-> conversor/tokenizer de BASIC. Ver [`OUTLINE.md`](OUTLINE.md) para o
+> Status: **stub funcional** (última release v1.1.4; desenvolvimento
+> v1.2.0). Tem `--help`, `--man`, console interativo com temas e Tab e
+> temas na GUI. A TUI está em redesign: `Setup > Install` congela e será
+> refeita na próxima sessão; ainda não há conversor/tokenizer de BASIC.
+> Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.
@@ -47,9 +47,12 @@ cada formato de mídia/fita/disco.
 
 - **CLI**: parâmetros de linha de comando, igual ao projeto original,
   scriptável e pronto para CI/editor.
-- **Modo interativo**: comandos digitados diretamente.
+- **Modo interativo (`--cli`)**: comandos digitados diretamente, seleção
+  de tema com `theme <nome>` e conclusão com `Tab` (duplo `Tab` lista as
+  opções disponíveis).
 - **TUI**: interface de terminal (`tview`/`tcell`) para configurar e
-  pré-processar arquivos como um gerenciador.
+  pré-processar arquivos como um gerenciador, com menu suspenso e temas
+  selecionáveis em `Setup > Install`.
 - **GUI**: interface gráfica (`Fyne`), mesma ideia da TUI, para quem
   prefere mouse.
 - **VSIX único**: uma extensão VSCode só, cobrindo os três dialetos,
@@ -61,7 +64,7 @@ cada formato de mídia/fita/disco.
 ## Ferramentas e tecnologias usadas
 
 - [Go](https://go.dev/) — linguagem do projeto.
-- SQLite (driver a confirmar — puro-Go vs. CGO, ver `OUTLINE.md`) —
+- SQLite (`modernc.org/sqlite`, puro Go) —
   armazenamento de configuração, palavras-chave e opções.
 - [tview](https://github.com/rivo/tview) / [tcell](https://github.com/gdamore/tcell) — interface TUI.
 - [Fyne](https://fyne.io/) — interface GUI.

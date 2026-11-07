@@ -64,10 +64,10 @@ repositório no GitHub. Cada pacote contém o executável, documentação
 mínima e exemplos — pronto para extrair e rodar sem instalar nada além
 dos emuladores externos (ver seção 2), quando a integração de
 emulador existir. Ver `CHANGELOG.md` para a lista de versões
-publicadas. **Estado atual (1.1.4): programa STUB** — só o `--help`,
-`--man`, o console `--cli`, e as interfaces TUI/GUI com
-`File > Exit`/`Help > About`
-funcionam; não há conversor/tokenizer ainda.
+publicadas. **Código em desenvolvimento (1.2.0, não publicado):** `--help`,
+`--man`, o console `--cli` (com seleção de tema e conclusão por Tab) e a
+GUI com temas. A TUI está em redesign; abrir `Setup > Install` congela a
+interface na implementação atual. Não há conversor/tokenizer ainda.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -109,21 +109,31 @@ goBaDig --gui                  # abre a interface gráfica (Fyne)
 goBaDig --cli                  # abre o console interativo (prompt "goBaDig>")
 ```
 
-No modo `--cli`, o prompt fica aguardando comandos, um por linha —
-igual a um console de verdade. Comandos disponíveis nesta versão:
-`help`, `man`, `about`, `version`, `exit`/`quit` (ou `Ctrl-D` para
-sair). Comandos reais de conversão chegam junto com o motor (Blocos
-1-4 do `OUTLINE.md`).
+No modo `--cli`, o prompt aceita `help`, `man`, `about`, `version`,
+`theme [nome]` e `exit`/`quit` (ou `Ctrl-D` para sair). `theme` sem
+argumento mostra o tema ativo e a lista; por exemplo, `theme dracula`
+ou `theme Solarized Light` troca o tema persistido para o console. Em um
+terminal interativo, `Tab` completa comandos e temas; pressione `Tab`
+novamente para listar as alternativas (por exemplo, depois de `theme `).
+A cor do prompt acompanha o tema selecionado. Comandos reais de conversão
+chegam junto com o motor (Blocos 1-4 do `OUTLINE.md`).
 
-Nesta versão (stub, release 1.1.3), a TUI mostra um **menu suspenso
-clássico estilo Turbo Pascal 7 / Norton Commander / Norton Editor**:
-barra fixa no topo (`File`, `Help`), item ativo em destaque invertido,
-caixa flutuante com a submenu sobre o conteúdo (não substitui a tela).
+Na TUI, há um **desktop clássico inspirado no Turbo Pascal 6, QuickBasic
+e Norton Editor 2.0**: fundo azul, barra de título, menu suspenso,
+espaço de trabalho e barra de status. `Setup > Install` abre uma janela
+central com um campo dropdown para o tema, a descrição correspondente e
+os botões `Apply` e `Cancel`. As setas navegam os menus e campos; Enter
+abre/seleciona e Esc fecha/cancela. Os seis temas são independentes dos
+temas da GUI e a seleção é aplicada na hora e persistida em SQLite.
 Navegação: setas ou `Alt+letra` movem/abrem o menu, `Enter` confirma,
 `Esc` fecha o menu suspenso. A GUI mostra uma janela com o mesmo menu
-`File > Exit` / `Help > About` (nativo Fyne) — nenhuma conversão de
-BASIC acontece ainda em nenhuma das duas. O argumento `<arquivo> -id
-msx` (conversão de fato) chega junto com os Blocos 1-4 do `OUTLINE.md`.
+`File > Exit` / `Help > About` (nativo Fyne) e `Setup > Install`, onde
+é possível escolher entre seis temas inspirados em VS Code Dark, Dracula,
+Monokai, Nord, Solarized Light e Gruvbox Dark. A escolha da GUI também é
+aplicada na hora e persistida em SQLite no diretório de configuração do
+usuário. Nenhuma conversão de BASIC
+acontece ainda em nenhuma das duas. O argumento `<arquivo> -id msx`
+(conversão de fato) chega junto com os Blocos 1-4 do `OUTLINE.md`.
 
 ## 6. Converter um programa Dignified
 

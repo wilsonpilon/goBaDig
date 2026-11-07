@@ -5,11 +5,14 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-05
-(fim da sessão do dia).
-Estado: **stub funcional v1.1.4 publicado** (CLI `--help`/`--man`/`--cli`,
-TUI com menu suspenso estilo DOS, GUI Fyne com `File`/`Help`) +
-`build.ps1` para automatizar build/empacotamento local. O motor de
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-07.
+Estado: **stub funcional v1.1.4 publicado; v1.2.0 em desenvolvimento e
+nao publicado**. CLI com temas e conclusao Tab; GUI com temas persistidos;
+TUI em redesign: a implementacao visual atual congela ao abrir
+`Setup > Install` e nao deve ser considerada pronta. Na proxima sessao,
+recomecar o desenho da TUI do zero, definindo primeiro o fluxo visual e de
+teclado com base nas referencias Turbo Pascal 6, QuickBasic e Norton
+Editor 2.0. O motor de
 conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
 ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
 de verdade.
@@ -505,6 +508,10 @@ seção 7). Não é código ainda.
    `.ini` por módulo: tabelas por `system_id` (namespace), com uma tabela
    de keywords/tokens por dialeto (pode inclusive servir de fonte única
    para o VSIX gerar grammars/snippets automaticamente — avaliar).
+   **Decisão em 2026-11-07:** usar `modernc.org/sqlite` (puro Go, sem
+   CGO). A primeira fatia do schema foi implementada para temas: tabela
+   `themes` guarda o catálogo e tabela `active_themes` guarda a seleção
+   separadamente, por modo (`gui` já; TUI/CLI quando receberem temas).
 8. **Tokenizers isolados do CLI**, testáveis por vetor de bytes fixo
    (entrada textual → saída binária esperada), usando os testes Python
    existentes (Spectrum: 69 casos; ZX81: ~549 linhas de teste) como
@@ -533,8 +540,8 @@ seção 7). Não é código ainda.
 
 Legenda de peso: **B**=baixo, **M**=médio, **A**=alto.
 Prioridade: **1**=essencial ao MVP, **2**=importante mas adiável,
-**3**=opcional/tardio. Nada abaixo está concluído ainda — todo o trabalho
-de código Go começa do zero.
+**3**=opcional/tardio. Itens marcados `[x]` já foram concluídos; o motor
+de conversão e os módulos de plataforma seguem pendentes.
 
 ### Bloco 0 — Fundamentos do projeto Go
 
@@ -556,11 +563,14 @@ de código Go começa do zero.
   Testado de ponta a ponta (build completo e com `-SkipDownload
   -SkipTests`). Não cria tag/release — isso continua manual. Ainda não
   liberado como release próprio (só o script em si). — 2026-11-05.
+- [x] Driver SQLite puro Go (`modernc.org/sqlite`) escolhido e primeira
+  fatia do schema implementada: catálogo `themes` e seleção separada em
+  `active_themes`, organizados por modo de interface. — 2026-11-07.
 - [ ] Completar `internal/core`, `internal/config`, `internal/platforms`,
   `internal/emulator` (ver seção 10.4) — esta fatia inicial só cobre
   CLI/TUI/GUI stub, não o motor. — **B**, **1**
-- [ ] Escolher driver SQLite (puro-Go, ex. `modernc.org/sqlite`, para
-  evitar CGO e manter build de binário único simples). — **B**, **1**
+- [x] Escolher driver SQLite: `modernc.org/sqlite`, sem CGO para essa
+  dependência. — 2026-11-07.
 - [ ] Desenhar schema SQLite inicial: config global, config por projeto,
   tabela de keywords/tokens por dialeto, tabela de settings de emulador/
   tokenizer por plataforma. — **M**, **1**
@@ -715,6 +725,11 @@ de código Go começa do zero.
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
   `Help > About` (diálogo nativo Fyne). Código em `internal/gui`. — 2026-11-05.
 - [ ] Janela principal com gerenciador de projetos/arquivos. — **M**, **2**
+- [x] Catálogo inicial de seis temas coloridos para GUI, com seleção
+  pelo menu `Setup > Install`; a seleção ativa é gravada no SQLite e o
+  tema é aplicado imediatamente e restaurado na próxima inicialização.
+  Catálogo e seleção ficam em tabelas distintas, organizadas por modo
+  (`themes` e `active_themes`). — 2026-11-07.
 - [ ] Tela de configuração equivalente à TUI, mas gráfica. — **M**, **2**
 - [ ] Execução de pré-processamento com feedback visual de erro
   (aproveitando `Position` para apontar linha/coluna exata). — **M**, **2**
@@ -808,9 +823,9 @@ Notepad++/UltraEdit (opcional, "se for possível").
 5. **Snapshots Z80/SNA via emulador Z80 em Go** (eliminando SkoolKit):
    confirma que isso fica para fase tardia (Bloco 10), e que a v1 do
    Spectrum entrega só TAP/TZX?
-6. **Driver SQLite**: aceitar `modernc.org/sqlite` (puro Go, sem CGO, mais
-   fácil de distribuir como binário único) ou preferir `mattn/go-sqlite3`
-   (CGO, mais maduro mas exige toolchain C no build)?
+6. **Driver SQLite — resolvido em 2026-11-07:** `modernc.org/sqlite`
+   (puro Go, sem CGO para a camada SQLite). A escolha já está registrada
+   no Bloco 0 e a primeira fatia de schema foi criada para temas.
 7. **TUI e GUI**: rodam como modos do mesmo binário (`goBaDig --tui`,
    `goBaDig --gui`) ou como binários/comandos separados?
 8. **Reset de `Y`/`Z` no esquema de versionamento** (seção 10.1):
@@ -908,7 +923,7 @@ internal/
   core/               [ ] Token, Position, CompileContext, interfaces Description/Lexer/
                           Parser/Settings/Expose, scanner manual, pipeline de 5 passes +
                           generate, alocador de variável por categoria
-  config/             [ ] camada SQLite (config global/projeto, keywords/tokens por dialeto)
+  config/             [x parcial] SQLite (schema inicial de temas; config global/projeto e keywords pendentes)
   platforms/
     msx/              [ ] Description/Lexer/Parser MSX, tokenizer MSX Batoken, DignifieR MSX
     zx81/              [ ] idem ZX81, formato .p

@@ -37,6 +37,23 @@ exata do pacote.
 
 ### Adicionado
 
+- Catálogo inicial de seis temas para a GUI (VS Code Dark, Dracula,
+  Monokai, Nord, Solarized Light e Gruvbox Dark), selecionáveis em
+  `Setup > Install`; a seleção é aplicada imediatamente e persistida
+  separadamente do catálogo no SQLite do usuário.
+- Catálogos e preferências independentes dos mesmos seis temas para a TUI
+  (`Setup > Install`) e para a CLI (`theme <nome>`), ambos persistidos no
+  SQLite do usuário.
+- TUI reorganizada como desktop clássico de terminal, com barra de título,
+  fundo azul, menu, área de trabalho e barra de status; `Setup > Install`
+  abre um diálogo central com dropdown, descrição e botões Apply/Cancel.
+- Conclusão interativa de comandos e temas com `Tab` no console; um
+  segundo `Tab` lista as opções disponíveis.
+- Estado de trabalho: a TUI atual congela ao abrir `Setup > Install`;
+  o redesign da interface e do diálogo fica pendente para a próxima
+  sessão. Esta versão ainda não foi publicada.
+- Primeira fatia do armazenamento SQLite com driver puro Go
+  `modernc.org/sqlite`, tabelas `themes` e `active_themes` por modo.
 - `build.ps1` (raiz do repo): script PowerShell que automatiza o build
   local completo — baixa dependências (`go mod download`), roda
   `go vet`/`go test`, compila e monta `dist/goBaDig-vX.Y.Z/` + o zip,
