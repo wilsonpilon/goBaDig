@@ -5,17 +5,22 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-07.
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-20.
 Estado: **stub funcional v1.1.4 publicado; v1.2.0 em desenvolvimento e
 nao publicado**. CLI com temas e conclusao Tab; GUI com temas persistidos;
-TUI em redesign: a implementacao visual atual congela ao abrir
-`Setup > Install` e nao deve ser considerada pronta. Na proxima sessao,
+TUI em redesign: a implementacao visual atual **era reportada como
+congelando** ao abrir `Setup > Install` (ver investigacao em 2026-11-20,
+abaixo) e nao deve ser considerada pronta. Na proxima sessao,
 recomecar o desenho da TUI do zero, definindo primeiro o fluxo visual e de
 teclado com base nas referencias Turbo Pascal 6, QuickBasic e Norton
 Editor 2.0. O motor de
 conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
 ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
-de verdade.
+de verdade. **As 9 perguntas da seção 8 foram respondidas pelo usuário em
+2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
+ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
+anterior registrado no `resume.txt`, `C:\dos\goBaDig`, era de outra
+máquina/sessão).
 
 ---
 
@@ -69,10 +74,10 @@ para a reescrita.
   `examples/README.md`. Isso indica que o branch `suporte-zx-spectrum` nunca
   foi de fato mergeado com o que tem o ZX81 — os dois conjuntos de mudanças
   parecem ter sido colados lado a lado em texto, não integrados como código.
-  **Ação pendente:** decidir com o usuário se esses arquivos devem ser
-  resolvidos manualmente antes de servirem de referência, ou se a extração de
-  informação (como fizemos aqui) já é suficiente e os arquivos Python não
-  precisam mais ser "corrigidos" (já que serão substituídos pelo Go).
+  **Decisão do usuário em 2026-11-20:** tratar como histórico congelado —
+  não resolver os conflitos manualmente; a extração de informação já feita
+  neste `OUTLINE.md` é suficiente, já que essa documentação Python será
+  substituída pela documentação do Go.
 - O próprio `badig/OUTLINE.md` (777 linhas) já é um plano de análise extenso
   e específico da adição do ZX Spectrum ao Python, com estado de
   implementação detalhado (módulo Spectrum em v1.10.0 preview, pendências
@@ -576,9 +581,14 @@ de conversão e os módulos de plataforma seguem pendentes.
   tokenizer por plataforma. — **M**, **1**
 - [ ] Gerar vetores de ouro (golden tests) do MSX rodando o Python
   original, já que não há suíte de testes MSX hoje. — **M**, **1**
-- [ ] Decidir nomenclatura final de extensões de arquivo por plataforma
-  no Go (reaproveitar `.DMX/.AMX/.BMX`, `.DZX/.AZX/.p`, `.DZS/.AZS/.TAP/.TZX`,
-  ou propor novo esquema unificado). — **B**, **1**
+- [x] Decidir nomenclatura final de extensões de arquivo por plataforma
+  no Go: **mantidas as herdadas** (`.DMX/.AMX/.BMX`, `.DZX/.AZX/.p`,
+  `.DZS/.AZS/.TAP/.TZX`), sem esquema novo. — 2026-11-20 (seção 8, pergunta 3).
+- [ ] **Investigar viabilidade do ZRCP (ZEsarUX)** para monitoramento de
+  erro em tempo real em ZX81/Spectrum, antes de fechar a interface
+  `EmulatorController` (decisão item 9 da seção 6) — pedido explícito do
+  usuário em 2026-11-20 para avaliar isso já, não depois do MVP (seção 8,
+  pergunta 4). Pode mudar a prioridade/desenho dos Blocos 3/4/8. — **M**, **1**
 
 ### Bloco 1 — Núcleo do motor (core engine)
 
@@ -708,6 +718,26 @@ de conversão e os módulos de plataforma seguem pendentes.
   fora por custo de engenharia desproporcional ao stub; suporte a
   clique de mouse na barra (os itens do dropdown já aceitam clique,
   nativo do `tview.List` — só a barra em si ainda não). — 2026-11-05.
+- [x] **Investigação do congelamento em `Setup > Install`** (2026-11-20):
+  revisão do código (`internal/tui/tui.go`) cruzada com o código-fonte de
+  `tview`/`tcell` instalado (`rivo/tview v0.42.0`), e reprodução dirigida
+  com uma `tcell.SimulationScreen` (`internal/tui/freeze_diagnosis_test.go`,
+  mantido como teste de regressão). **Resultado: não foi possível
+  reproduzir um deadlock Go** — a sequência completa (abrir `Setup`,
+  selecionar `Install`, abrir o diálogo de tema, `Escape`, `Stop()`) roda e
+  retorna normalmente na simulação, inclusive com teclas disparadas sem
+  intervalo. Hipóteses não eliminadas para o congelamento relatado
+  originalmente: (a) específico do terminal real usado na sessão anterior
+  (cmd.exe/PowerShell/conhost no Windows, que a simulação não reproduz),
+  (b) já sanado por mudança posterior não documentada, (c) um caminho de
+  repro ligeiramente diferente (mouse, redimensionamento durante o
+  diálogo). **Não bloqueia o redesenho da TUI do zero já decidido** — o
+  teste de regressão fica no repositório para detectar se o mesmo padrão
+  de diálogo reaparecer quebrado na nova implementação. Pequeno refactor
+  feito para viabilizar o teste: `Run()` agora delega para uma função
+  interna `run(screen, ready)` que aceita uma `tcell.Screen`/callback
+  opcionais, sem mudança de comportamento em produção (`Run()` continua
+  chamando com `nil, nil`).
 - [ ] Tela de configuração (equivalente ao que hoje são os `.ini`/remtags):
   editar config SQLite global/projeto. — **M**, **2**
 - [ ] Tela de pré-processamento em lote (escolher arquivos, plataforma,
@@ -799,43 +829,40 @@ Notepad++/UltraEdit (opcional, "se for possível").
 
 ---
 
-## 8. Perguntas em aberto para o usuário
+## 8. Perguntas da seção 8 — todas respondidas pelo usuário em 2026-11-20
 
-1. **Merge conflicts nos docs Python** (seção 2): resolver manualmente o
-   `badig/` antes de seguir usando como referência, ou tratar como
-   histórico "congelado" já que o Go vai substituir a documentação mesmo?
-2. **Escopo do MVP**: confirma que a primeira entrega deve cobrir as 3
-   plataformas em paralelo (texto Dignified → Classic → binário → fita/
-   emulador básico), ou prefere um "vertical slice" completo de uma
-   plataforma por vez (ex.: Spectrum primeiro, por já ser o mais avançado
-   e ter mais testes) antes de generalizar o núcleo?
-3. **Nomenclatura de extensões de arquivo** no Go: manter as extensões
-   herdadas (`.DMX/.AMX/.BMX`, `.DZX/.AZX/.p`, `.DZS/.AZS`) ou propor um
-   esquema novo mais consistente entre plataformas?
-4. **Monitoramento de erro em tempo real** (recurso avançado do MSX via
-   openMSX): vale o investimento de engenharia para portar/generalizar
-   para as 3 plataformas, ou fica como recurso específico do MSX por ora?
-   **Atualizado em 2026-11-05**: o ZEsarUX (novo emulador adicionado ao
-   escopo) tem ZRCP, um protocolo de controle remoto via TCP — candidato
-   real para viabilizar esse recurso também em ZX81/Spectrum, o que não
-   existia como opção quando a pergunta foi escrita (só EightyOne, sem
-   hook nenhum). Vale a pena investigar o ZRCP antes de decidir.
-5. **Snapshots Z80/SNA via emulador Z80 em Go** (eliminando SkoolKit):
-   confirma que isso fica para fase tardia (Bloco 10), e que a v1 do
-   Spectrum entrega só TAP/TZX?
-6. **Driver SQLite — resolvido em 2026-11-07:** `modernc.org/sqlite`
-   (puro Go, sem CGO para a camada SQLite). A escolha já está registrada
-   no Bloco 0 e a primeira fatia de schema foi criada para temas.
-7. **TUI e GUI**: rodam como modos do mesmo binário (`goBaDig --tui`,
-   `goBaDig --gui`) ou como binários/comandos separados?
-8. **Reset de `Y`/`Z` no esquema de versionamento** (seção 10.1):
-   confirma que `Z` reinicia em `0` a cada novo `Y`, e `Y`/`Z` reiniciam
-   em `0` a cada novo `X`? Ou os contadores devem ser cumulativos
-   (nunca reiniciar)?
-9. **Formato do nome na tag/release**: o nome resumido de `Y` e o nome
-   de comando BASIC de `X` entram só no `CHANGELOG.md`/release notes
-   (ex. "v2.3.0 — fn-nativo"), ou também compõem a tag Git literal
-   (ex. `v2.3.0-fn-nativo`)?
+Histórico preservado (pergunta original + decisão), nenhuma reaberta por ora.
+
+1. **Merge conflicts nos docs Python** (seção 2) — **RESOLVIDO: histórico
+   congelado.** Não resolver manualmente o `badig/`; a extração já feita
+   neste documento basta, já que o Go substitui essa documentação.
+2. **Escopo do MVP** — **RESOLVIDO: 3 plataformas em paralelo.** Core +
+   os 3 módulos de plataforma (Blocos 1-4) avançam juntos desde o início,
+   em vez de um "vertical slice" de uma plataforma só primeiro.
+3. **Nomenclatura de extensões de arquivo** — **RESOLVIDO: manter as
+   herdadas.** `.DMX/.AMX/.BMX` (MSX), `.DZX/.AZX/.p` (ZX81),
+   `.DZS/.AZS` (Spectrum) continuam como estão, sem esquema novo.
+4. **Monitoramento de erro em tempo real** — **RESOLVIDO: investigar
+   ZRCP (ZEsarUX) já, antes do MVP.** Diferente do adiamento padrão —
+   o usuário quer avaliar a viabilidade do ZRCP antes de fechar a
+   arquitetura do módulo `emulator`, podendo mudar prioridades dos
+   Blocos 3/4/8. Ver novo item no Bloco 0.
+5. **Snapshots Z80/SNA via emulador Z80 em Go** — **RESOLVIDO: confirmado,
+   fase tardia (Bloco 10).** v1 do Spectrum entrega só TAP/TZX; SkoolKit
+   continua a dependência opcional até lá.
+6. **Driver SQLite** — resolvido em 2026-11-07: `modernc.org/sqlite`
+   (puro Go, sem CGO para a camada SQLite). Já registrado no Bloco 0,
+   primeira fatia de schema criada para temas.
+7. **TUI e GUI** — **RESOLVIDO: mesmo binário.** Confirma o que já está
+   implementado (`goBaDig --cli`/`--tui`/`--gui`); não vira binários
+   separados.
+8. **Reset de `Y`/`Z` no esquema de versionamento** (seção 10.1) —
+   **RESOLVIDO: reinicia.** `Z` volta a `0` a cada `Y` novo; `Y` e `Z`
+   voltam a `0` a cada `X` novo. Interpretação adotada confirmada.
+9. **Formato do nome na tag/release** — **RESOLVIDO: só no
+   changelog/release notes.** A tag Git fica só numérica (`vX.Y.Z`); o
+   nome resumido (`Y`) e o nome de comando BASIC (`X`) aparecem apenas no
+   `CHANGELOG.md` e no texto da release do GitHub.
 
 ---
 
@@ -858,10 +885,11 @@ Convenção própria do projeto, **diferente de SemVer tradicional**:
   comando de BASIC**, de qualquer um dos três dialetos (MSX, ZX81 ou ZX
   Spectrum) — ex.: `1.0.0-PRINT`, `2.0.0-GOTO`.
 
-**Interpretação adotada** (a confirmar): `Z` reinicia em `0` quando `Y`
-sobe; `Y` e `Z` reiniciam em `0` quando `X` sobe. O nome resumido (`Y`) e
-o nome de comando BASIC (`X`) são sufixos informativos na tag/changelog,
-não alteram a ordenação numérica semântica de `X.Y.Z`.
+**Confirmado pelo usuário em 2026-11-20** (ver seção 8, perguntas 8 e 9):
+`Z` reinicia em `0` quando `Y` sobe; `Y` e `Z` reiniciam em `0` quando `X`
+sobe. O nome resumido (`Y`) e o nome de comando BASIC (`X`) aparecem só
+no `CHANGELOG.md`/release notes — a tag Git fica só numérica (`vX.Y.Z`),
+sem o sufixo de nome.
 
 Documento de referência viva: [`CHANGELOG.md`](CHANGELOG.md) (raiz do
 repo) — contém o esquema por extenso e a entrada "Não lançado" com o

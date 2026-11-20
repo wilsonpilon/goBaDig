@@ -46,6 +46,14 @@ func paletteFor(item theme.Theme) palette {
 
 // Run opens the TUI and blocks until the user exits (File > Exit).
 func Run() (runErr error) {
+	return run(nil, nil)
+}
+
+// run is the real implementation behind Run(). It accepts an optional
+// tcell.Screen (used by tests to drive the UI with a simulation screen
+// instead of a real terminal) and an optional callback invoked with the
+// *tview.Application once it has been constructed, before Run() blocks.
+func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	store, err := config.OpenDefault()
 	if err != nil {
 		return err
@@ -68,6 +76,9 @@ func Run() (runErr error) {
 	}
 
 	app := tview.NewApplication()
+	if screen != nil {
+		app.SetScreen(screen)
+	}
 	pages := tview.NewPages()
 	colors := paletteFor(activeTheme)
 	menus := []menuDef{
@@ -313,5 +324,9 @@ func Run() (runErr error) {
 		return event
 	})
 
-	return app.SetRoot(pages, true).SetFocus(pages).Run()
+	app.SetRoot(pages, true).SetFocus(pages)
+	if ready != nil {
+		ready(app)
+	}
+	return app.Run()
 }
