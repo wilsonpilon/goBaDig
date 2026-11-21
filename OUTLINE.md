@@ -799,9 +799,12 @@ de conversão e os módulos de plataforma seguem pendentes.
   goBaDig sem tentar unificar os dois sistemas agora. Impressão/exportação
   PDF portadas junto (não adiadas): nova dependência `go-pdf/fpdf
   v0.9.0`, `golang.org/x/image` atualizado de v0.24.0 para v0.48.0 (usado
-  também pela GUI Fyne — build da GUI não pôde ser verificado de ponta a
-  ponta neste sandbox por causa da limitação pré-existente de
-  `CGO_ENABLED=0`, não relacionada a esta mudança). Ainda não ligado a
+  também pela GUI Fyne — **correção 2026-11-21**: o build completo
+  `go build ./...`, incluindo `internal/gui`, foi verificado nesta
+  máquina com CGO habilitado e compila/testa limpo com a versão nova de
+  `x/image`; a ressalva anterior sobre não conseguir verificar a GUI
+  valia só para o ambiente usado naquele momento, não é uma limitação
+  deste repositório). Ainda não ligado a
   nada específico de BASIC (realce de sintaxe, abertura direto de
   `.bas`/arquivos-fonte das 3 plataformas) — é a base crua do editor;
   isso fica para os próximos passos da IDE.
@@ -979,6 +982,8 @@ goBaDig/
     msx/ zx81/ zxspectrum/ programas de exemplo para teste do usuário final
   dist/                   (gitignored, exceto README.md) saída de build local + pacote .zip
   resource/               (gitignored, exceto README.md) material de terceiros (emuladores, ROMs, fontes)
+  current/                (gitignored por completo) build local sempre atualizado para teste
+    resource/              arquivos de trabalho do usuário para testar o programa — nunca limpo
   badig/                  projeto Python original (referência de arquitetura e golden tests)
   cmd/                    (futuro) entrypoints do binário Go — ver 10.4
   internal/               (futuro) código-fonte Go, módulos por função lógica — ver 10.4
@@ -988,6 +993,17 @@ goBaDig/
 `dist/` e `resource/` já existem no repositório com um `README.md`
 rastreado cada um (ver seção 10.5) e o restante do conteúdo ignorado via
 `.gitignore`.
+
+**`current/` (novo, 2026-11-21, pedido explícito do usuário):**
+diretório de build local sempre atualizado para teste manual —
+diferente de `dist/` (pacote de release versionado, via `build.ps1`).
+Regra registrada em `CLAUDE.md`: toda mudança em qualquer programa do
+goBaDig recompila o executável mais atual em `current/`. É
+**inteiramente gitignored** (nem README fica rastreado, diferente de
+`dist/`/`resource/`). Dentro dele, `current/resource/` guarda arquivos
+de trabalho do próprio usuário para testar o programa (exemplos,
+fixtures) — esse subdiretório **nunca é limpo/apagado**; só o restante
+de `current/` é recriado a cada rebuild.
 
 ### 10.4 Estrutura de diretórios do código Go
 
