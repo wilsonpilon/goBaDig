@@ -19,10 +19,12 @@ Convenção definida pelo autor do projeto, diferente de SemVer tradicional:
   ZX Spectrum), ex.: `1.0.0-PRINT`, `2.0.0-GOTO`. `Y` e `Z` reiniciam em
   `0` quando `X` sobe.
 
-> Esta é a interpretação registrada nesta sessão de planejamento — ver
-> `OUTLINE.md`, seção "Perguntas em aberto", para confirmar/ajustar o
-> comportamento exato de reset de `Y`/`Z` e o formato do nome anexado à
-> tag antes do primeiro release real.
+> Interpretação de reset de `Y`/`Z` e formato do nome anexado à tag
+> confirmados pelo usuário em 2026-11-20 (ver `OUTLINE.md`, seção 8,
+> perguntas 8 e 9, e seção 10.1): `Z` reinicia em `0` quando `Y` sobe;
+> `Y`/`Z` reiniciam em `0` quando `X` sobe; o nome resumido (`Y`) e o
+> nome de comando BASIC (`X`) aparecem só no `CHANGELOG.md`/release
+> notes — a tag Git fica só numérica (`vX.Y.Z`).
 
 ## Empacotamento de release
 
@@ -33,7 +35,13 @@ exata do pacote.
 
 ---
 
-## [Não lançado]
+## [1.2.0] — 2026-11-21 — bloco **NEW**, feature **themes** (build 0)
+
+**Temas persistidos nas três interfaces, TUI redesenhada no visual
+retrô Turbo Vision/Norton Commander (com o bug de "congelamento" real
+do `Setup > Install` encontrado e corrigido), e o editor WibEdit
+integrado à TUI como base da futura IDE.** Acumula tudo que ficou sem
+release desde a `v1.1.4`.
 
 ### Adicionado
 
@@ -95,6 +103,72 @@ exata do pacote.
   lendo a versão direto de `internal/version/version.go`. Não cria tag
   Git nem release no GitHub (continua manual). Testado de ponta a
   ponta, inclusive com `-SkipDownload -SkipTests`.
+- `current/` (raiz do repo, gitignored por completo): convenção nova —
+  toda mudança em qualquer programa do goBaDig recompila o executável
+  mais atual ali, para teste manual rápido, diferente do pacote de
+  release versionado em `dist/`. `current/resource/` guarda arquivos de
+  trabalho do usuário e nunca é limpo. Regra documentada em `CLAUDE.md`.
+- Investigada e confirmada a viabilidade do **ZRCP** (protocolo de
+  controle remoto do emulador ZEsarUX) para monitoramento de erro em
+  tempo real em ZX81/ZX Spectrum, lendo o código-fonte do ZEsarUX
+  (não há documentação oficial do protocolo). Técnica recomendada:
+  breakpoint em `PC=0008H` (onde ambas as ROMs Sinclair reportam erro
+  via `RST 08h`), lendo depois `PPC`/`SUBPPC`/`ERR_NR` (Spectrum) ou
+  `E_PPC`/`ERR_NR` (ZX81). Ainda não implementado — ver `OUTLINE.md`,
+  Bloco 0, e `docs/RESOURCES.md`.
+- Gerados os vetores de ouro do tokenizer MSX (`badig/msx/
+  test_tokenizer_msx.py`, 13 casos, não versionado — `badig/` é
+  histórico congelado), copiados também para
+  [`docs/golden-vectors/msx-tokenizer.md`](docs/golden-vectors/msx-tokenizer.md)
+  (versionado): MSX não tinha suíte de testes no projeto original,
+  diferente de ZX81/ZX Spectrum.
+
+---
+
+## [1.3.0] — 2026-11-21 — bloco **NEW**, feature **core-engine** (build 0)
+
+**Primeiro código do motor de conversão.** Até aqui, tudo em goBaDig
+era infraestrutura/interface (CLI/TUI/GUI, temas, editor) — nenhuma
+linha de BASIC foi convertida ainda. Esta release começa o núcleo do
+motor propriamente dito (Bloco 1 do `OUTLINE.md`): ainda não há
+nenhum dialeto real (MSX/ZX81/ZX Spectrum) usando isso, e nenhum
+comando de conversão está disponível para o usuário final.
+
+### Adicionado
+
+- Novo pacote `internal/core`: `Token`/`Position`/`TokenKind` (`Value`
+  é `any`, não `string` — o Pass 4 do motor original reaproveita o
+  mesmo campo pra guardar um número de linha resolvido), `HookAction`
+  (substitui o protocolo tri-estado `False`/`None`/`Token` do Python
+  original por um enum explícito `Continue`/`Skip`/`Replace`),
+  diagnóstico/erro (substitui o `Infolog` original — sem o bug do
+  exit code silencioso compartilhado como atributo de classe),
+  `CompileContext`/`SymbolTables` (estado explícito por parâmetro, não
+  atributos dinâmicos de instância), alocador de variáveis por
+  categoria genérico e descendente (generaliza MSX/ZX81/ZX Spectrum).
+- Interfaces "v0" `Description`/`Lexer`/`Parser`/`Settings` e o struct
+  `Platform` que agrupa as 4 (equivalente Go ao trio dinamicamente
+  importado `Classic`/`Tools`/`Dignified` do motor original - Go não
+  tem esse truque, então a escolha de dialeto é um valor explícito).
+- Driver do pipeline (`Lex`→`Parse`→`Generate`→`Run`), validado de
+  ponta a ponta contra uma plataforma fictícia mínima (não é MSX de
+  verdade - só reconhece `PRINT`/inteiros) antes de qualquer dialeto
+  real depender do contrato. `Parse` já respeita o mesmo gate do motor
+  original: passes 4/5 só rodam no arquivo principal, nunca em
+  arquivos trazidos por `INCLUDE`.
+
+### Observações
+
+- Ainda faltam, documentados como próximas fases em `OUTLINE.md`
+  (Bloco 1): `Expose`/`Tools.Interface` (só importam com um CLI real
+  de flags, Bloco 5), `INCLUDE` recursivo de verdade, o caminho `-asc`,
+  e a resolução de fato das 4 camadas de config (SQLite global <
+  projeto < CLI < remtags) - por ora `CompileSettings` é só um
+  placeholder.
+- O scanner de hoje só reconhece espaço em branco e fim de linha;
+  qualquer vocabulário real de dialeto (palavras-chave, números,
+  strings) é trabalho do Bloco 2, quando o módulo MSX for de fato
+  portado.
 
 ---
 

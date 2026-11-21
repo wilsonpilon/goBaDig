@@ -64,10 +64,16 @@ repositório no GitHub. Cada pacote contém o executável, documentação
 mínima e exemplos — pronto para extrair e rodar sem instalar nada além
 dos emuladores externos (ver seção 2), quando a integração de
 emulador existir. Ver `CHANGELOG.md` para a lista de versões
-publicadas. **Código em desenvolvimento (1.2.0, não publicado):** `--help`,
-`--man`, o console `--cli` (com seleção de tema e conclusão por Tab) e a
-GUI com temas. A TUI está em redesign; abrir `Setup > Install` congela a
-interface na implementação atual. Não há conversor/tokenizer ainda.
+publicadas.
+
+**`v1.2.0`** traz temas persistidos nas três interfaces (CLI/TUI/GUI),
+a TUI redesenhada no visual retrô Turbo Vision/Norton Commander
+(janelas com sombra, ícones Unicode) e o editor **WibEdit** integrado à
+TUI (menu `Editor > Open`) — ver seções 5 e 9. **`v1.3.0`** começa o
+motor de conversão propriamente dito (`internal/core`): ainda não há
+nenhum comando de conversão de verdade disponível para o usuário final
+— é só a base interna (tipos/interfaces) que os módulos MSX/ZX81/ZX
+Spectrum vão usar (ver seção 6 e `OUTLINE.md`, Bloco 1).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -118,6 +124,14 @@ novamente para listar as alternativas (por exemplo, depois de `theme `).
 A cor do prompt acompanha o tema selecionado. Comandos reais de conversão
 chegam junto com o motor (Blocos 1-4 do `OUTLINE.md`).
 
+Na TUI, o menu **`Editor > Open`** abre o editor de texto/código
+**WibEdit** (estilo WordStar/Norton Editor 2, portado do projeto
+`wibworks` do mesmo autor) como uma tela cheia dentro da própria TUI —
+não é um programa separado. É a base sobre a qual a futura IDE do
+goBaDig será construída; ainda não está ligado a nada específico de
+BASIC (sem realce de sintaxe ou abertura direta de `.bas`/fontes das 3
+plataformas).
+
 Na TUI, há um **desktop clássico inspirado no Turbo Pascal 6, QuickBasic
 e Norton Editor 2.0**: fundo azul, barra de título, menu suspenso,
 espaço de trabalho e barra de status. `Setup > Install` abre uma janela
@@ -137,7 +151,10 @@ acontece ainda em nenhuma das duas. O argumento `<arquivo> -id msx`
 
 ## 6. Converter um programa Dignified
 
-**(pendente — depende dos Blocos 1 a 4 do `OUTLINE.md`)**
+**(pendente — depende dos Blocos 1 a 4 do `OUTLINE.md`)**. A partir da
+`v1.3.0` existe um primeiro núcleo do motor em Go (`internal/core`),
+mas ainda sem nenhum dialeto real (MSX/ZX81/ZX Spectrum) ligado a ele —
+nada disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não
@@ -159,9 +176,18 @@ O projeto Python original tem suítes de teste para ZX81
 (`badig/zx81/test_tokenizer_zx81.py`) e ZX Spectrum
 (`badig/zxspectrum/test_zxspectrum.py`) com vetores de bytes conhecidos —
 esses testes servem de **golden-master** para validar a reescrita em Go
-byte a byte. O módulo MSX não tem suíte de testes no original; vetores
-próprios precisam ser gerados a partir do Python antes do port (ver
-`OUTLINE.md`, Bloco 0).
+byte a byte. O módulo MSX não tinha suíte de testes no original; os
+vetores próprios já foram gerados rodando o tokenizer Python real
+(`badig/msx/test_tokenizer_msx.py`, 13 casos — não versionado, já que
+`badig/` inteiro é histórico local) e copiados, versionados, em
+[`docs/golden-vectors/msx-tokenizer.md`](golden-vectors/msx-tokenizer.md)
+(ver `OUTLINE.md`, Bloco 0).
+
+O primeiro pacote do próprio motor em Go (`internal/core`: tipos
+`Token`/`Position`, o contrato `Description`/`Lexer`/`Parser`/
+`Settings`, e o pipeline `Lex`→`Parse`→`Generate`) já tem testes
+automatizados validando o contrato contra uma plataforma fictícia
+mínima — ver `go test ./internal/core/...` e `OUTLINE.md`, Bloco 1.
 
 ## 9. Integração com editores
 
@@ -172,12 +198,13 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
    projeto Python.
 2. **Sublime Text** — pacotes equivalentes (syntax, build system,
    snippets), um por plataforma ou unificados, a definir.
-3. **Editor próprio** (baseado no Norton Editor 2.0) — o usuário já tem
-   implementações prontas em outros projetos (`msxide`: Norton Editor
-   para TUI e um editor GUI com as mesmas teclas/funções do NE2;
-   `paleobasic`: também tem o NE) — **fora de escopo de implementação
-   por enquanto**, tratado como item futuro separado. Ver
-   `docs/RESOURCES.md`.
+3. **Editor próprio** (baseado no Norton Editor 2.0) — **integrado a
+   partir da `v1.2.0`**: o editor **WibEdit**, portado do projeto
+   `wibworks` do mesmo autor, está embutido na TUI (`Editor > Open`,
+   ver seção 5). A versão GUI do mesmo editor (também disponível em
+   `wibworks`) ainda não foi portada. `msxide`/`paleobasic` (outras
+   implementações do NE do usuário) continuam só como referência, não
+   foram as escolhidas para esta integração. Ver `docs/RESOURCES.md`.
 4. **Notepad++ e UltraEdit** — avaliação de viabilidade (provavelmente
    via arquivos de realce de sintaxe/UDL próprios de cada editor),
    prioridade baixa, "se for possível".

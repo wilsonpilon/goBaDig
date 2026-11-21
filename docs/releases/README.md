@@ -16,6 +16,6 @@ Conteúdo esperado de cada `vX.Y.Z.md`:
 - Instruções mínimas de instalação/uso, se diferirem da versão anterior.
 - Créditos/agradecimentos quando aplicável.
 
-Nenhum release foi publicado ainda — esta pasta está vazia além deste
-README. O primeiro arquivo real só deve ser criado junto com a primeira
-tag/release de fato.
+Releases publicados até agora: `v1.1.1` a `v1.1.4` (05/11), `v1.2.0` e
+`v1.3.0` (21/11) — ver os arquivos `vX.Y.Z.md` nesta pasta e
+`CHANGELOG.md` para o resumo de cada um.
