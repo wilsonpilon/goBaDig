@@ -127,14 +127,15 @@ func TestLexCommentAndDataKeyword(t *testing.T) {
 }
 
 func TestLexUnrecognizedCharacterFallsBackTolerantly(t *testing.T) {
-	// "@" isn't a symbol, keyword, identifier-start or quote - it must
-	// still produce a token (KindUnknown) instead of aborting lexing,
+	// "`" isn't an MSX symbol/keyword, nor a shared Dignified symbol
+	// (~ [ ] { } @), nor an identifier-start or quote - it must still
+	// produce a token (KindUnknown) instead of aborting lexing,
 	// mirroring the original engine's tolerant "character not
 	// recognized" handling.
-	tokens := kindsAndValues(lexLines(t, "print @"))
+	tokens := kindsAndValues(lexLines(t, "print `"))
 	want := [][2]string{
 		{string(KindInstruction), "print"},
-		{string(core.KindUnknown), "@"},
+		{string(core.KindUnknown), "`"},
 	}
 	assertTokens(t, tokens, want)
 }

@@ -84,13 +84,25 @@ type Lexer interface {
 // numeração/etc.) está implementada ainda - ver OUTLINE.md, Bloco 1,
 // Fase 3: o driver de hoje só chama Pass1..5/Generate por token, sem
 // nenhum processamento Dignified próprio ainda.
+//
+// Each method gets the pass's whole INPUT token slice plus the index
+// of the one it must classify this call - not just that one token in
+// isolation, as v0 of this interface (Bloco 1) did. MSX's real Pass 3
+// (Bloco 2) needed to look at the PREVIOUS token to detect the
+// Dignified "keep long name" symbol (`~`) immediately before an
+// identifier (badig_msx.py's get_hard_variable checks
+// `self.par.last_tok()`) - a single-token hook can't do that. Still
+// just classifies the one token at tokens[index] and returns a
+// HookAction for it, same as before; it just gets to look at
+// tokens[index-1]/[index+1]/etc. too, for context, without needing to
+// retroactively change a decision already made about a neighbor.
 type Parser interface {
-	Pass1(ctx *CompileContext, tok Token) (HookAction, Token, error)
-	Pass2(ctx *CompileContext, tok Token) (HookAction, Token, error)
-	Pass3(ctx *CompileContext, tok Token) (HookAction, Token, error)
-	Pass4(ctx *CompileContext, tok Token) (HookAction, Token, error)
-	Pass5(ctx *CompileContext, tok Token) (HookAction, Token, error)
-	Generate(ctx *CompileContext, tok Token) (HookAction, Token, error)
+	Pass1(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+	Pass2(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+	Pass3(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+	Pass4(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+	Pass5(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+	Generate(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
 }
 
 // Settings holds dialect-specific config, applied after the shared

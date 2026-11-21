@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-21.
-Estado: **v1.4.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.5.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -14,19 +14,20 @@ ainda) — histórico completo de cada um desses itens em `CHANGELOG.md`
 e nos Blocos correspondentes abaixo, não repetido aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
-(Bloco 1, Fase 1 completa + Fase 2/3 parciais —
-`Token`/`Position`/`HookAction`/diagnóstico/`CompileContext`/alocador
-de variáveis, interfaces `Description`/`Lexer`/`Parser`/`Settings`/
-`Platform`, driver `Lex`→`Parse`→`Generate`); **tokenizer MSX Batoken
-portado por completo** (`internal/platforms/msx/tokenizer.go`, os 13
-vetores de ouro do Bloco 0 passam byte-exato); e, na mesma sessão,
-**`Description`/`Lexer` MSX de verdade** (`description.go`/`lexer.go`)
-— o primeiro uso real das interfaces "v0" do Bloco 1, que revelou um
-desvio real na interface `Lexer` (corrigido, ver Bloco 1). **Ainda não
-há nenhuma conversão Dignified→Classic completa** — falta o `Parser`
-MSX (5 passes, inclusive a alocação de variáveis) pra fechar o
-caminho Dignified→Classic→binário de ponta a ponta. Ver Blocos 1-4 na
-seção 7 para o que falta.
+(Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
+13 vetores de ouro do Bloco 0 byte-exato), **`Description`/`Lexer` MSX**
+(`description.go`/`lexer.go`), e **`Parser` MSX Pass 3/4**
+(`parser.go` — alocação de variáveis de 2 letras, fiel ao algoritmo
+original) — a **primeira conversão Dignified→Classic de verdade já
+produzindo texto correto** (`counter=0` → `zz = 0`, com `~nome`
+mantido por extenso), confirmada num teste de ponta a ponta completo
+(`Lex`→`Parse`→`Generate`). Três desvios reais nas interfaces "v0" do
+Bloco 1 descobertos implementando contra o MSX de verdade, todos
+documentados no Bloco 1 abaixo. **Ainda falta**: Pass 1/5 do `Parser`
+(conversões `?`/PRINT, `THEN`/`GOTO`, `TRUE`/`FALSE`, Unicode),
+`generate()` de verdade (espaçamento, limite de linha), e ligar tudo
+isso ao tokenizer já pronto pra fechar o caminho completo até o
+binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -812,6 +813,31 @@ reconhece nada na posição atual. `KindWord` foi removido (não existe
 mais pré-corte); `KindIdentifier`/`KindString`/`KindUnknown` entraram
 no lugar.
 
+**Terceiro desvio** (2026-11-21, Pass 3/4 do `Parser` MSX): o `Parser`
+de hoje (`PassN(ctx, tok) (HookAction, Token, error)`) só dá ao hook o
+token atual — sem jeito de olhar pro vizinho. `get_hard_variable`
+(Pass 3 do Python, confirmado lendo `badig_msx.py:463-514` linha a
+linha) precisa checar se o **token anterior** foi o símbolo `~`
+(mantém nome por extenso) e removê-lo da saída. Troquei a interface
+pra dar ao hook a **lista de entrada completa da pass + o índice do
+token atual** (`PassN(ctx, tokens []Token, index int) (HookAction,
+Token, error)`) — permite olhar pra qualquer vizinho sem precisar
+desfazer nada, já que "token anterior na entrada" e "já emitido na
+saída" são a mesma coisa exceto quando a própria pass decidiu `Skip`
+um token (como decide pro `~` aqui). Mais barato que reescrever o
+`Parser` pra operar na lista inteira de uma vez (considerado, mas
+grande demais pro ganho).
+
+Também: `core.Lex()` ganhou reconhecimento dos 6 símbolos Dignified
+compartilhados (`~ [ ] { } @`, `d_symbol` de `badig_dignified.py`) —
+novo `KindDignifiedSymbol`. `core.SymbolTables` (que no Bloco 1 tinha
+2 campos nunca usados de verdade) ficou precisa:
+`Declares`/`HardShortVars`/`HardLongVars`, confirmados linha a linha
+contra `get_hard_variable`/`process_variable`. `core.VariableAllocator.Allocate`
+ganhou um parâmetro `excluded func(string) bool`, já que os 3
+conjuntos de exclusão do MSX não fazem sentido dentro do pacote
+`core` (genérico, não sabe nada sobre "nome curto já usado" etc.).
+
 **Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
 que prova que o desenho funciona):
 - [x] Driver do pipeline no core (`internal/core/pipeline.go`:
@@ -916,10 +942,30 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   bloco de comentário `''` multi-linha, semântica literal de itens do
   `DATA` (por ora lexados como expressões normais), tradução
   Unicode→ASCII (isso é Pass 5 do `Parser`, próxima fase). — **M**, **1**
-- [ ] Portar `Parser` MSX (5 passes): alocação de 2 letras (algoritmo
-  já documentado acima), `?`/PRINT, THEN/GOTO strip, expansão de
-  atribuição composta, TRUE/FALSE=-1/0, Unicode→ASCII — precisa da
-  `Lexer` funcionando primeiro (feito). — **A**, **1**
+- [x] **Portados `Parser` Pass 3 e Pass 4 MSX** (2026-11-21,
+  `internal/platforms/msx/parser.go` + `parser_test.go`) — a alocação
+  de variáveis de 2 letras, fiel a `get_hard_variable`/
+  `process_variable` (`badig_msx.py:463-558`, lidos linha a linha):
+  cursor único descendente de `zz` até `aa`, 3 conjuntos de exclusão
+  (`Declares`/`HardShortVars`/`HardLongVars`), nome já curto fica
+  inalterado e reserva seu próprio nome, `~nome` mantido por extenso
+  com o `~` removido da saída, erro fatal em esgotamento (676 aliases)
+  e nos dois casos de uso inválido de `~` documentados no Python. **Não
+  portados** (não-fatais, `Info.log` nível 2 no original): os loops de
+  aviso de colisão por prefixo em `get_hard_variable`. Terceiro desvio
+  de interface do `core.Parser` descoberto implementando (ver Fase 2/3
+  do Bloco 1 abaixo). 7 testes novos, incluindo um de ponta a ponta
+  completo (`Lex`→`Parse`→`Generate`) num programinha Dignified real
+  com variável repetida, nome curto e `~`. **Primeira conversão
+  Dignified→Classic de verdade que já produz texto correto** (mesmo
+  sem Pass 1/5/generate real ainda). — **A**, **1**
+- [ ] Pass 1 MSX (separador de chamada Dignified `_` → "instrução de
+  chamada") e Pass 5 (`?`/PRINT, THEN/GOTO strip, expansão de
+  atribuição composta, TRUE/FALSE=-1/0, Unicode→ASCII) — próxima fase.
+  — **M**, **1**
+- [ ] `generate()` de verdade (regras de espaçamento específicas do
+  MSX, limite de 256 chars/linha) — hoje usa a versão mínima genérica
+  do Bloco 1. — **M**, **2**
 - [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
   `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**

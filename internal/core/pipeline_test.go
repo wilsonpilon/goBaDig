@@ -67,29 +67,29 @@ type fakeParser struct {
 	pass5Calls *int
 }
 
-func (fakeParser) Pass1(_ *CompileContext, tok Token) (HookAction, Token, error) {
-	return Continue, tok, nil
+func (fakeParser) Pass1(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
+	return Continue, tokens[index], nil
 }
-func (fakeParser) Pass2(_ *CompileContext, tok Token) (HookAction, Token, error) {
-	return Continue, tok, nil
+func (fakeParser) Pass2(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
+	return Continue, tokens[index], nil
 }
-func (fakeParser) Pass3(_ *CompileContext, tok Token) (HookAction, Token, error) {
-	return Continue, tok, nil
+func (fakeParser) Pass3(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
+	return Continue, tokens[index], nil
 }
-func (p fakeParser) Pass4(_ *CompileContext, tok Token) (HookAction, Token, error) {
+func (p fakeParser) Pass4(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
 	if p.pass4Calls != nil {
 		*p.pass4Calls++
 	}
-	return Continue, tok, nil
+	return Continue, tokens[index], nil
 }
-func (p fakeParser) Pass5(_ *CompileContext, tok Token) (HookAction, Token, error) {
+func (p fakeParser) Pass5(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
 	if p.pass5Calls != nil {
 		*p.pass5Calls++
 	}
-	return Continue, tok, nil
+	return Continue, tokens[index], nil
 }
-func (fakeParser) Generate(_ *CompileContext, tok Token) (HookAction, Token, error) {
-	return Continue, tok, nil
+func (fakeParser) Generate(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
+	return Continue, tokens[index], nil
 }
 
 type fakeSettings struct{}
@@ -165,7 +165,7 @@ func TestVariableAllocatorDescendsAndExhausts(t *testing.T) {
 	category := VariableCategory{Name: "scalar", AliasChars: "ab", AliasLen: 1}
 	allocator := NewDescendingAllocator()
 
-	first, err := allocator.Allocate(category, "counter")
+	first, err := allocator.Allocate(category, "counter", nil)
 	if err != nil {
 		t.Fatalf("Allocate(counter): %v", err)
 	}
@@ -173,7 +173,7 @@ func TestVariableAllocatorDescendsAndExhausts(t *testing.T) {
 		t.Fatalf("first alias = %q, want %q (descending order)", first, "b")
 	}
 
-	second, err := allocator.Allocate(category, "total")
+	second, err := allocator.Allocate(category, "total", nil)
 	if err != nil {
 		t.Fatalf("Allocate(total): %v", err)
 	}
@@ -182,12 +182,12 @@ func TestVariableAllocatorDescendsAndExhausts(t *testing.T) {
 	}
 
 	// Re-allocating an already-known long name must return the same alias.
-	again, err := allocator.Allocate(category, "counter")
+	again, err := allocator.Allocate(category, "counter", nil)
 	if err != nil || again != first {
 		t.Fatalf("Allocate(counter) again = %q, %v; want %q, nil", again, err, first)
 	}
 
-	if _, err := allocator.Allocate(category, "overflow"); err == nil {
+	if _, err := allocator.Allocate(category, "overflow", nil); err == nil {
 		t.Fatal("Allocate did not report exhaustion once the category's alias space was used up")
 	} else if !strings.Contains(err.Error(), ErrAliasesExhausted.Error()) {
 		t.Fatalf("Allocate error = %v, want it to wrap ErrAliasesExhausted", err)

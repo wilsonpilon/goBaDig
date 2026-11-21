@@ -43,6 +43,13 @@ const (
 	// core.Lex recognizes it itself as a fallback, after the platform's
 	// Lexer.Lex got first refusal (see Lexer, in contract.go).
 	KindIdentifier TokenKind = "IDENTIFIER"
+	// KindDignifiedSymbol is one of the 6 Dignified structural symbols
+	// (`~ [ ] { } @` - d_symbol in badig_dignified.py): shared by every
+	// platform, so core.Lex recognizes them itself, same reasoning as
+	// KindIdentifier. Only `~` (keep-long-name) is acted on by any
+	// Parser yet (MSX Pass 3, Bloco 2) - the other five (define/label
+	// delimiters) are recognized but unused so far.
+	KindDignifiedSymbol TokenKind = "DIGNIFIED_SYMBOL"
 	// KindString is a quoted string literal, delimited by the
 	// platform Description's QuoteChar, Value including both
 	// delimiters verbatim (no escaping, same as the original engine).

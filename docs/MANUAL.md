@@ -76,8 +76,11 @@ nenhum comando de conversão de verdade disponível para o usuário final
 Spectrum vão usar (ver seção 6 e `OUTLINE.md`, Bloco 1). **`v1.4.0`**
 porta o tokenizer MSX por completo (`internal/platforms/msx`); **`v1.5.0`**
 porta `Description`/`Lexer` MSX (primeiro uso real do motor contra um
-dialeto de verdade) — ainda sem nenhum comando de conversão real
-disponível pro usuário: falta o `Parser` MSX pra fechar o caminho
+dialeto de verdade); **`v1.6.0`** porta `Parser` Pass 3/4 (alocação
+de variáveis de 2 letras — primeira conversão Dignified→Classic de
+verdade produzindo texto correto) — ainda sem nenhum comando de
+conversão real disponível pro usuário: falta o restante do `Parser`
+MSX (Pass 1/5, `generate()` de verdade) pra fechar o caminho
 Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
@@ -161,9 +164,11 @@ acontece ainda em nenhuma das duas. O argumento `<arquivo> -id msx`
 partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
 converte texto Classic ASCII numerado em binário `.bmx`, e a partir da
 `v1.5.0` o `Description`/`Lexer` MSX já classificam texto Dignified
-real em tokens — mas ainda falta o `Parser` MSX pra de fato gerar
-texto Classic a partir disso. Nada disso é utilizável pelo usuário
-final ainda.
+real em tokens, e a partir da `v1.6.0` o `Parser` MSX já aloca
+variáveis de 2 letras e gera texto Classic de verdade pra isso
+(`counter=0` → `zz = 0`) — mas ainda falta o resto do `Parser`
+(conversões `?`/`PRINT`, `THEN`/`GOTO`, etc.) e ligar tudo isso ao
+tokenizer. Nada disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

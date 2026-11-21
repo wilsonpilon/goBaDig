@@ -26,8 +26,17 @@ type VariableCategory struct {
 // VariableAllocator assigns short aliases to long variable names
 // within a category, returning ErrAliasesExhausted once a category's
 // alias space is used up.
+//
+// excluded (added once a real platform - MSX, Bloco 2 - needed it)
+// lets the caller reject a candidate alias the allocator would
+// otherwise hand out, without the allocator needing to know anything
+// about WHY (badig_msx.py's process_variable checks a candidate
+// against 3 separate exclusion sets - already-declared aliases, short
+// names used directly in the source, and long names kept verbatim -
+// none of which belong inside this generic package). excluded may be
+// nil to accept every candidate, as Bloco 1's fake-platform test does.
 type VariableAllocator interface {
-	Allocate(category VariableCategory, longName string) (alias string, err error)
+	Allocate(category VariableCategory, longName string, excluded func(alias string) bool) (alias string, err error)
 }
 
 // descendingAllocator hands out aliases in descending order within
@@ -50,7 +59,7 @@ func NewDescendingAllocator() VariableAllocator {
 	}
 }
 
-func (a *descendingAllocator) Allocate(category VariableCategory, longName string) (string, error) {
+func (a *descendingAllocator) Allocate(category VariableCategory, longName string, excluded func(string) bool) (string, error) {
 	assigned, ok := a.assigned[category.Name]
 	if !ok {
 		assigned = make(map[string]string)
@@ -61,14 +70,20 @@ func (a *descendingAllocator) Allocate(category VariableCategory, longName strin
 		return alias, nil
 	}
 
-	index := a.next[category.Name]
-	if index < 0 {
-		return "", fmt.Errorf("category %q: %w", category.Name, ErrAliasesExhausted)
+	for {
+		index := a.next[category.Name]
+		if index < 0 {
+			return "", fmt.Errorf("category %q: %w", category.Name, ErrAliasesExhausted)
+		}
+		a.next[category.Name] = index - 1
+
+		alias := aliasAt(category, index)
+		if excluded != nil && excluded(alias) {
+			continue
+		}
+		assigned[longName] = alias
+		return alias, nil
 	}
-	alias := aliasAt(category, index)
-	assigned[longName] = alias
-	a.next[category.Name] = index - 1
-	return alias, nil
 }
 
 // aliasSpace returns how many distinct aliases a category can produce.

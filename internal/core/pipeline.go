@@ -12,6 +12,16 @@ import (
 // why core.Lex recognizes it itself instead of asking the platform.
 var identifierPattern = regexp.MustCompile(`^[a-z][a-z_0-9]*[%!#$]?`)
 
+// dignifiedSymbols are badig_dignified.py's d_symbol: 6 structural
+// symbols shared by every dialect (not platform vocabulary), so
+// core.Lex recognizes them itself, same reasoning as identifierPattern.
+// `~` (keep a long variable name verbatim) is the only one any Parser
+// acts on so far (MSX Pass 3, Bloco 2); the rest (define/label
+// delimiters) are recognized but unused until DEFINE/labels exist.
+var dignifiedSymbols = map[byte]bool{
+	'~': true, '[': true, ']': true, '{': true, '}': true, '@': true,
+}
+
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
 // token first, then one token per recognized item plus a NEWLINE per
 // source line, ending in EOF.
@@ -96,6 +106,13 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 				continue
 			}
 
+			if runes[pos] <= 127 && dignifiedSymbols[byte(runes[pos])] {
+				tokens = append(tokens, pin(Token{Kind: KindDignifiedSymbol, Value: string(runes[pos])}))
+				pos++
+				col++
+				continue
+			}
+
 			tokens = append(tokens, pin(Token{Kind: KindUnknown, Value: string(runes[pos])}))
 			pos++
 			col++
@@ -133,8 +150,11 @@ func scanGenericString(runes []rune, quote byte) int {
 }
 
 // passFunc is the shape shared by every Parser pass method - letting
-// runPass drive any of them identically.
-type passFunc func(ctx *CompileContext, tok Token) (HookAction, Token, error)
+// runPass drive any of them identically. It takes the pass's whole
+// input slice plus the index being classified this call (not just
+// that one token in isolation) - see Parser, in contract.go, for why:
+// MSX's real Pass 3 (Bloco 2) needed to look at the previous token.
+type passFunc func(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
 
 // runPass walks tokens once, calling pass for each and applying its
 // HookAction - the shared traversal behind every pass_N in the
@@ -143,11 +163,13 @@ type passFunc func(ctx *CompileContext, tok Token) (HookAction, Token, error)
 // case first. That core-level processing is Fase 3 follow-up work
 // (ver OUTLINE.md, Bloco 1, Fase 3); until it exists, every pass's
 // traversal is identical, which is why this one helper drives all of
-// them.
+// them. pass always sees the ORIGINAL input tokens for lookback/
+// lookahead, even though out, the slice actually being built, may
+// already have skipped or replaced earlier entries.
 func runPass(ctx *CompileContext, tokens []Token, pass passFunc) ([]Token, error) {
 	out := make([]Token, 0, len(tokens))
-	for _, tok := range tokens {
-		action, result, err := pass(ctx, tok)
+	for i, tok := range tokens {
+		action, result, err := pass(ctx, tokens, i)
 		if err != nil {
 			return nil, err
 		}

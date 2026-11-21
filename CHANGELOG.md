@@ -35,6 +35,43 @@ exata do pacote.
 
 ---
 
+## [1.6.0] — 2026-11-21 — bloco **NEW**, feature **msx-parser-variables** (build 0)
+
+**Primeira conversão Dignified→Classic de verdade produzindo texto
+correto**: `Parser` MSX Pass 3 e Pass 4 — a alocação de variáveis de
+2 letras, o coração do `Parser`.
+
+### Adicionado
+
+- Novo `internal/platforms/msx/parser.go`: aloca aliases de 2 letras
+  pra variáveis longas, descendente de `zz` até `aa`, fiel a
+  `get_hard_variable`/`process_variable` do motor original. Nome já
+  curto fica inalterado (e reserva esse nome pros outros); `~nome`
+  fica mantido por extenso (o `~` desaparece do texto gerado); erro
+  fatal ao esgotar os 676 aliases ou usar `~` incorretamente.
+- 7 testes novos, incluindo um de ponta a ponta completo
+  (`Lex`→`Parse`→`Generate`) confirmando que `counter=0` vira `zz = 0`
+  de verdade.
+- **Terceiro desvio na interface `core.Parser`** (Bloco 1): precisa
+  olhar pro token anterior pra detectar o símbolo `~` antes de um
+  identificador — cada `PassN` agora recebe a lista inteira de
+  entrada da pass mais o índice do token atual, não só o token
+  isolado. `core.Lex()` ganhou reconhecimento dos 6 símbolos
+  Dignified compartilhados (`~ [ ] { } @`). `core.SymbolTables` ficou
+  precisa (`Declares`/`HardShortVars`/`HardLongVars`).
+  `core.VariableAllocator.Allocate` ganhou um predicado `excluded`.
+
+### Observações
+
+- Não portados (não-fatais no original): os avisos de colisão por
+  prefixo em `get_hard_variable`.
+- Ainda faltam Pass 1 (separador de chamada Dignified), Pass 5
+  (`?`/PRINT, `THEN`/`GOTO`, `TRUE`/`FALSE`, tradução Unicode) e um
+  `generate()` de verdade (espaçamento, limite de linha) — ver
+  `OUTLINE.md`, Bloco 2.
+
+---
+
 ## [1.5.0] — 2026-11-21 — bloco **NEW**, feature **msx-lexer** (build 0)
 
 **`Description` e `Lexer` MSX portados de verdade** — o primeiro uso

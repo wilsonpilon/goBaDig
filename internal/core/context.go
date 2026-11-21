@@ -4,19 +4,34 @@ package core
 // survive across INCLUDE boundaries by explicit reference, instead of
 // the original engine's convention of passing a tuple of three dicts
 // (c_hard_short_vars, c_hard_long_vars, d_declares) back out of each
-// recursive par() call (OUTLINE.md, seção 3.4/3.5).
+// recursive par() call (OUTLINE.md, seção 3.4/3.5). Field shapes
+// confirmed reading badig_msx.py's get_hard_variable/process_variable
+// (the first real Parser passes to use them - Bloco 2) line by line;
+// an earlier Bloco 1 version of this type had two vague, never-used
+// fields instead.
 type SymbolTables struct {
-	ShortVars map[string]string
-	LongVars  map[string]string
-	Declares  map[string]string
+	// Declares maps "longName@file" to the short alias already
+	// allocated for it (d_declares) - both the allocator's own memory
+	// of what it already handed out, and the record a repeat
+	// reference to the same long name reuses.
+	Declares map[string]string
+	// HardShortVars is the set of short names (≤ a category's alias
+	// length) a long name must never be shortened to, because some
+	// variable already uses that exact short name directly in the
+	// source (c_hard_short_vars).
+	HardShortVars map[string]bool
+	// HardLongVars is the set of "longName@file" kept verbatim
+	// (never shortened) because the source marked them with the
+	// Dignified "keep long name" symbol, `~` (c_hard_long_vars).
+	HardLongVars map[string]bool
 }
 
 // NewSymbolTables returns an empty, ready-to-use SymbolTables.
 func NewSymbolTables() *SymbolTables {
 	return &SymbolTables{
-		ShortVars: make(map[string]string),
-		LongVars:  make(map[string]string),
-		Declares:  make(map[string]string),
+		Declares:      make(map[string]string),
+		HardShortVars: make(map[string]bool),
+		HardLongVars:  make(map[string]bool),
 	}
 }
 
