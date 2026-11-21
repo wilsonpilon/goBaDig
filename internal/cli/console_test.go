@@ -2,12 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
+	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
 func TestRunConsole(t *testing.T) {
@@ -21,8 +23,8 @@ func TestRunConsole(t *testing.T) {
 		"Modo console",
 		"goBaDig> ",
 		"Basic Dignified Suite, em Go.", // from "about"
-		"bloco NEW, feature themes",     // from "version"
-		`comando desconhecido: "nope"`,  // unknown command
+		fmt.Sprintf("bloco %s, feature %s", version.Block, version.Feature), // from "version"
+		`comando desconhecido: "nope"`,                                      // unknown command
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("console output missing %q; got:\n%s", want, got)
