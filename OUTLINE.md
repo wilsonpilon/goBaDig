@@ -23,9 +23,17 @@ Bloco 0) — ainda não implementado, só o veredito e a técnica
 confirmados lendo o código-fonte do ZEsarUX, e **os vetores de ouro do
 tokenizer MSX foram gerados** rodando o Python original
 (`badig/msx/test_tokenizer_msx.py`, 13 casos — MSX não tinha suíte de
-testes até agora, ver Bloco 0). O motor de
-conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
-ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
+testes até agora, ver Bloco 0). **O núcleo do motor começou a existir
+em 2026-11-21**: novo pacote `internal/core` (Fase 1 completa + Fase 2
+e Fase 3 parciais do Bloco 1 — `Token`/`Position`/`HookAction`/
+diagnóstico/`CompileContext`/alocador de variáveis, as interfaces
+`Description`/`Lexer`/`Parser`/`Settings`/`Platform`, e o driver do
+pipeline `Lex`→`Parse`→`Generate` validado de ponta a ponta contra uma
+plataforma fake — ver Bloco 1). Nenhum dialeto real (MSX/ZX81/
+Spectrum) usa isso ainda — falta `Expose`/`Tools.Interface`, `INCLUDE`,
+`-asc` e a config em camadas (Bloco 1) antes do Bloco 2 (MSX) poder
+começar a valer-se disso pra converter BASIC de verdade.
+Ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
 de verdade. **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -723,22 +731,99 @@ de conversão e os módulos de plataforma seguem pendentes.
 
 ### Bloco 1 — Núcleo do motor (core engine)
 
-- [ ] Definir interfaces Go: `Description`, `Lexer`, `Parser`, `Settings`,
-  `Expose`, `Tools.Interface`. — **M**, **1**
-- [ ] Implementar `Token`/`Position` como structs Go. — **B**, **1**
-- [ ] Escrever o scanner/lexer manual (substituindo a regex de
-  maximal-munch Python). — **A**, **1**
-- [ ] Implementar os 5 passes do parser + `generate()` como pipeline
-  explícito sobre `*CompileContext`. — **A**, **1**
-- [ ] Implementar alocador de variáveis por categoria (generaliza MSX/
-  ZX81/Spectrum). — **M**, **1**
-- [ ] Implementar config em camadas (SQLite global < projeto < CLI <
-  remtags no código-fonte). — **M**, **1**
-- [ ] Implementar `Infolog`/relatório de erro com exit codes corretos
-  desde o início. — **B**, **1**
-- [ ] Suporte a `INCLUDE` recursivo com tabelas de símbolo compartilhadas
-  por referência explícita. — **M**, **2**
-- [ ] Caminho `-asc` (entrada já numerada, pula lexer/parser Dignified). — **B**, **1**
+**Plano detalhado (tipos/assinaturas Go concretos, pesquisa no
+`badig.py`/`support/*` que fundamenta cada peça) em
+`C:\Users\barney\.claude\plans\sharded-plotting-conway.md` — não
+versionado (fora do repo), só nesta máquina. Resumo abaixo, quebrado em
+fases/subfases com esforço (**B**aixo/**M**édio/**A**lto) e
+criticidade (**1**=bloqueia o resto, **2**=importante mas não bloqueia
+o essencial, **3**=pode esperar), igual à convenção já usada no resto
+deste documento, pra decidir o próximo passo por esforço x criticidade.
+
+**Fase 1 — Tipos fundamentais, sem incerteza de design — COMPLETA
+(2026-11-21)** (nenhum depende de como uma plataforma real vai usá-los):
+- [x] `Token`/`Position`/`TokenKind` (`internal/core/token.go`) — **B**, **1**
+- [x] `HookAction` (substitui o protocolo tri-estado `False`/`None`/`Token`
+  do Python) (`internal/core/hook.go`) — **B**, **1**
+- [x] Diagnóstico/erro, substitui `Infolog` — erro como `error` Go
+  subindo a pilha, exit code decidido uma vez só no `main()`
+  (`internal/core/diagnostic.go`) — **B**, **1**
+- [x] `CompileContext` + `SymbolTables` (estado explícito por parâmetro,
+  resolve o acoplamento de includes) (`internal/core/context.go`) — **M**, **1**
+- [x] Alocador de variáveis por categoria (`internal/core/allocator.go`,
+  implementação genérica descendente `NewDescendingAllocator`) — **M**, **2**
+
+**Fase 2 — Contrato "v0" (interfaces por hook + `Platform`) — PARCIAL
+(2026-11-21)**:
+- [x] `Description`/`SystemInfo` (`internal/core/contract.go`) — **B**, **1**
+- [x] `Lexer` (`internal/core/contract.go`) — **B**, **1**
+- [x] `Parser` (5 passes + `Generate`) (`internal/core/contract.go`) — **M**, **1**
+- [x] `Platform` (`internal/core/platform.go`) — **B**, **1**
+- [x] `Settings` (`internal/core/contract.go`) — **B**, **2**
+- [x] `GenerateResult`/`LineCorrespondence` (`internal/core/contract.go`) — **B**, **2**
+- [ ] `Expose`/`Exposed`/`RemtagSpec` — **B**, **3** (próxima fase — só
+  importa quando o CLI real de flags existir, Bloco 5)
+- [ ] `Tools.Interface` — **B**, **3** (próxima fase — sem corpo real
+  até ter tokenizer/emulador de verdade, Bloco 2+)
+
+**Desvio do plano original, descoberto implementando**: `Lexer.Lex` e
+cada `Parser.PassN`/`Generate` ganharam um terceiro retorno `error`
+(`(HookAction, Token, error)`, não só `(HookAction, Token)`) — faltava
+um jeito de um hook sinalizar falha fatal sem o driver precisar
+inspecionar o `DiagnosticSink`. É exatamente o tipo de ajuste que a
+plataforma fake (Fase 3) deveria revelar antes de qualquer plataforma
+real depender da interface.
+
+**Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
+que prova que o desenho funciona):
+- [x] Driver do pipeline no core (`internal/core/pipeline.go`:
+  `Lex`/`Parse`/`Generate`/`Run`) — **A**, **1**. Simplificação
+  deliberada em relação ao Python: o scanner só reconhece espaço em
+  branco e fim de linha; qualquer sequência de caracteres não-espaço é
+  empacotada como `KindWord` e delegada pro `Lexer.Lex` da plataforma
+  classificar — nenhum processamento Dignified de núcleo
+  (DEFINE/INCLUDE/etc.) existe ainda, então todo pass hoje só chama o
+  hook da plataforma por token, sem nenhuma lógica própria do core.
+  Scanner "de verdade" por tabela/trie, com vocabulário real, continua
+  sendo trabalho do Bloco 2.
+- [x] Plataforma fake de validação (`internal/core/pipeline_test.go`,
+  reconhece `PRINT`/inteiros/`IGNORE`) — **M**, **1**
+- [x] Teste de ponta a ponta (`TestPipelineEndToEnd`, exercitando as 3
+  `HookAction` - `Replace`/`Skip`/`Continue` - numa linha só) e teste
+  dedicado confirmando que `Pass4`/`Pass5` são pulados quando
+  `IncludeStack` indica um arquivo incluído
+  (`TestParseSkipsPass4And5ForIncludedFiles`) — **B**, **1**
+- [ ] Suporte a `INCLUDE` recursivo com tabelas de símbolo
+  compartilhadas por referência explícita — **M**, **2** (próxima
+  fase — testável agora que o driver existe)
+- [ ] Caminho `-asc` (decisão de orquestração — pula Lex/Parser por
+  completo, chama `Platform.Tools.Run` direto) — **B**, **3** (próxima
+  fase — nada pra testar de verdade até `Tools.Interface` ter corpo real)
+
+**Fase 4 — Config em camadas** (não bloqueia o motor testável das Fases
+1-3):
+- [ ] Estender `internal/config.Store` já existente (tabelas de config
+  global/projeto, keywords/tokens por dialeto) — **M**, **2**
+- [ ] Resolução de fato das 4 camadas (SQLite global < projeto < CLI <
+  remtags no código) — **A**, **3** (não há CLI real de flags pra
+  testar contra ainda)
+
+Caminho de menor esforço + maior criticidade até ter um motor
+testável de ponta a ponta: Fase 1 completa + Fase 2 (menos `Expose`/
+`Tools.Interface`, que podem esperar) + Fase 3 (menos `INCLUDE`/`-asc`,
+que podem esperar). Fase 4 fica pra quando houver um CLI real de flags
+pra validar contra (Bloco 5).
+
+**Implementado em 2026-11-21** (pacote novo `internal/core`, 9
+arquivos: `token.go`, `hook.go`, `diagnostic.go`, `settings.go`,
+`context.go`, `allocator.go`, `contract.go`, `platform.go`,
+`pipeline.go`, mais `pipeline_test.go`): Fase 1 completa, Fase 2 sem
+`Expose`/`Tools.Interface`, Fase 3 sem `INCLUDE`/`-asc` — exatamente o
+caminho de menor esforço + maior criticidade acima. `go build`/
+`go vet`/`gofmt -l`/`go test` limpos em `internal/core` e no resto do
+repo (nada mais foi tocado). Falta documentado em cada subitem acima
+pras próximas fases: `Expose`/`Tools.Interface` (Fase 2), `INCLUDE`
+recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
 
 ### Bloco 2 — Módulo MSX
 
