@@ -73,7 +73,10 @@ TUI (menu `Editor > Open`) — ver seções 5 e 9. **`v1.3.0`** começa o
 motor de conversão propriamente dito (`internal/core`): ainda não há
 nenhum comando de conversão de verdade disponível para o usuário final
 — é só a base interna (tipos/interfaces) que os módulos MSX/ZX81/ZX
-Spectrum vão usar (ver seção 6 e `OUTLINE.md`, Bloco 1).
+Spectrum vão usar (ver seção 6 e `OUTLINE.md`, Bloco 1). **`v1.4.0`**
+porta o tokenizer MSX por completo (`internal/platforms/msx`) — ainda
+sem nenhum comando de conversão real disponível pro usuário: falta
+ligar isso ao conversor Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -152,9 +155,12 @@ acontece ainda em nenhuma das duas. O argumento `<arquivo> -id msx`
 ## 6. Converter um programa Dignified
 
 **(pendente — depende dos Blocos 1 a 4 do `OUTLINE.md`)**. A partir da
-`v1.3.0` existe um primeiro núcleo do motor em Go (`internal/core`),
-mas ainda sem nenhum dialeto real (MSX/ZX81/ZX Spectrum) ligado a ele —
-nada disso é utilizável pelo usuário final ainda.
+`v1.3.0` existe um primeiro núcleo do motor em Go (`internal/core`), e
+a partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
+converte texto Classic ASCII numerado em binário `.bmx` — mas ainda
+sem nenhum conversor Dignified→Classic ligado a ele (nenhum dialeto
+real usa `internal/core` ainda). Nada disso é utilizável pelo usuário
+final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não
@@ -181,7 +187,9 @@ vetores próprios já foram gerados rodando o tokenizer Python real
 (`badig/msx/test_tokenizer_msx.py`, 13 casos — não versionado, já que
 `badig/` inteiro é histórico local) e copiados, versionados, em
 [`docs/golden-vectors/msx-tokenizer.md`](golden-vectors/msx-tokenizer.md)
-(ver `OUTLINE.md`, Bloco 0).
+(ver `OUTLINE.md`, Bloco 0). O tokenizer MSX em Go
+(`internal/platforms/msx`) já passa todos os 13 byte-exato (ver
+`go test ./internal/platforms/msx/...` e `OUTLINE.md`, Bloco 2).
 
 O primeiro pacote do próprio motor em Go (`internal/core`: tipos
 `Token`/`Position`, o contrato `Description`/`Lexer`/`Parser`/

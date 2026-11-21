@@ -6,35 +6,28 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-21.
-Estado: **stub funcional v1.1.4 publicado; v1.2.0 em desenvolvimento e
-nao publicado**. CLI com temas e conclusao Tab; GUI com temas persistidos;
-TUI modernizada em 2026-11-20 no visual retro estilo MS-DOS (Turbo
-Vision/Turbo Pascal/Norton Commander: janelas com sombra, caixa de
-sistema, icones Unicode, desktop texturizado — ver Bloco 6), o
-congelamento real de `Setup > Install` foi encontrado e corrigido nessa
-mesma sessao (nao era deadlock — era o dialogo inteiro ficando invisivel
-por um bug classico de Go, ver Bloco 6 para a causa raiz completa), e em
-2026-11-21 **o editor WibEdit (portado de `E:\wibworks`) foi integrado
-como `internal/editor`, acessivel pelo novo menu Editor > Open da TUI** —
-a base do futuro editor/IDE do goBaDig (ver Bloco 6 e secao 10.6), e
-**a viabilidade do ZRCP (ZEsarUX) foi investigada e confirmada como
-viável** para monitoramento de erro em tempo real em ZX81/Spectrum (ver
-Bloco 0) — ainda não implementado, só o veredito e a técnica
-confirmados lendo o código-fonte do ZEsarUX, e **os vetores de ouro do
-tokenizer MSX foram gerados** rodando o Python original
-(`badig/msx/test_tokenizer_msx.py`, 13 casos — MSX não tinha suíte de
-testes até agora, ver Bloco 0). **O núcleo do motor começou a existir
-em 2026-11-21**: novo pacote `internal/core` (Fase 1 completa + Fase 2
-e Fase 3 parciais do Bloco 1 — `Token`/`Position`/`HookAction`/
-diagnóstico/`CompileContext`/alocador de variáveis, as interfaces
-`Description`/`Lexer`/`Parser`/`Settings`/`Platform`, e o driver do
-pipeline `Lex`→`Parse`→`Generate` validado de ponta a ponta contra uma
-plataforma fake — ver Bloco 1). Nenhum dialeto real (MSX/ZX81/
-Spectrum) usa isso ainda — falta `Expose`/`Tools.Interface`, `INCLUDE`,
-`-asc` e a config em camadas (Bloco 1) antes do Bloco 2 (MSX) poder
-começar a valer-se disso pra converter BASIC de verdade.
-Ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
-de verdade. **As 9 perguntas da seção 8 foram respondidas pelo usuário em
+Estado: **v1.3.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
+integrado (`internal/editor`, menu Editor > Open, base do futuro
+IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
+ainda), vetores de ouro do tokenizer MSX gerados (Bloco 0) — histórico
+completo de cada um desses itens em `CHANGELOG.md` (`v1.2.0`) e nos
+Blocos correspondentes abaixo, não repetido aqui.
+
+**O motor de conversão começou a existir em 2026-11-21** (`v1.3.0`):
+`internal/core` (Bloco 1, Fase 1 completa + Fase 2/3 parciais —
+`Token`/`Position`/`HookAction`/diagnóstico/`CompileContext`/alocador
+de variáveis, interfaces `Description`/`Lexer`/`Parser`/`Settings`/
+`Platform`, driver `Lex`→`Parse`→`Generate` validado contra uma
+plataforma fake) e **o tokenizer MSX Batoken portado por completo**
+(`internal/platforms/msx`, Bloco 2 — os 13 vetores de ouro do Bloco 0
+passam byte-exato, mais 10 casos extras validados contra o Python
+real). **Ainda não há nenhuma conversão Dignified→Classic de
+verdade** (`Description`/`Lexer`/`Parser` MSX) — o tokenizer converte
+só texto ASCII já numerado pra binário; ligar isso ao motor Dignified
+é o próximo passo do Bloco 2. Ver Blocos 1-4 na seção 7 para o que
+falta antes da primeira conversão completa de ponta a ponta.
+**As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
 anterior registrado no `resume.txt`, `C:\dos\goBaDig`, era de outra
@@ -222,19 +215,44 @@ comportando como "CLI adicional reprocessada").
 - **Nomes de variáveis**: alocação automática para 2 letras (`aa`..`zz`,
   676 combinações, ordem descendente), namespace único por tipo. `~nome`
   preserva nome longo; `declare nome:xy` força alias. Esgotamento é erro
-  fatal — nunca alias silencioso.
+  fatal — nunca alias silencioso. **Algoritmo confirmado lendo
+  `badig_msx.py:516-558` por completo (2026-11-21)**: um cursor
+  decrescente único (`var_index`, começa em 676) compartilhado por
+  toda a compilação — decrementa, calcula `zz` descendo até `aa`
+  (`idx_h=var_index//26`, `idx_l=var_index%26`,
+  `short=c_var_chr[idx_h]+c_var_chr[idx_l]`), pulando um candidato se
+  colidir com 1 de 3 conjuntos de exclusão: `d_declares` (nomes já
+  usados), `c_hard_short_vars` (aliases curtos reservados manualmente),
+  e os 2 primeiros chars de `c_hard_long_vars` (nomes longos mantidos
+  via `~`). Uma vez mapeado, o nome longo reusa sempre o mesmo alias
+  (`d_declares` cacheia por `nome+arquivo`) — o cursor só decrementa no
+  primeiro uso de cada variável distinta. **Nota pro Go**:
+  `core.SymbolTables` (Bloco 1) hoje só modela o equivalente a
+  `d_declares`; vai precisar de mais dois campos (conjuntos de
+  exclusão) quando o `Parser` MSX for implementado de verdade.
 - **Transformações de dialeto**: `?`↔`PRINT` (`-cp`), remoção opcional de
   `THEN`/`GOTO` adjacentes (`-tg`, **não aplicável ao Spectrum**, onde
   `THEN 100` não é equivalente ao salto Sinclair), `TRUE`/`FALSE`→`-1`/`0`
   (lógica bit-a-bit, diferente do Spectrum que usa `1`/`0`), tradução
   Unicode→ASCII de glifos de bloco via duas tabelas paralelas de 128 chars.
 - **Tokenizer MSX Batoken** (`msxbatoken.py`, 758 linhas, standalone):
-  tabela de ~150 tokens (prefixo `FF` para funções estendidas), parsing
-  numérico com **Microsoft Binary Format** (não IEEE-754) para float
-  single/double precision — peça que exige mais cuidado numérico ao
-  portar. Linha BASIC termina em `0x00` (não `0x0D` do Spectrum nem `0x76`
-  do ZX81 — três formatos de linha binária incompatíveis entre si).
-  Endereço de carga fixo `0x8001`.
+  tabela de ~150 tokens, varrida em **ordem** (não por hash — ordem
+  importa, ex. `ERROR` antes de `ERR`), valores de tamanho variável
+  (1-3 bytes; prefixo `FF` para funções estendidas). **Correção
+  2026-11-21**: o parsing numérico **não usa Microsoft Binary Format
+  nem qualquer formato binário de float** (achado inicial errado,
+  corrigido lendo `parse_sgn_dbl` por completo) — é puramente
+  **decimal**: um byte de "expoente" (`0x40 + quantidade de dígitos
+  significativos`) seguido dos dígitos decimais em si, dois por byte
+  (cada dígito já é um nibble hex válido), arredondado "half up" no
+  dígito 6 (simples) ou 14 (dupla). Alvo de `THEN`/`GOTO`/etc. é só o
+  número de linha literal reencodado como `u16` little-endian com
+  marcador `0x0e` — sem resolução de endereço. Linha BASIC termina em
+  `0x00` (não `0x0D` do Spectrum nem `0x76` do ZX81 — três formatos de
+  linha binária incompatíveis entre si). Endereço de carga fixo
+  `0x8001` (o primeiro byte do arquivo, `0xFF`, é um marcador de
+  arquivo separado, em `0x8000`, não faz parte do endereçamento de
+  nenhuma linha).
 - **Sem formato de fita**: MSX roda de disco via openMSX (`-diska`), não
   de "cassete" — não há TAP/TZX equivalente a portar para MSX.
 - **Integração openMSX** (`emulator_interface.py`, 358 linhas): a parte
@@ -616,8 +634,10 @@ de conversão e os módulos de plataforma seguem pendentes.
   pequenos 0-9 (byte dedicado `0x11+n`) vs. inteiro de 1 byte (prefixo
   `0x0f`) vs. 2 bytes (prefixo `0x1c`), menos unário como operador `-`
   (não um literal negativo), float precisão simples (prefixo `0x1d` +
-  Microsoft Binary Format, não IEEE-754) vs. dupla (prefixo `0x1f`,
-  sufixo `#`), string literal (ASCII entre aspas literais, sem escape),
+  dígitos decimais empacotados com um byte de expoente — **não** é
+  Microsoft Binary Format nem nenhum formato binário, achado inicial
+  errado corrigido em 2026-11-21, ver Bloco 2) vs. dupla (prefixo
+  `0x1f`, sufixo `#`), string literal (ASCII entre aspas literais, sem escape),
   `REM` vs. `'` (encodings diferentes — `'` expande pra
   `3a 8f e6`, não é so um alias de byte único), múltiplos statements
   separados por `:`, função estendida com prefixo `ff` (ex.: `PEEK`), e
@@ -829,8 +849,35 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
 
 - [ ] Portar `Description`/`Lexer`/`Parser` MSX (vocabulário, alocação de
   2 letras, `?`/PRINT, THEN/GOTO strip, TRUE/FALSE=-1/0, Unicode→ASCII). — **M**, **1**
-- [ ] Portar tokenizer MSX Batoken, incluindo Microsoft Binary Format
-  para floats (usar golden vectors gerados no Bloco 0). — **A**, **1**
+- [x] **Portado o tokenizer MSX Batoken** (2026-11-21,
+  `internal/platforms/msx/tokenizer.go` + `tokenizer_test.go`) — texto
+  ASCII numerado → binário `.bmx`, standalone, **não usa
+  `internal/core`** (o tokenizer no Python original também não usa
+  nada do motor Dignified/`Classic`). Os 13 vetores de ouro do Bloco 0
+  portados 1:1 como testes Go, todos passando byte-exato; validado
+  ainda contra 10 casos extras (DATA, CALL, `&H`/`&O`/`&B`, variável
+  com palavra-chave embutida, `ON...GOTO` com múltiplos alvos, inteiro
+  grande sem sufixo, atribuição, sufixo `%`) rodando o Python real
+  lado a lado — todos batem. **Achado que corrige o item anterior
+  desta lista**: não existe Microsoft Binary Format nem nenhuma
+  conversão binária de float no tokenizer original — é puramente
+  decimal (ver seção 4.1 e o achado em `docs/golden-vectors/
+  msx-tokenizer.md`/`OUTLINE.md` acima). Simplificações deliberadas,
+  documentadas no código (`Tokenize`, doc comment): notação científica
+  (`1E+10`) não suportada ainda (erro explícito, não vetor de ouro
+  cobre isso); sem espaço embutido dentro de um literal numérico
+  (réplica de uma lacuna do Python seria portar um bug latente, não
+  comportamento real do MSX); literais maiores que `int64` (~18-19
+  dígitos) retornam erro em vez de aritmética de precisão arbitrária;
+  o bug latente do Python no tratamento de `AS` com 2 dígitos (`ord()`
+  numa string de 2 chars, cai em `TypeError`) foi corrigido, não
+  reproduzido. — **A**, **1**
+- [ ] Portar `Description`/`Lexer`/`Parser` MSX (vocabulário, alocação de
+  2 letras, `?`/PRINT, THEN/GOTO strip, TRUE/FALSE=-1/0, Unicode→ASCII)
+  — primeiro uso real das interfaces "v0" do Bloco 1; pesquisa já feita
+  nesta sessão (classes `Description`/`Lexer`/`Parser`/`Settings`/
+  `Expose` lidas por completo em `badig_msx.py`), implementação ainda
+  não iniciada. — **M**, **1**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**
 - [ ] Integração openMSX: lançar processo + disco virtual, **sem**
   monitoramento de erro na v1 (adiar item de risco alto). — **M**, **1**

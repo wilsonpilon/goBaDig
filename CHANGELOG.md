@@ -35,6 +35,102 @@ exata do pacote.
 
 ---
 
+## [1.4.0] — 2026-11-21 — bloco **NEW**, feature **msx-tokenizer** (build 0)
+
+**Primeira conversão de BASIC de verdade: o tokenizer MSX Batoken
+portado por completo.** Texto ASCII numerado → binário `.bmx`,
+standalone (não depende do `internal/core` do Bloco 1 — o tokenizer
+original também não depende do motor Dignified/`Classic`).
+
+### Adicionado
+
+- Novo pacote `internal/platforms/msx` (`tokenizer.go` +
+  `tokenizer_test.go`): tabela de ~150 tokens transcrita **em ordem**
+  (não por hash — a ordem de varredura do original importa de
+  verdade, ex. `ERROR` antes de `ERR`), valores de tamanho variável
+  (1-3 bytes), codificação de inteiros em 3 faixas (0-9 byte dedicado,
+  10-255 prefixo `0x0f`, 256-32767 prefixo `0x1c` — acima disso
+  auto-promove pra float, igual o MSX real), alvo de `THEN`/`GOTO`/
+  etc. como valor bruto de 2 bytes com marcador `0x0e` (sem resolução
+  de endereço), `&H`/`&O` calculando o valor real vs. `&B` guardando
+  os dígitos como ASCII literal (discrepância real do MSX, portada
+  fiel), scan de identificador que re-checa a tabela de tokens a cada
+  caractere (gotcha classico onde `SCORE` quebra em `SC`+`OR`+`E`).
+- **Corrigida uma suposição errada do `OUTLINE.md`**: o parsing
+  numérico não usa Microsoft Binary Format nem nenhum formato binário
+  de float — é puramente decimal (um byte de expoente + dígitos
+  decimais empacotados dois por byte, já que cada dígito é um nibble
+  hex válido). Ver `OUTLINE.md`, Bloco 2, para a explicação completa.
+- Os 13 vetores de ouro do tokenizer (gerados no Bloco 0) portados
+  1:1 como testes Go, todos passando byte-exato; validado ainda
+  contra 10 casos extras (DATA, CALL, `&H`/`&O`/`&B`, variável com
+  palavra-chave embutida, `ON...GOTO` com múltiplos alvos, inteiro
+  grande sem sufixo, atribuição, sufixo `%`) comparando diretamente
+  com o Python original, byte a byte.
+
+### Observações
+
+- Simplificações deliberadas (nenhuma afeta os vetores de ouro):
+  notação científica (`1E+10`) não suportada ainda (erro explícito);
+  sem espaço embutido dentro de um literal numérico; literais maiores
+  que cabem num `int64` (~18-19 dígitos) retornam erro em vez de
+  aritmética de precisão arbitrária. Um bug latente do Python no
+  tratamento de `AS` com 2 dígitos (`ord()` numa string de 2
+  caracteres, sempre quebrava) foi corrigido, não reproduzido.
+- Ainda não há nenhuma conversão Dignified→Classic de verdade
+  (`Description`/`Lexer`/`Parser` MSX) — esta release só tokeniza
+  texto Classic ASCII já numerado. Ligar isso ao motor Dignified do
+  Bloco 1 é o próximo passo do Bloco 2.
+
+---
+
+## [1.3.0] — 2026-11-21 — bloco **NEW**, feature **core-engine** (build 0)
+
+**Primeiro código do motor de conversão.** Até aqui, tudo em goBaDig
+era infraestrutura/interface (CLI/TUI/GUI, temas, editor) — nenhuma
+linha de BASIC foi convertida ainda. Esta release começa o núcleo do
+motor propriamente dito (Bloco 1 do `OUTLINE.md`): ainda não há
+nenhum dialeto real (MSX/ZX81/ZX Spectrum) usando isso, e nenhum
+comando de conversão está disponível para o usuário final.
+
+### Adicionado
+
+- Novo pacote `internal/core`: `Token`/`Position`/`TokenKind` (`Value`
+  é `any`, não `string` — o Pass 4 do motor original reaproveita o
+  mesmo campo pra guardar um número de linha resolvido), `HookAction`
+  (substitui o protocolo tri-estado `False`/`None`/`Token` do Python
+  original por um enum explícito `Continue`/`Skip`/`Replace`),
+  diagnóstico/erro (substitui o `Infolog` original — sem o bug do
+  exit code silencioso compartilhado como atributo de classe),
+  `CompileContext`/`SymbolTables` (estado explícito por parâmetro, não
+  atributos dinâmicos de instância), alocador de variáveis por
+  categoria genérico e descendente (generaliza MSX/ZX81/ZX Spectrum).
+- Interfaces "v0" `Description`/`Lexer`/`Parser`/`Settings` e o struct
+  `Platform` que agrupa as 4 (equivalente Go ao trio dinamicamente
+  importado `Classic`/`Tools`/`Dignified` do motor original - Go não
+  tem esse truque, então a escolha de dialeto é um valor explícito).
+- Driver do pipeline (`Lex`→`Parse`→`Generate`→`Run`), validado de
+  ponta a ponta contra uma plataforma fictícia mínima (não é MSX de
+  verdade - só reconhece `PRINT`/inteiros) antes de qualquer dialeto
+  real depender do contrato. `Parse` já respeita o mesmo gate do motor
+  original: passes 4/5 só rodam no arquivo principal, nunca em
+  arquivos trazidos por `INCLUDE`.
+
+### Observações
+
+- Ainda faltam, documentados como próximas fases em `OUTLINE.md`
+  (Bloco 1): `Expose`/`Tools.Interface` (só importam com um CLI real
+  de flags, Bloco 5), `INCLUDE` recursivo de verdade, o caminho `-asc`,
+  e a resolução de fato das 4 camadas de config (SQLite global <
+  projeto < CLI < remtags) - por ora `CompileSettings` é só um
+  placeholder.
+- O scanner de hoje só reconhece espaço em branco e fim de linha;
+  qualquer vocabulário real de dialeto (palavras-chave, números,
+  strings) é trabalho do Bloco 2, quando o módulo MSX for de fato
+  portado.
+
+---
+
 ## [1.2.0] — 2026-11-21 — bloco **NEW**, feature **themes** (build 0)
 
 **Temas persistidos nas três interfaces, TUI redesenhada no visual
@@ -122,53 +218,6 @@ release desde a `v1.1.4`.
   [`docs/golden-vectors/msx-tokenizer.md`](docs/golden-vectors/msx-tokenizer.md)
   (versionado): MSX não tinha suíte de testes no projeto original,
   diferente de ZX81/ZX Spectrum.
-
----
-
-## [1.3.0] — 2026-11-21 — bloco **NEW**, feature **core-engine** (build 0)
-
-**Primeiro código do motor de conversão.** Até aqui, tudo em goBaDig
-era infraestrutura/interface (CLI/TUI/GUI, temas, editor) — nenhuma
-linha de BASIC foi convertida ainda. Esta release começa o núcleo do
-motor propriamente dito (Bloco 1 do `OUTLINE.md`): ainda não há
-nenhum dialeto real (MSX/ZX81/ZX Spectrum) usando isso, e nenhum
-comando de conversão está disponível para o usuário final.
-
-### Adicionado
-
-- Novo pacote `internal/core`: `Token`/`Position`/`TokenKind` (`Value`
-  é `any`, não `string` — o Pass 4 do motor original reaproveita o
-  mesmo campo pra guardar um número de linha resolvido), `HookAction`
-  (substitui o protocolo tri-estado `False`/`None`/`Token` do Python
-  original por um enum explícito `Continue`/`Skip`/`Replace`),
-  diagnóstico/erro (substitui o `Infolog` original — sem o bug do
-  exit code silencioso compartilhado como atributo de classe),
-  `CompileContext`/`SymbolTables` (estado explícito por parâmetro, não
-  atributos dinâmicos de instância), alocador de variáveis por
-  categoria genérico e descendente (generaliza MSX/ZX81/ZX Spectrum).
-- Interfaces "v0" `Description`/`Lexer`/`Parser`/`Settings` e o struct
-  `Platform` que agrupa as 4 (equivalente Go ao trio dinamicamente
-  importado `Classic`/`Tools`/`Dignified` do motor original - Go não
-  tem esse truque, então a escolha de dialeto é um valor explícito).
-- Driver do pipeline (`Lex`→`Parse`→`Generate`→`Run`), validado de
-  ponta a ponta contra uma plataforma fictícia mínima (não é MSX de
-  verdade - só reconhece `PRINT`/inteiros) antes de qualquer dialeto
-  real depender do contrato. `Parse` já respeita o mesmo gate do motor
-  original: passes 4/5 só rodam no arquivo principal, nunca em
-  arquivos trazidos por `INCLUDE`.
-
-### Observações
-
-- Ainda faltam, documentados como próximas fases em `OUTLINE.md`
-  (Bloco 1): `Expose`/`Tools.Interface` (só importam com um CLI real
-  de flags, Bloco 5), `INCLUDE` recursivo de verdade, o caminho `-asc`,
-  e a resolução de fato das 4 camadas de config (SQLite global <
-  projeto < CLI < remtags) - por ora `CompileSettings` é só um
-  placeholder.
-- O scanner de hoje só reconhece espaço em branco e fim de linha;
-  qualquer vocabulário real de dialeto (palavras-chave, números,
-  strings) é trabalho do Bloco 2, quando o módulo MSX for de fato
-  portado.
 
 ---
 
