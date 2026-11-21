@@ -69,6 +69,23 @@ de decisão.
   o EightyOne não oferece (ver `OUTLINE.md`, seção 6, item de
   monitoramento). Merece ser avaliado como alvo prioritário de
   automação para ZX81/Spectrum, não só mais um emulador manual.
+- **Viabilidade do ZRCP confirmada em 2026-11-21** (lendo o código-fonte
+  em `src/zrcp/remote.c`/`src/debug.c`/`src/expression_parser.c` no
+  GitHub — não há documentação oficial do protocolo, só o código e
+  exemplos de clientes de terceiros). Detalhe completo da investigação
+  e da técnica recomendada (breakpoint em `PC=0008H`, onde ambas as ROMs
+  Sinclair reportam erro via `RST 08h`, lendo depois `PPC`/`SUBPPC`
+  no Spectrum ou `E_PPC` no ZX81) em `OUTLINE.md`, Bloco 0. Comandos do
+  protocolo confirmados: `enable-breakpoints`, `set-breakpoint <n>
+  <condição>` (ex.: `set-breakpoint 1 PC=0008H` — **números são
+  decimais por padrão, hex exige sufixo `H`/prefixo `0x`/`$`**), `run`
+  (bloqueia até o breakpoint disparar, sem notificação assíncrona
+  separada), `get-registers`, `read-memory <endereço> <tamanho>`.
+  Ressalva: ligar breakpoints custa CPU do host durante toda a execução
+  (benchmark do próprio autor no código-fonte), não só no instante do
+  disparo — provavelmente irrelevante para rodar um programa de teste,
+  mas registrado. **Ainda não testado contra uma instância real do
+  ZEsarUX** — só pesquisa de código-fonte até agora.
 - **Onde baixar**: <https://github.com/chernandezba/zesarux>
 - **Onde colocar**: `resource/emulators/zesarux/`.
 - **Licença**: GNU GPL v3.

@@ -16,8 +16,11 @@ mesma sessao (nao era deadlock — era o dialogo inteiro ficando invisivel
 por um bug classico de Go, ver Bloco 6 para a causa raiz completa), e em
 2026-11-21 **o editor WibEdit (portado de `E:\wibworks`) foi integrado
 como `internal/editor`, acessivel pelo novo menu Editor > Open da TUI** —
-a base do futuro editor/IDE do goBaDig (ver Bloco 6 e secao 10.6). O
-motor de
+a base do futuro editor/IDE do goBaDig (ver Bloco 6 e secao 10.6), e
+**a viabilidade do ZRCP (ZEsarUX) foi investigada e confirmada como
+viável** para monitoramento de erro em tempo real em ZX81/Spectrum (ver
+Bloco 0) — ainda não implementado, só o veredito e a técnica
+confirmados lendo o código-fonte do ZEsarUX. O motor de
 conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
 ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
 de verdade. **As 9 perguntas da seção 8 foram respondidas pelo usuário em
@@ -588,11 +591,92 @@ de conversão e os módulos de plataforma seguem pendentes.
 - [x] Decidir nomenclatura final de extensões de arquivo por plataforma
   no Go: **mantidas as herdadas** (`.DMX/.AMX/.BMX`, `.DZX/.AZX/.p`,
   `.DZS/.AZS/.TAP/.TZX`), sem esquema novo. — 2026-11-20 (seção 8, pergunta 3).
-- [ ] **Investigar viabilidade do ZRCP (ZEsarUX)** para monitoramento de
-  erro em tempo real em ZX81/Spectrum, antes de fechar a interface
-  `EmulatorController` (decisão item 9 da seção 6) — pedido explícito do
-  usuário em 2026-11-20 para avaliar isso já, não depois do MVP (seção 8,
-  pergunta 4). Pode mudar a prioridade/desenho dos Blocos 3/4/8. — **M**, **1**
+- [x] **Investigado o ZRCP (ZEsarUX)** para monitoramento de erro em
+  tempo real em ZX81/Spectrum (2026-11-21, pedido explícito do usuário
+  em 2026-11-20 para avaliar isso já, não depois do MVP — seção 8,
+  pergunta 4). **Veredito: viável**, lido direto do código-fonte do
+  ZEsarUX (`src/zrcp/remote.c`, `src/debug.c`, `src/expression_parser.c`
+  no GitHub `chernandezba/zesarux`, branch `main`) já que não existe
+  documentação oficial do protocolo em si — só exemplos de terceiros
+  (cliente ZRCP de `vscode-zx-debugger`) e o próprio código.
+
+  **Técnica recomendada — diferente do hack do MSX/openMSX.** O MSX
+  hoje captura caractere por caractere (breakpoint na rotina de saída de
+  texto da BIOS, ver `openmsx_output.tcl`) e escaneia o texto resultante
+  procurando o bell (`\x07`) de erro. Para ZX81/Spectrum existe uma
+  abordagem mais direta: **ambas as ROMs reportam todo erro de BASIC via
+  `RST 08h`** (instrução Z80 que sempre pula para o endereço físico fixo
+  `0x0008`, confirmado em disassemblies de ambas as ROMs) — então basta
+  um breakpoint condicional em `PC=0008H` pra capturar exatamente o
+  instante do erro, sem depender de texto na tela nem de heurística de
+  bell. Nesse ponto, os valores corretos já estão nas variáveis de
+  sistema que a própria ROM usaria pra montar a mensagem de erro:
+  - **ZX Spectrum**: `PPC` (`$5C45`, 2 bytes, little-endian) = número da
+    linha BASIC em execução; `SUBPPC` (`$5C47`) = número do statement
+    dentro da linha; `ERR_NR` (`$5C3A`) = código do erro menos 1.
+  - **ZX81**: `E_PPC` (`$400A`) = número da linha atual; `ERR_NR`
+    (`$4000`) = código do erro.
+
+  **Comandos ZRCP confirmados no código-fonte** (protocolo texto puro
+  por socket TCP, porta padrão 10000, habilitado com
+  `--enable-remoteprotocol`):
+  - `enable-breakpoints` (precisa vir antes de `set-breakpoint`, senão
+    dá `Error. You must enable breakpoints first`).
+  - `set-breakpoint <indice 1-based> <condição>` (alias `sb`) — ex.:
+    `set-breakpoint 1 PC=0008H`. **Pegadinha de formato confirmada lendo
+    o parser**: números são **decimais por padrão**; hex exige sufixo
+    `H` ou prefixo `0x`/`$` — `PC=0008` sem o `H` é decimal 8, não
+    `0x0008`. `PC=`/`MRA=`/`MWA=` (igualdade simples) usam um caminho
+    "otimizado" mais rápido no núcleo do emulador; qualquer outra
+    condição (registradores, `MRV`/`MWV`/`PRA`/`PRV`/`PWA`/`PWV`,
+    combinações `and`/`or`/`xor`) cai no avaliador de expressão genérico,
+    mais lento.
+  - `run` (alias `r`) — **bloqueia a conexão até o breakpoint disparar**
+    (ou outro evento). Não existe notificação assíncrona separada: a
+    mesma resposta ao `run` que ficou pendurada chega completa só quando
+    o breakpoint dispara, já contendo `Breakpoint fired: ...` + dump de
+    registradores + a próxima linha de prompt (`<nome>@cpu-step> `).
+    Pra continuar depois de um disparo, manda `run` de novo (não
+    `exit-cpu-step` — esse comando sai do modo de debug por completo).
+  - `get-registers` (alias `gr`) — dump completo dos registradores Z80
+    (mesmo formato usado no dump automático após um breakpoint).
+  - `read-memory <endereço> <tamanho>` — mesma regra decimal/hex dos
+    endereços de breakpoint; sem tamanho, lê 1 byte.
+  - `run` aceita um parâmetro `no-stop-on-data` pra não ficar também
+    observando o socket por dados de entrada durante a execução — ver
+    ressalva de performance abaixo.
+
+  **Ressalva de performance, documentada no próprio código-fonte do
+  ZEsarUX** (comentário do autor com benchmarks de uso de CPU do host):
+  simplesmente **habilitar breakpoints já custa CPU do processo do
+  emulador durante toda a execução** (não só no instante do disparo) —
+  ~44% de CPU do host com uma condição `PC=`/`MRA=`/`MWA=` otimizada
+  (contra 66% no parser antigo não-otimizado, pré-7.1); e o `run`
+  também observar o socket por dados de entrada (comportamento padrão,
+  sem passar `no-stop-on-data`) soma mais um custo independente (46%
+  contra 19% sem observar o socket). Não é um número absoluto de
+  overhead relativo (o autor não documentou o baseline com breakpoints
+  totalmente desligados), mas é CPU real sendo gasta o tempo todo que o
+  breakpoint estiver armado — provavelmente irrelevante pra rodar um
+  programa BASIC de teste (execução automatizada, não tempo real pro
+  usuário), mas vale ter em mente se algum dia isso rodar em lote/CI.
+
+  **Conclusão prática**: ZEsarUX/ZRCP é a escolha certa pra monitoramento
+  de erro em tempo real em ZX81/Spectrum — mais direto e mais preciso
+  que o hack de captura de texto do MSX, sem exigir scripting dentro do
+  emulador (TCL do openMSX) já que o controle todo roda só do lado de
+  fora via socket. Isso **confirma e reforça** a decisão já registrada
+  na seção 6, item 9 (ZEsarUX como backend prioritário Sinclair para
+  monitoramento) — não muda a prioridade dos Blocos 3/4/8, só dá o
+  desenho técnico concreto pra quando a interface `EmulatorController`
+  for implementada (ainda não é — ver Bloco 1). **Ainda não verificado
+  numa instância real do ZEsarUX** (pesquisa feita 100% lendo o
+  código-fonte no GitHub, sem rodar o emulador) — antes de implementar
+  de verdade, testar manualmente com `telnet localhost 10000` ou
+  equivalente contra uma instalação real, pra confirmar o formato exato
+  do texto de retorno (quebras de linha, etc.) e o comando certo de
+  digitar teclas/carregar o programa (não investigado nesta rodada).
+  — **M**, **1**
 
 ### Bloco 1 — Núcleo do motor (core engine)
 
@@ -648,7 +732,8 @@ de conversão e os módulos de plataforma seguem pendentes.
 - [ ] Suporte a `.81`/`.p81` (variantes do `.p` sem/com nome de arquivo,
   `.p81` podendo guardar múltiplos programas). — **M**, **2**
 - [ ] Integração ZEsarUX e sz81/XZ81 como backends alternativos ao
-  EightyOne (avaliar ZRCP do ZEsarUX para monitoramento). — **M**, **2**
+  EightyOne; ZRCP já avaliado como viável para monitoramento (Bloco 0),
+  falta implementar: breakpoint em `PC=0008H`, ler `E_PPC`/`ERR_NR`. — **M**, **2**
 
 ### Bloco 4 — Módulo ZX Spectrum
 
@@ -662,8 +747,9 @@ de conversão e os módulos de plataforma seguem pendentes.
 - [ ] Empacotamento TAP e TZX (100% mecânico). — **B**, **1**
 - [ ] Portar DignifieR Spectrum (AZS→DZS). — **M**, **2**
 - [ ] Integração EightyOne/Spectaculator 48K básica. — **M**, **1**
-- [ ] Integração ZEsarUX como backend adicional (avaliar ZRCP para
-  monitoramento de erro em tempo real). — **M**, **2**
+- [ ] Integração ZEsarUX como backend adicional; ZRCP já avaliado como
+  viável para monitoramento (Bloco 0), falta implementar: breakpoint em
+  `PC=0008H`, ler `PPC`/`SUBPPC`/`ERR_NR`. — **M**, **2**
 - [ ] Suporte a modelo 128K (tokens SPECTRUM/PLAY). — **M**, **2**
 - [ ] `.DSK` de disco +3 (opcional, baixa prioridade). — **A**, **3**
 - [ ] Investigar/corrigir o bug de freeze do launcher 128K do EightyOne
