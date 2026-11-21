@@ -18,29 +18,40 @@ import (
 )
 
 type menuItem struct {
+	icon   string
 	label  string
 	action func()
 }
 
 type menuDef struct {
+	icon  string
 	label string
 	items []menuItem
 }
 
+// visibleLabel is how a menu bar entry or dropdown item renders: its icon
+// followed by its text label.
+func visibleLabel(icon, label string) string {
+	return icon + " " + label
+}
+
 type palette struct {
-	menuBg, menuFg, desktopBg, desktopFg, dialogBg, dialogFg, highlight, border tcell.Color
+	menuBg, menuFg                        tcell.Color
+	desktopBg, desktopFg, desktopPattern  tcell.Color
+	dialogBg, dialogFg, highlight, border tcell.Color
 }
 
 func paletteFor(item theme.Theme) palette {
 	return palette{
-		menuBg:    tcell.ColorSilver,
-		menuFg:    tcell.ColorBlack,
-		desktopBg: tcell.ColorBlue,
-		desktopFg: tcell.ColorWhite,
-		dialogBg:  tcell.GetColor(item.Palette.Surface),
-		dialogFg:  tcell.GetColor(item.Palette.Foreground),
-		highlight: tcell.GetColor(item.Palette.Selection),
-		border:    tcell.GetColor(item.Palette.Primary),
+		menuBg:         tcell.ColorSilver,
+		menuFg:         tcell.ColorBlack,
+		desktopBg:      tcell.ColorBlue,
+		desktopFg:      tcell.ColorWhite,
+		desktopPattern: tcell.ColorTeal,
+		dialogBg:       tcell.GetColor(item.Palette.Surface),
+		dialogFg:       tcell.GetColor(item.Palette.Foreground),
+		highlight:      tcell.GetColor(item.Palette.Selection),
+		border:         tcell.GetColor(item.Palette.Primary),
 	}
 }
 
@@ -82,9 +93,9 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	pages := tview.NewPages()
 	colors := paletteFor(activeTheme)
 	menus := []menuDef{
-		{label: "File", items: []menuItem{{"Exit", func() { app.Stop() }}}},
-		{label: "Setup", items: []menuItem{{"Install", nil}}},
-		{label: "Help", items: []menuItem{{"About", nil}}},
+		{icon: iconFile, label: "File", items: []menuItem{{iconExit, "Exit", func() { app.Stop() }}}},
+		{icon: iconSetup, label: "Setup", items: []menuItem{{iconInstall, "Install", nil}}},
+		{icon: iconHelp, label: "Help", items: []menuItem{{iconAbout, "About", nil}}},
 	}
 	activeMenu := 0
 	menuOpen := false
@@ -94,46 +105,48 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	col := 1
 	for i, m := range menus {
 		offsets[i] = col
-		col += len(m.label) + 3
+		col += len([]rune(visibleLabel(m.icon, m.label))) + 3
 	}
 
 	titleBar := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
 	bar := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
-	desktop := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
+	desk := newDesktop()
 	statusBar := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
 	applyPalette := func() {
 		titleBar.SetBackgroundColor(tcell.ColorNavy)
 		titleBar.SetTextColor(tcell.ColorWhite)
 		bar.SetBackgroundColor(colors.menuBg)
 		bar.SetTextColor(colors.menuFg)
-		desktop.SetBackgroundColor(colors.desktopBg)
-		desktop.SetTextColor(colors.desktopFg)
+		desk.SetColors(colors.desktopBg, colors.desktopFg, colors.desktopPattern)
 		statusBar.SetBackgroundColor(tcell.ColorSilver)
 		statusBar.SetTextColor(tcell.ColorBlack)
 	}
 	renderBar := func() {
 		var b strings.Builder
 		for i, m := range menus {
+			label := visibleLabel(m.icon, m.label)
 			if i == activeMenu {
-				fmt.Fprintf(&b, "[white:blue] %s [-:-:-] ", m.label)
+				fmt.Fprintf(&b, "[white:blue] %s [-:-:-] ", label)
 			} else {
-				fmt.Fprintf(&b, " %s  ", m.label)
+				fmt.Fprintf(&b, " %s  ", label)
 			}
 		}
 		bar.SetText(b.String())
 	}
 	setDesktop := func() {
-		desktop.SetText(fmt.Sprintf("\n\n\n\n\n[::b]goBaDig[::b]\n\nBasic Dignified Suite\n\nTema TUI: %s", activeTheme.Name))
+		themeLine := "Tema TUI: " + activeTheme.Name
+		rule := strings.Repeat(string(bannerRule), len([]rune(themeLine)))
+		desk.SetLines("goBaDig", rule, "Basic Dignified Suite", "", themeLine)
 	}
-	titleBar.SetText(fmt.Sprintf(" goBaDig v%s  -  BASIC Development Environment", version.Version))
-	statusBar.SetText(" F10 Menu     Arrows Move     Enter Select     Esc Close")
+	titleBar.SetText(fmt.Sprintf(" ▣ goBaDig v%s  -  BASIC Development Environment", version.Version))
+	statusBar.SetText(" F10 ☰ Menu     ←↑↓→ Move     Enter Select     Esc Close")
 	applyPalette()
 	renderBar()
 	setDesktop()
 	root := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(titleBar, 1, 0, false).
 		AddItem(bar, 1, 0, false).
-		AddItem(desktop, 0, 1, false).
+		AddItem(desk, 0, 1, false).
 		AddItem(statusBar, 1, 0, false)
 	pages.AddPage("app", root, true, true)
 
@@ -154,6 +167,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		modal.SetTextColor(colors.dialogFg)
 		modal.SetButtonBackgroundColor(colors.highlight)
 		modal.SetButtonTextColor(colors.desktopFg)
+		attachShadow(modal.Box)
 		dialogOpen = true
 		dialogFocus = modal
 		pages.AddPage("about", modal, true, true)
@@ -164,13 +178,14 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		options := make([]string, len(themes))
 		selected := 0
 		for i, item := range themes {
-			options[i] = item.Name
+			options[i] = fmt.Sprintf("[%s]%s[-] %s", item.Palette.Primary, iconSwatch, item.Name)
 			if item.ID == activeTheme.ID {
 				selected = i
 			}
 		}
 		form := tview.NewForm()
-		form.SetBorder(true).SetTitle(" Install TUI Theme ").SetBorderColor(colors.border)
+		form.SetBorder(true).SetBorderColor(colors.border)
+		windowChrome(form.Box, iconInstall, "Install TUI Theme", colors.dialogFg)
 		form.SetBackgroundColor(colors.dialogBg)
 		form.SetFieldBackgroundColor(tcell.ColorWhite)
 		form.SetFieldTextColor(tcell.ColorBlack)
@@ -212,9 +227,20 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		form.AddButton("Cancel", closeDialog)
 		form.SetCancelFunc(closeDialog)
 		form.SetButtonsAlign(tview.AlignRight)
+		// IMPORTANT: SetBackgroundColor is inherited from *tview.Box (Grid
+		// has no override), so it returns *tview.Box, not *tview.Grid. If it
+		// were chained onto NewGrid()/AddItem() like the other setters, the
+		// chain's result would silently become a plain *Box - identical
+		// Primitive interface, but Box.Draw() short-circuits before Grid's
+		// own layout/child-drawing logic ever runs. That is the bug that
+		// made this dialog (and whatever it contained) invisible: nothing
+		// ever positioned or drew `form`, which is what the TUI's
+		// "congela" ("freezes") report on opening Setup > Install actually
+		// was. Keep this call on its own statement, discarding its *Box
+		// return value, so `window` below stays a *tview.Grid.
 		window := tview.NewGrid().SetRows(0, 13, 0).SetColumns(0, 64, 0).
-			AddItem(form, 1, 1, 1, 1, 0, 0, true).
-			SetBackgroundColor(colors.desktopBg)
+			AddItem(form, 1, 1, 1, 1, 0, 0, true)
+		window.SetBackgroundColor(colors.desktopBg)
 		dialogOpen = true
 		dialogFocus = form
 		pages.AddPage("theme-picker", window, true, true)
@@ -233,6 +259,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		modal.SetTextColor(colors.dialogFg)
 		modal.SetButtonBackgroundColor(colors.highlight)
 		modal.SetButtonTextColor(colors.desktopFg)
+		attachShadow(modal.Box)
 		dialogFocus = modal
 		pages.AddPage("theme-error", modal, true, true)
 		app.SetFocus(modal)
@@ -247,9 +274,12 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		m := menus[i]
 		width := 14
 		for _, it := range m.items {
-			if w := len(it.label) + 6; w > width {
+			if w := len([]rune(visibleLabel(it.icon, it.label))) + 6; w > width {
 				width = w
 			}
+		}
+		if w := len([]rune(visibleLabel(m.icon, m.label))) + 10; w > width {
+			width = w
 		}
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(true).SetBorderColor(colors.menuFg)
@@ -257,9 +287,10 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		list.SetMainTextColor(colors.menuFg)
 		list.SetSelectedBackgroundColor(colors.highlight)
 		list.SetSelectedTextColor(colors.desktopFg)
+		windowChrome(list.Box, m.icon, m.label, colors.menuFg)
 		for _, it := range m.items {
 			action := it.action
-			list.AddItem(it.label, "", 0, func() {
+			list.AddItem(visibleLabel(it.icon, it.label), "", 0, func() {
 				closeMenu()
 				if action != nil {
 					action()
@@ -272,7 +303,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 			AddItem(list, width, 0, true).
 			AddItem(nil, 0, 1, false)
 		dropdown := tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 1, 0, false).
+			AddItem(nil, 2, 0, false). // Skip the title bar and the menu bar itself.
 			AddItem(positioned, len(m.items)+2, 0, true).
 			AddItem(nil, 0, 1, false)
 		pages.RemovePage("dropdown")

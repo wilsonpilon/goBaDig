@@ -49,9 +49,29 @@ exata do pacote.
   abre um diálogo central com dropdown, descrição e botões Apply/Cancel.
 - Conclusão interativa de comandos e temas com `Tab` no console; um
   segundo `Tab` lista as opções disponíveis.
-- Estado de trabalho: a TUI atual congela ao abrir `Setup > Install`;
-  o redesign da interface e do diálogo fica pendente para a próxima
-  sessão. Esta versão ainda não foi publicada.
+- TUI modernizada no visual retrô estilo MS-DOS anos 1990 (Turbo Vision/
+  Turbo Pascal, Norton Commander): janelas com borda dupla, caixa de
+  sistema `[■]` e sombra projetada (`internal/tui/chrome.go`); ícones
+  Unicode nos menus e itens (`▭ File`, `⚙ Setup`, `ℹ Help`, `✕ Exit`,
+  `◐ Install`, `★ About`); desktop com textura pontilhada (`▒`) e
+  banner central com régua decorativa. Testado por simulação de
+  terminal (`internal/tui/freeze_diagnosis_test.go`).
+- **Corrigido o congelamento real de `Setup > Install`** (reportado como
+  pendente nesta mesma seção até 2026-11-20): a causa nunca foi um
+  deadlock — era o diálogo de temas inteiro ficando invisível. A
+  chamada `.SetBackgroundColor(...)` encadeada direto no construtor do
+  `tview.Grid` retorna `*tview.Box` (método herdado, sem override em
+  `Grid`), então a variável do diálogo virava um `*Box` liso em vez de
+  `*Grid` — `Box.Draw()` roda e sai antes de posicionar/desenhar
+  qualquer filho, sem erro nem log algum. Corrigido em
+  `internal/tui/tui.go` separando essa chamada em instrução própria.
+  Achado e confirmado isolando uma cópia local do `rivo/tview` com
+  instrumentação (`go.mod` `replace` temporário) até provar que
+  `Grid.Draw()` nunca era chamado. Novo teste de regressão
+  (`internal/tui/install_dialog_visible_test.go`) lê o conteúdo real da
+  tela simulada e falha se o diálogo voltar a ficar invisível; o teste
+  de deadlock antigo (`freeze_diagnosis_test.go`) não detectava esse
+  bug, já que a aplicação nunca parou de responder.
 - Primeira fatia do armazenamento SQLite com driver puro Go
   `modernc.org/sqlite`, tabelas `themes` e `active_themes` por modo.
 - `build.ps1` (raiz do repo): script PowerShell que automatiza o build

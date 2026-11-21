@@ -8,12 +8,13 @@
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-20.
 Estado: **stub funcional v1.1.4 publicado; v1.2.0 em desenvolvimento e
 nao publicado**. CLI com temas e conclusao Tab; GUI com temas persistidos;
-TUI em redesign: a implementacao visual atual **era reportada como
-congelando** ao abrir `Setup > Install` (ver investigacao em 2026-11-20,
-abaixo) e nao deve ser considerada pronta. Na proxima sessao,
-recomecar o desenho da TUI do zero, definindo primeiro o fluxo visual e de
-teclado com base nas referencias Turbo Pascal 6, QuickBasic e Norton
-Editor 2.0. O motor de
+TUI modernizada em 2026-11-20 no visual retro estilo MS-DOS (Turbo
+Vision/Turbo Pascal/Norton Commander: janelas com sombra, caixa de
+sistema, icones Unicode, desktop texturizado — ver Bloco 6) **e o
+congelamento real de `Setup > Install` foi encontrado e corrigido** nessa
+mesma sessao (nao era deadlock — era o dialogo inteiro ficando invisivel
+por um bug classico de Go, ver Bloco 6 para a causa raiz completa). O
+motor de
 conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
 ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
 de verdade. **As 9 perguntas da seção 8 foram respondidas pelo usuário em
@@ -718,26 +719,48 @@ de conversão e os módulos de plataforma seguem pendentes.
   fora por custo de engenharia desproporcional ao stub; suporte a
   clique de mouse na barra (os itens do dropdown já aceitam clique,
   nativo do `tview.List` — só a barra em si ainda não). — 2026-11-05.
-- [x] **Investigação do congelamento em `Setup > Install`** (2026-11-20):
-  revisão do código (`internal/tui/tui.go`) cruzada com o código-fonte de
-  `tview`/`tcell` instalado (`rivo/tview v0.42.0`), e reprodução dirigida
-  com uma `tcell.SimulationScreen` (`internal/tui/freeze_diagnosis_test.go`,
-  mantido como teste de regressão). **Resultado: não foi possível
-  reproduzir um deadlock Go** — a sequência completa (abrir `Setup`,
-  selecionar `Install`, abrir o diálogo de tema, `Escape`, `Stop()`) roda e
-  retorna normalmente na simulação, inclusive com teclas disparadas sem
-  intervalo. Hipóteses não eliminadas para o congelamento relatado
-  originalmente: (a) específico do terminal real usado na sessão anterior
-  (cmd.exe/PowerShell/conhost no Windows, que a simulação não reproduz),
-  (b) já sanado por mudança posterior não documentada, (c) um caminho de
-  repro ligeiramente diferente (mouse, redimensionamento durante o
-  diálogo). **Não bloqueia o redesenho da TUI do zero já decidido** — o
-  teste de regressão fica no repositório para detectar se o mesmo padrão
-  de diálogo reaparecer quebrado na nova implementação. Pequeno refactor
-  feito para viabilizar o teste: `Run()` agora delega para uma função
-  interna `run(screen, ready)` que aceita uma `tcell.Screen`/callback
-  opcionais, sem mudança de comportamento em produção (`Run()` continua
-  chamando com `nil, nil`).
+- [x] **Investigação e correção do congelamento em `Setup > Install`**
+  (2026-11-20, em duas etapas da mesma sessão):
+  - Primeira etapa: revisão do código (`internal/tui/tui.go`) cruzada com
+    o código-fonte de `tview`/`tcell` instalado (`rivo/tview v0.42.0`), e
+    reprodução dirigida com uma `tcell.SimulationScreen`
+    (`internal/tui/freeze_diagnosis_test.go`, mantido como teste de
+    regressão). Não foi possível reproduzir um deadlock Go com a
+    sequência óbvia (abrir `Setup`, selecionar `Install`, `Escape`,
+    `Stop()`) — o app sempre respondia e retornava normalmente.
+  - Segunda etapa, indo mais a fundo: montando um dump textual da tela
+    simulada após abrir `Setup > Install`, ficou claro que **o diálogo de
+    tema simplesmente nunca aparecia** — nada travava, mas nada era
+    desenhado. **Causa raiz real, confirmada isolando uma cópia local do
+    `rivo/tview` com instrumentação (via `replace` temporário no
+    `go.mod`) até provar que `Grid.Draw()` nunca era chamado**: a
+    construção do diálogo encadeava `tview.NewGrid()...AddItem(...).
+    SetBackgroundColor(colors.desktopBg)` — `SetBackgroundColor` é
+    herdado de `*tview.Box` (não tem override em `Grid`) e **retorna
+    `*tview.Box`**, não `*tview.Grid`. Como o resultado dessa cadeia era
+    atribuído direto à variável do diálogo, essa variável virava
+    silenciosamente um `*Box` liso (ainda satisfaz a interface
+    `Primitive`, sem erro de compilação) em vez de `*Grid` — e
+    `Box.Draw()` só desenha fundo/borda e retorna, nunca chega no
+    layout/desenho dos filhos do Grid (o `form` com o dropdown de temas).
+    **Era exatamente esse o "congelamento"**: nenhum deadlock, só um
+    diálogo inteiro invisível — o usuário pressiona `Install` e nada
+    parece acontecer. Corrigido em `internal/tui/tui.go` separando essa
+    chamada em instrução própria, fora da cadeia que define o tipo da
+    variável (comentário extenso deixado no código explicando a pegadinha
+    para não se repetir). Validado de novo com dump textual: o diálogo
+    agora renderiza completo (janela, dropdown, descrição, botões).
+  - Na mesma sessão, a TUI também foi modernizada no visual retrô estilo
+    MS-DOS anos 1990 (Turbo Vision/Turbo Pascal/Norton Commander), pedido
+    explícito do usuário: janelas com borda dupla, caixa de sistema `[■]`
+    e sombra projetada (`internal/tui/chrome.go`, funções `drawShadow`/
+    `attachShadow`/`windowChrome`), ícones Unicode nos menus e itens
+    (`▭ File`, `⚙ Setup`, `ℹ Help`, `✕ Exit`, `◐ Install`, `★ About`,
+    swatch `■` colorido por tema no dropdown de temas), e um desktop com
+    textura pontilhada (`▒`, tipo `desktop` em `chrome.go`) com banner
+    central e régua decorativa. Também corrigido, no mesmo lote, um
+    off-by-one pré-existente: o dropdown de menu abria sobrepondo a
+    própria barra de menu em vez de aparecer embaixo dela.
 - [ ] Tela de configuração (equivalente ao que hoje são os `.ini`/remtags):
   editar config SQLite global/projeto. — **M**, **2**
 - [ ] Tela de pré-processamento em lote (escolher arquivos, plataforma,
