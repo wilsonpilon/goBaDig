@@ -6,13 +6,17 @@ package core
 // alternation (classic_groups | dignified_groups | main_groups),
 // where EVERY GROUP A Description CONTRIBUTES HAS SIGNIFICANT ORDER
 // (OUTLINE.md, seção 3.5: "ordem das alternativas importa"). The hand
-// written scanner this interface will eventually drive must consult
-// ORDERED vocabulary rules, not unordered sets - the exact shape of
-// that access is deliberately left out of this "v0" interface; it
-// gets validated against the fake platform in pipeline_test.go before
-// any real dialect depends on it (ver OUTLINE.md, Bloco 1, Fase 2/3).
+// written scanner this interface drives (see Lex, in pipeline.go)
+// consults ORDERED vocabulary rules, not unordered sets - validated
+// for real against the MSX platform (internal/platforms/msx) in this
+// round, after an earlier round only validated it against a fake one.
 type Description interface {
 	SysInfo() SystemInfo
+	// QuoteChar is the character that opens and closes a string
+	// literal (`"` for MSX; a dialect could in principle use another
+	// one) - core.Lex's generic string-literal fallback uses this
+	// instead of each platform reimplementing string scanning itself.
+	QuoteChar() byte
 }
 
 // SystemInfo is a dialect's name and on-disk file extensions -
@@ -24,16 +28,40 @@ type SystemInfo struct {
 	BinaryExt    string // ex.: ".bmx"
 }
 
-// Lexer is called by the core scanner as a fallback for every
-// contiguous run of non-whitespace characters it doesn't itself
-// classify - exactly as the original engine's `self.clc.lexing()`
-// hook (badig.py).
+// Lexer classifies whatever sits at the current scanning position.
+//
+// v0 of this interface (Bloco 1) handed the platform a single
+// whitespace-delimited "word" candidate, mirroring the original
+// engine's `self.clc.lexing()` fallback hook. Validating it against a
+// real platform (MSX, this round) showed that doesn't work: numeric
+// literals with a dialect-specific exponent suffix (MSX's `c_numdec`:
+// optional `.`, optional `(D|E)(+|-)digits`, optional `%!#`) and
+// compound symbols with no surrounding whitespace (`x+=5`) both need
+// multi-character lookahead a generic word-splitter can't provide -
+// exactly the same reason the Batoken tokenizer (internal/platforms/
+// msx/tokenizer.go) hands its scanners the whole remaining line
+// instead of a pre-cut word. Lex now does the same.
 type Lexer interface {
 	// Init runs once before scanning starts.
 	Init(ctx *CompileContext)
-	// Lex classifies a candidate token. A non-nil error is fatal and
-	// aborts the whole pipeline immediately (see Diagnostic).
-	Lex(ctx *CompileContext, tok Token) (HookAction, Token, error)
+	// Lex tries to classify whatever is at the start of remaining. If
+	// it recognizes something, it returns how many characters it
+	// consumed (consumed > 0) and ok=true, plus zero or more tokens -
+	// zero lets a platform consume and discard text that produces no
+	// token of its own (e.g. a separator its own handling already
+	// absorbed), and more than one lets it handle something like an
+	// MSX `DATA` statement's comma-separated items in a single call,
+	// instead of forcing one token per call the way v0 of this
+	// interface (Bloco 1) did. ok=false means "nothing dialect-specific
+	// starts here" - the driver then tries its own generic fallbacks
+	// (a Dignified identifier, a quoted string) before giving up and
+	// emitting one raw character, mirroring the original engine's
+	// priority: dialect keywords are checked before the shared
+	// Dignified identifier pattern (confirmed by the combined-regex
+	// ordering "classic_groups | dignified_groups | main_groups |
+	// d_idnttp" - identifiers, d_idnttp, come last). A non-nil error is
+	// fatal and aborts the whole pipeline immediately (see Diagnostic).
+	Lex(ctx *CompileContext, remaining string) (consumed int, tokens []Token, ok bool, err error)
 }
 
 // Parser has one method per pass, called by the core pipeline driver

@@ -25,27 +25,38 @@ func (fakeDescription) SysInfo() SystemInfo {
 	return SystemInfo{Name: "Fake", DignifiedExt: ".fake", ClassicExt: ".fakec", BinaryExt: ".fakeb"}
 }
 
+func (fakeDescription) QuoteChar() byte { return '"' }
+
 type fakeLexer struct{}
 
 func (fakeLexer) Init(*CompileContext) {}
 
-func (fakeLexer) Lex(_ *CompileContext, tok Token) (HookAction, Token, error) {
-	word, _ := tok.Value.(string)
+// Lex only recognizes three things, by prefix on the remaining line
+// text (the v1 Lexer contract, validated for real against MSX in a
+// later round - see OUTLINE.md, Bloco 2): "PRINT", "IGNORE" (consumed
+// and discarded - zero tokens), and a run of digits.
+func (fakeLexer) Lex(_ *CompileContext, remaining string) (int, []Token, bool, error) {
+	upper := strings.ToUpper(remaining)
 	switch {
-	case strings.EqualFold(word, "PRINT"):
-		tok.Kind = fakeKindPrint
-		return Replace, tok, nil
-	case strings.EqualFold(word, "IGNORE"):
-		return Skip, Token{}, nil
+	case strings.HasPrefix(upper, "PRINT"):
+		return len("PRINT"), []Token{{Kind: fakeKindPrint, Value: remaining[:len("PRINT")]}}, true, nil
+	case strings.HasPrefix(upper, "IGNORE"):
+		return len("IGNORE"), nil, true, nil
 	}
-	if n, err := strconv.Atoi(word); err == nil {
-		tok.Kind = fakeKindNumber
-		tok.Value = n
-		return Replace, tok, nil
+	digits := 0
+	for digits < len(remaining) && remaining[digits] >= '0' && remaining[digits] <= '9' {
+		digits++
 	}
-	// Not recognized: tell the driver to keep the raw word as-is,
-	// exactly like the original engine's Lexer hook returning False.
-	return Continue, Token{}, nil
+	if digits > 0 {
+		n, err := strconv.Atoi(remaining[:digits])
+		if err != nil {
+			return 0, nil, false, nil
+		}
+		return digits, []Token{{Kind: fakeKindNumber, Value: n}}, true, nil
+	}
+	// Not recognized: let the driver fall back to its own generic
+	// handling (identifier/string/raw character).
+	return 0, nil, false, nil
 }
 
 // fakeParser counts how many times Pass4/Pass5 ran, so a test can
@@ -98,7 +109,7 @@ func newFakeContext(sourceLine string, includeStack []string) *CompileContext {
 }
 
 func TestPipelineEndToEnd(t *testing.T) {
-	ctx := newFakeContext("PRINT 1 IGNORE FOO", []string{"fake.dmx"})
+	ctx := newFakeContext("PRINT 1 IGNORE foo", []string{"fake.dmx"})
 	platform := Platform{
 		Description: fakeDescription{},
 		Lexer:       fakeLexer{},
@@ -113,10 +124,11 @@ func TestPipelineEndToEnd(t *testing.T) {
 	if len(result.Code) != 1 {
 		t.Fatalf("expected 1 generated line, got %d: %v", len(result.Code), result.Code)
 	}
-	// "IGNORE" (HookAction Skip) is gone; "FOO" (HookAction Continue,
-	// unrecognized) survives as raw text; PRINT/1 (HookAction Replace)
-	// survive reclassified.
-	const want = "PRINT 1 FOO"
+	// "IGNORE" (recognized by fakeLexer, zero tokens) is gone; "foo"
+	// (not recognized by fakeLexer, falls back to core's generic
+	// Dignified-identifier matching) survives as one identifier token;
+	// PRINT/1 (recognized by fakeLexer) survive reclassified.
+	const want = "PRINT 1 foo"
 	if result.Code[0] != want {
 		t.Fatalf("Code[0] = %q, want %q", result.Code[0], want)
 	}

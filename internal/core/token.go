@@ -38,10 +38,21 @@ const (
 	KindNewline TokenKind = "NEWLINE"
 	// KindEOF marks the end of the token stream.
 	KindEOF TokenKind = "EOF"
-	// KindWord is a contiguous run of non-whitespace characters the
-	// core scanner found but did not itself classify; it is handed to
-	// the platform's Lexer.Lex for classification.
-	KindWord TokenKind = "WORD"
+	// KindIdentifier is a Dignified identifier (`^[a-z][a-z_0-9]*[%!#$]?`)
+	// - the same pattern for every platform (badig_dignified.py), so
+	// core.Lex recognizes it itself as a fallback, after the platform's
+	// Lexer.Lex got first refusal (see Lexer, in contract.go).
+	KindIdentifier TokenKind = "IDENTIFIER"
+	// KindString is a quoted string literal, delimited by the
+	// platform Description's QuoteChar, Value including both
+	// delimiters verbatim (no escaping, same as the original engine).
+	KindString TokenKind = "STRING"
+	// KindUnknown is a single raw character core.Lex could not
+	// classify by any means (not the platform's, not an identifier,
+	// not a quoted string) - mirrors the original engine's "character
+	// not recognized" diagnostic path, but tolerant: scanning
+	// continues instead of aborting.
+	KindUnknown TokenKind = "UNKNOWN"
 )
 
 // Position pins a Token to an exact place in the source, for error

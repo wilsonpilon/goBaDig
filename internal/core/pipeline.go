@@ -1,25 +1,33 @@
 package core
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 )
 
+// identifierPattern is the shared Dignified identifier pattern - the
+// SAME for every platform (badig_dignified.py's d_idnttp), which is
+// why core.Lex recognizes it itself instead of asking the platform.
+var identifierPattern = regexp.MustCompile(`^[a-z][a-z_0-9]*[%!#$]?`)
+
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
-// token first, then one token per recognized word plus a NEWLINE per
+// token first, then one token per recognized item plus a NEWLINE per
 // source line, ending in EOF.
 //
-// Unlike the original engine - whose "lexer" is really a single giant
-// regex alternation combining every platform's own vocabulary
-// (confirmed reading badig.py/badig_dignified.py: core, Dignified and
-// Classic groups are all concatenated into one pattern, group order
-// mattering) - this scanner only ever recognizes whitespace and line
-// boundaries itself. Every other contiguous run of non-whitespace
-// characters is staged as a KindWord token and handed to
-// platform.Lexer.Lex for classification. A hand-written, table/trie
-// based scanner that actually knows a dialect's full vocabulary is
-// Bloco 2 work, once there is a real vocabulary to build one against
-// (ver OUTLINE.md, Bloco 1, Fase 3).
+// At each non-whitespace position, platform.Lexer.Lex gets first
+// refusal on the rest of the current line (see Lexer, in contract.go,
+// for why it gets the whole remaining line rather than a pre-cut
+// word - validating this against MSX, a real platform, showed a
+// pre-cut word doesn't work). If it doesn't recognize anything there,
+// core tries its own generic fallbacks, in order: a Dignified
+// identifier (shared by every platform), a quoted string (delimited
+// by platform.Description.QuoteChar), and finally a single raw,
+// unclassified character - mirroring the original engine's priority
+// (dialect keywords before the shared identifier pattern) and its
+// tolerant "character not recognized" handling (scanning continues
+// rather than aborting).
 func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 	platform.Lexer.Init(ctx)
 
@@ -28,6 +36,7 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 		Value: "PROGRAM",
 		Pos:   Position{Source: ctx.Source, Line: 0, Column: 1},
 	}}
+	quote := platform.Description.QuoteChar()
 
 	for lineIndex := 1; lineIndex < len(ctx.Source); lineIndex++ {
 		line := ctx.Source[lineIndex]
@@ -40,31 +49,56 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 				col++
 				continue
 			}
-
-			start, startCol := pos, col
-			for pos < len(runes) && !unicode.IsSpace(runes[pos]) {
-				pos++
-				col++
+			startCol := col
+			// pin stamps the real Position onto a token the platform
+			// returned - it has no access to ctx.Source/line/col, only
+			// the text. When Lex returns several tokens for one call
+			// (e.g. a DATA statement's items), they all get pinned to
+			// the match's START column, not their own individual
+			// offset within it - a minor, accepted precision loss on
+			// error-pointer placement for that case, not a
+			// functional one.
+			pin := func(tok Token) Token {
+				tok.Pos = Position{Source: ctx.Source, Line: lineIndex, Column: startCol}
+				return tok
 			}
-			word := string(runes[start:pos])
-			candidate := Token{
-				Kind:  KindWord,
-				Value: word,
-				Pos:   Position{Source: ctx.Source, Line: lineIndex, Column: startCol},
-			}
 
-			action, tok, err := platform.Lexer.Lex(ctx, candidate)
+			remaining := string(runes[pos:])
+			consumed, newTokens, ok, err := platform.Lexer.Lex(ctx, remaining)
 			if err != nil {
 				return nil, err
 			}
-			switch action {
-			case Skip:
-				// discard, keep scanning
-			case Replace:
-				tokens = append(tokens, tok)
-			default: // Continue
-				tokens = append(tokens, candidate)
+			if ok {
+				if consumed <= 0 {
+					return nil, fmt.Errorf("line %d: Lexer.Lex claimed a match but consumed nothing at %q", line.Number, remaining)
+				}
+				for _, t := range newTokens {
+					tokens = append(tokens, pin(t))
+				}
+				pos += consumed
+				col += consumed
+				continue
 			}
+
+			if id := identifierPattern.FindString(remaining); id != "" {
+				n := len([]rune(id))
+				tokens = append(tokens, pin(Token{Kind: KindIdentifier, Value: id}))
+				pos += n
+				col += n
+				continue
+			}
+
+			if byte(runes[pos]) == quote && runes[pos] <= 127 {
+				n := scanGenericString(runes[pos:], quote)
+				tokens = append(tokens, pin(Token{Kind: KindString, Value: string(runes[pos : pos+n])}))
+				pos += n
+				col += n
+				continue
+			}
+
+			tokens = append(tokens, pin(Token{Kind: KindUnknown, Value: string(runes[pos])}))
+			pos++
+			col++
 		}
 
 		tokens = append(tokens, Token{
@@ -80,6 +114,22 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 		Pos:   Position{Source: ctx.Source, Line: len(ctx.Source) - 1, Column: 1},
 	})
 	return tokens, nil
+}
+
+// scanGenericString returns how many runes make up a quoted string
+// literal starting at runes[0] (the opening quote): consumes to the
+// matching closing quote, or to the end of the line if unterminated -
+// same tolerant behavior as the original engine's own quoted-line
+// scanning.
+func scanGenericString(runes []rune, quote byte) int {
+	i := 1
+	for i < len(runes) {
+		if runes[i] <= 127 && byte(runes[i]) == quote {
+			return i + 1
+		}
+		i++
+	}
+	return i
 }
 
 // passFunc is the shape shared by every Parser pass method - letting

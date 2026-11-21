@@ -74,9 +74,11 @@ motor de conversão propriamente dito (`internal/core`): ainda não há
 nenhum comando de conversão de verdade disponível para o usuário final
 — é só a base interna (tipos/interfaces) que os módulos MSX/ZX81/ZX
 Spectrum vão usar (ver seção 6 e `OUTLINE.md`, Bloco 1). **`v1.4.0`**
-porta o tokenizer MSX por completo (`internal/platforms/msx`) — ainda
-sem nenhum comando de conversão real disponível pro usuário: falta
-ligar isso ao conversor Dignified→Classic (ver seção 6).
+porta o tokenizer MSX por completo (`internal/platforms/msx`); **`v1.5.0`**
+porta `Description`/`Lexer` MSX (primeiro uso real do motor contra um
+dialeto de verdade) — ainda sem nenhum comando de conversão real
+disponível pro usuário: falta o `Parser` MSX pra fechar o caminho
+Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -155,11 +157,12 @@ acontece ainda em nenhuma das duas. O argumento `<arquivo> -id msx`
 ## 6. Converter um programa Dignified
 
 **(pendente — depende dos Blocos 1 a 4 do `OUTLINE.md`)**. A partir da
-`v1.3.0` existe um primeiro núcleo do motor em Go (`internal/core`), e
-a partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
-converte texto Classic ASCII numerado em binário `.bmx` — mas ainda
-sem nenhum conversor Dignified→Classic ligado a ele (nenhum dialeto
-real usa `internal/core` ainda). Nada disso é utilizável pelo usuário
+`v1.3.0` existe um primeiro núcleo do motor em Go (`internal/core`), a
+partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
+converte texto Classic ASCII numerado em binário `.bmx`, e a partir da
+`v1.5.0` o `Description`/`Lexer` MSX já classificam texto Dignified
+real em tokens — mas ainda falta o `Parser` MSX pra de fato gerar
+texto Classic a partir disso. Nada disso é utilizável pelo usuário
 final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python

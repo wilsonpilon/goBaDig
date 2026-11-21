@@ -35,6 +35,45 @@ exata do pacote.
 
 ---
 
+## [1.5.0] — 2026-11-21 — bloco **NEW**, feature **msx-lexer** (build 0)
+
+**`Description` e `Lexer` MSX portados de verdade** — o primeiro uso
+real das interfaces "v0" do motor (`internal/core`, Bloco 1), que até
+aqui só tinham sido validadas contra uma plataforma fictícia.
+
+### Adicionado
+
+- Novo `internal/platforms/msx/description.go`: todo o vocabulário do
+  dialeto MSX (instruções, funções, operadores, símbolos, símbolos
+  compostos, palavras-chave de salto) transcrito de `badig_msx.py`.
+- Novo `internal/platforms/msx/lexer.go`: classifica texto Dignified
+  MSX em tokens — palavras-chave (case-insensitive), operadores,
+  símbolos simples e compostos (`+=`, `++`, etc.), números (decimal,
+  `&H`/`&O`/`&B`), comentários (`REM`/`'`), `DATA`. 8 testes novos,
+  incluindo um fallback tolerante para caractere não reconhecido (não
+  aborta a conversão).
+- **Corrigida a interface `core.Lexer`** (Bloco 1): a v0 dava à
+  plataforma uma "palavra" pré-cortada por espaço em branco — não
+  funciona para números com notação científica nem símbolos compostos
+  sem espaço (`x+=5`). Agora a plataforma recebe a **linha inteira
+  restante** e devolve quantos caracteres consumiu mais zero ou mais
+  tokens (mesmo padrão já usado no tokenizer Batoken). `core.Lex()`
+  ganhou fallbacks genéricos compartilhados entre plataformas
+  (identificador Dignified, string entre aspas), usados só quando a
+  plataforma não reconhece nada na posição atual.
+
+### Observações
+
+- Ainda não há nenhuma conversão Dignified→Classic completa — falta o
+  `Parser` MSX (5 passes, inclusive a alocação de 2 letras por
+  variável) para fechar o caminho de ponta a ponta. Ver `OUTLINE.md`,
+  Bloco 2.
+- Fora de escopo deste release (nem bug, só adiado): bloco de
+  comentário `''` multi-linha, semântica literal dos itens do `DATA`,
+  tradução Unicode→ASCII (isso é trabalho do `Parser`, Pass 5).
+
+---
+
 ## [1.4.0] — 2026-11-21 — bloco **NEW**, feature **msx-tokenizer** (build 0)
 
 **Primeira conversão de BASIC de verdade: o tokenizer MSX Batoken

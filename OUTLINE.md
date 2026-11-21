@@ -6,27 +6,27 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-21.
-Estado: **v1.3.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.4.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
-ainda), vetores de ouro do tokenizer MSX gerados (Bloco 0) — histórico
-completo de cada um desses itens em `CHANGELOG.md` (`v1.2.0`) e nos
-Blocos correspondentes abaixo, não repetido aqui.
+ainda) — histórico completo de cada um desses itens em `CHANGELOG.md`
+e nos Blocos correspondentes abaixo, não repetido aqui.
 
-**O motor de conversão começou a existir em 2026-11-21** (`v1.3.0`):
-`internal/core` (Bloco 1, Fase 1 completa + Fase 2/3 parciais —
+**O motor de conversão começou a existir em 2026-11-21**: `internal/core`
+(Bloco 1, Fase 1 completa + Fase 2/3 parciais —
 `Token`/`Position`/`HookAction`/diagnóstico/`CompileContext`/alocador
 de variáveis, interfaces `Description`/`Lexer`/`Parser`/`Settings`/
-`Platform`, driver `Lex`→`Parse`→`Generate` validado contra uma
-plataforma fake) e **o tokenizer MSX Batoken portado por completo**
-(`internal/platforms/msx`, Bloco 2 — os 13 vetores de ouro do Bloco 0
-passam byte-exato, mais 10 casos extras validados contra o Python
-real). **Ainda não há nenhuma conversão Dignified→Classic de
-verdade** (`Description`/`Lexer`/`Parser` MSX) — o tokenizer converte
-só texto ASCII já numerado pra binário; ligar isso ao motor Dignified
-é o próximo passo do Bloco 2. Ver Blocos 1-4 na seção 7 para o que
-falta antes da primeira conversão completa de ponta a ponta.
+`Platform`, driver `Lex`→`Parse`→`Generate`); **tokenizer MSX Batoken
+portado por completo** (`internal/platforms/msx/tokenizer.go`, os 13
+vetores de ouro do Bloco 0 passam byte-exato); e, na mesma sessão,
+**`Description`/`Lexer` MSX de verdade** (`description.go`/`lexer.go`)
+— o primeiro uso real das interfaces "v0" do Bloco 1, que revelou um
+desvio real na interface `Lexer` (corrigido, ver Bloco 1). **Ainda não
+há nenhuma conversão Dignified→Classic completa** — falta o `Parser`
+MSX (5 passes, inclusive a alocação de variáveis) pra fechar o
+caminho Dignified→Classic→binário de ponta a ponta. Ver Blocos 1-4 na
+seção 7 para o que falta.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -794,6 +794,24 @@ inspecionar o `DiagnosticSink`. É exatamente o tipo de ajuste que a
 plataforma fake (Fase 3) deveria revelar antes de qualquer plataforma
 real depender da interface.
 
+**Segundo desvio, este sim só revelado pela plataforma MSX de
+verdade** (2026-11-21, ver Bloco 2): a v0 do `Lexer.Lex` (palavra
+pré-cortada por espaço em branco, `(ctx, Token) (HookAction, Token,
+error)`) não aguenta números com notação científica nem símbolos
+compostos sem espaço (`x+=5`) — precisa de lookahead multi-caractere
+que varia por dialeto. Trocada por `Lex(ctx, remaining string)
+(consumed int, tokens []Token, ok bool, err error)`, dando à
+plataforma a **linha inteira restante** a partir da posição atual
+(mesmo padrão já usado no tokenizer Batoken), e podendo devolver
+**zero ou várias** tokens numa só chamada (não só uma) — resolve tanto
+"consumir e descartar" quanto casos como `DATA` com múltiplos itens
+numa só chamada. `core.Description` ganhou `QuoteChar() byte`, e
+`core.Lex()` ganhou fallbacks genéricos compartilhados (identificador
+Dignified, string entre aspas) usados só quando a plataforma não
+reconhece nada na posição atual. `KindWord` foi removido (não existe
+mais pré-corte); `KindIdentifier`/`KindString`/`KindUnknown` entraram
+no lugar.
+
 **Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
 que prova que o desenho funciona):
 - [x] Driver do pipeline no core (`internal/core/pipeline.go`:
@@ -847,8 +865,6 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
 
 ### Bloco 2 — Módulo MSX
 
-- [ ] Portar `Description`/`Lexer`/`Parser` MSX (vocabulário, alocação de
-  2 letras, `?`/PRINT, THEN/GOTO strip, TRUE/FALSE=-1/0, Unicode→ASCII). — **M**, **1**
 - [x] **Portado o tokenizer MSX Batoken** (2026-11-21,
   `internal/platforms/msx/tokenizer.go` + `tokenizer_test.go`) — texto
   ASCII numerado → binário `.bmx`, standalone, **não usa
@@ -872,12 +888,40 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   o bug latente do Python no tratamento de `AS` com 2 dígitos (`ord()`
   numa string de 2 chars, cai em `TypeError`) foi corrigido, não
   reproduzido. — **A**, **1**
-- [ ] Portar `Description`/`Lexer`/`Parser` MSX (vocabulário, alocação de
-  2 letras, `?`/PRINT, THEN/GOTO strip, TRUE/FALSE=-1/0, Unicode→ASCII)
-  — primeiro uso real das interfaces "v0" do Bloco 1; pesquisa já feita
-  nesta sessão (classes `Description`/`Lexer`/`Parser`/`Settings`/
-  `Expose` lidas por completo em `badig_msx.py`), implementação ainda
-  não iniciada. — **M**, **1**
+- [x] **Portados `Description` e `Lexer` MSX** (2026-11-21,
+  `internal/platforms/msx/description.go` + `lexer.go` +
+  `lexer_test.go`) — primeiro uso real das interfaces "v0" do
+  Bloco 1 (antes só validadas contra uma plataforma fictícia). Toda a
+  tabela de vocabulário (`c_instrc` 73 entradas, `c_funcdl`/`c_funcnm`,
+  `c_jumpin`, `c_operat`, `c_symbol`, `c_e_symb`) transcrita linha a
+  linha de `badig_msx.py:1-224` lido por completo nesta sessão.
+  **Desvio real na interface `core.Lexer`, descoberto implementando**
+  (documentado na Fase 2/3 do Bloco 1 abaixo): a v0 (palavra
+  pré-cortada por espaço) não aguenta números com notação científica
+  nem símbolos compostos sem espaço (`x+=5`) — trocada por
+  `Lex(ctx, remaining string) (consumed int, tokens []Token, ok bool,
+  err error)`, dando à plataforma a **linha inteira restante**, mesmo
+  padrão já usado no tokenizer Batoken. `core.Description` ganhou
+  `QuoteChar() byte`. `core.Lex()` agora também reconhece, de forma
+  compartilhada entre plataformas, identificador Dignified
+  (`^[a-z][a-z_0-9]*[%!#$]?`) e string entre aspas — só entram em jogo
+  quando a plataforma não reconhece nada ali (prioridade confirmada
+  lendo a ordem do regex combinado original: `classic_groups |
+  dignified_groups | main_groups | d_idnttp` — identificador é
+  **sempre** o último recurso). 8 testes cobrindo palavras-chave
+  (maiúsculo/minúsculo), operadores, símbolos simples/compostos,
+  números (decimal/`&H`/`&O`/`&B`), comentários (`REM`/`'`), `DATA`, e
+  o fallback tolerante pra caractere não reconhecido. **Fora de
+  escopo nesta fatia** (nenhum real do MSX, nenhum bug — só adiados):
+  bloco de comentário `''` multi-linha, semântica literal de itens do
+  `DATA` (por ora lexados como expressões normais), tradução
+  Unicode→ASCII (isso é Pass 5 do `Parser`, próxima fase). — **M**, **1**
+- [ ] Portar `Parser` MSX (5 passes): alocação de 2 letras (algoritmo
+  já documentado acima), `?`/PRINT, THEN/GOTO strip, expansão de
+  atribuição composta, TRUE/FALSE=-1/0, Unicode→ASCII — precisa da
+  `Lexer` funcionando primeiro (feito). — **A**, **1**
+- [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
+  `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**
 - [ ] Integração openMSX: lançar processo + disco virtual, **sem**
   monitoramento de erro na v1 (adiar item de risco alto). — **M**, **1**
