@@ -20,7 +20,10 @@ a base do futuro editor/IDE do goBaDig (ver Bloco 6 e secao 10.6), e
 **a viabilidade do ZRCP (ZEsarUX) foi investigada e confirmada como
 viável** para monitoramento de erro em tempo real em ZX81/Spectrum (ver
 Bloco 0) — ainda não implementado, só o veredito e a técnica
-confirmados lendo o código-fonte do ZEsarUX. O motor de
+confirmados lendo o código-fonte do ZEsarUX, e **os vetores de ouro do
+tokenizer MSX foram gerados** rodando o Python original
+(`badig/msx/test_tokenizer_msx.py`, 13 casos — MSX não tinha suíte de
+testes até agora, ver Bloco 0). O motor de
 conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
 ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
 de verdade. **As 9 perguntas da seção 8 foram respondidas pelo usuário em
@@ -586,8 +589,48 @@ de conversão e os módulos de plataforma seguem pendentes.
 - [ ] Desenhar schema SQLite inicial: config global, config por projeto,
   tabela de keywords/tokens por dialeto, tabela de settings de emulador/
   tokenizer por plataforma. — **M**, **1**
-- [ ] Gerar vetores de ouro (golden tests) do MSX rodando o Python
-  original, já que não há suíte de testes MSX hoje. — **M**, **1**
+- [x] **Gerados os vetores de ouro (golden tests) do MSX** rodando o
+  Python original, já que não havia suíte de testes MSX até agora
+  (2026-11-21). Novo arquivo `badig/msx/test_tokenizer_msx.py` (13
+  casos), no mesmo estilo/convenção de `zx81/test_tokenizer_zx81.py` e
+  `zxspectrum/test_zxspectrum.py` — mas, diferente deles, o tokenizer
+  MSX (`msxbatoken.py`) não tem uma função pura importável equivalente a
+  `tokenize_lines()`; é uma ferramenta arquivo-a-arquivo via CLI. Por
+  isso os testes rodam `badig.py <arquivo>.amx -id msx -asc
+  --tk_tokenize -rh` via `subprocess` (a flag `-asc` pula o
+  lexer/parser Dignified por completo, isolando só o tokenizer Batoken
+  — escopo combinado com a seção 6 item 8: "vetores de bytes fixo" é
+  especificamente sobre o tokenizer, não o lexer/parser). Cada caso foi
+  gerado rodando a implementação Python real e depois fixado como
+  asserção exata — são a referência (ground truth) pra comparar contra
+  quando o tokenizer MSX for portado pro Go (Bloco 2). Cobertura:
+  equivalência `PRINT`/`?` (mesmo byte `0x91`), faixa de inteiros
+  pequenos 0-9 (byte dedicado `0x11+n`) vs. inteiro de 1 byte (prefixo
+  `0x0f`) vs. 2 bytes (prefixo `0x1c`), menos unário como operador `-`
+  (não um literal negativo), float precisão simples (prefixo `0x1d` +
+  Microsoft Binary Format, não IEEE-754) vs. dupla (prefixo `0x1f`,
+  sufixo `#`), string literal (ASCII entre aspas literais, sem escape),
+  `REM` vs. `'` (encodings diferentes — `'` expande pra
+  `3a 8f e6`, não é so um alias de byte único), múltiplos statements
+  separados por `:`, função estendida com prefixo `ff` (ex.: `PEEK`), e
+  o alvo de `THEN`/`GOTO` sendo um valor bruto de 2 bytes (sem prefixo
+  de tipo), diferente de uma constante numérica normal. Confirmado:
+  `python -m unittest discover -s msx -p "test_*.py"` → 13/13 OK; não
+  afeta `zx81`/`zxspectrum` (continuam OK, roda cada um com
+  `python -m unittest <pasta>.test_<arquivo>` a partir de `badig/` —
+  **nota**: `discover -s .` a partir da raiz do `badig/` só encontra os
+  testes de `zxspectrum/`, porque só esse diretório tem `__init__.py`;
+  isso já era assim antes desta mudança, não é um problema introduzido
+  aqui, e `badig/` é histórico congelado — não mexido além do novo
+  arquivo de teste). **Importante achado ao commitar**: `/badig/`
+  inteiro é ignorado pelo Git (`.gitignore`, decisão de 2026-11-05) —
+  `badig/msx/test_tokenizer_msx.py` **nunca vai ser versionado**, existe
+  só localmente nesta máquina. Por isso os 15 vetores (13 testes, dois
+  deles com múltiplos casos) foram **também** copiados, já rastreados
+  pelo Git, para
+  [`docs/golden-vectors/msx-tokenizer.md`](docs/golden-vectors/msx-tokenizer.md)
+  — essa é a cópia durável de referência; o arquivo de teste Python é só
+  a ferramenta que os gerou/valida localmente. — **M**, **1**
 - [x] Decidir nomenclatura final de extensões de arquivo por plataforma
   no Go: **mantidas as herdadas** (`.DMX/.AMX/.BMX`, `.DZX/.AZX/.p`,
   `.DZS/.AZS/.TAP/.TZX`), sem esquema novo. — 2026-11-20 (seção 8, pergunta 3).
