@@ -5,15 +5,18 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-20.
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-21.
 Estado: **stub funcional v1.1.4 publicado; v1.2.0 em desenvolvimento e
 nao publicado**. CLI com temas e conclusao Tab; GUI com temas persistidos;
 TUI modernizada em 2026-11-20 no visual retro estilo MS-DOS (Turbo
 Vision/Turbo Pascal/Norton Commander: janelas com sombra, caixa de
-sistema, icones Unicode, desktop texturizado — ver Bloco 6) **e o
-congelamento real de `Setup > Install` foi encontrado e corrigido** nessa
+sistema, icones Unicode, desktop texturizado — ver Bloco 6), o
+congelamento real de `Setup > Install` foi encontrado e corrigido nessa
 mesma sessao (nao era deadlock — era o dialogo inteiro ficando invisivel
-por um bug classico de Go, ver Bloco 6 para a causa raiz completa). O
+por um bug classico de Go, ver Bloco 6 para a causa raiz completa), e em
+2026-11-21 **o editor WibEdit (portado de `E:\wibworks`) foi integrado
+como `internal/editor`, acessivel pelo novo menu Editor > Open da TUI** —
+a base do futuro editor/IDE do goBaDig (ver Bloco 6 e secao 10.6). O
 motor de
 conversão (lexer/parser/tokenizers por plataforma) ainda não existe —
 ver Blocos 1-4 na seção 7 para o que falta antes da primeira conversão
@@ -768,10 +771,40 @@ de conversão e os módulos de plataforma seguem pendentes.
 - [ ] Navegação entre MSX/ZX81/Spectrum sem reiniciar o programa. — **B**, **2**
 - [ ] Visualizador de manual BASIC embutido (mesmo conteúdo do `--man`
   da CLI), acessível pelo menu Help. — **M**, **2**
-- [ ] Avaliar reaproveitar o **Norton Editor para TUI já pronto no
-  projeto `msxide`** do usuário como base do editor de texto integrado
-  (ver seção 10.7) — ainda fora de escopo de implementação, só
-  registrado como opção futura. — **A**, **3**
+- [x] **WibEdit integrado como editor da TUI** (2026-11-21, pedido
+  explícito do usuário: "quero este tipo de interface neste projeto...
+  ele vai ser a base de nossa IDE"). Reverte a decisão de 2026-11-05 que
+  mantinha um editor próprio fora de escopo — o usuário apontou
+  diretamente para o projeto `E:\wibworks` (não o `msxide`/`paleobasic`
+  mencionados antes) e pediu a cópia completa, não um binário separado.
+  Portado de `E:\wibworks\internal\modules\edit` (WibEdit — editor
+  estilo WordStar/Norton Editor 2, já no mesmo stack `tcell v2.13.10`/
+  `tview v0.42.0` do goBaDig) para o novo pacote `internal/editor`
+  (~9 mil linhas + ~5,2 mil linhas de testes, todos portados e passando
+  sem alteração de comportamento), mais `internal/printpdf` (exportação
+  PDF, copiado de `internal/shared/printpdf` do wibworks). Embutido como
+  mais uma página do `tview.Pages` já existente em `internal/tui/tui.go`
+  (não é um binário separado): novo menu de topo **Editor > Open**
+  (`iconEdit` em `chrome.go`), com o `app.SetInputCapture` roteando para
+  `editor.Capture` sempre que a página "editor" está em primeiro plano —
+  mesmo padrão que o próprio wibworks usa para embutir o WibEdit no seu
+  shell (`internal/shared/ui/shell.go`). Textos de identidade (About,
+  ajuda, nome do documento na impressora, diretório de config global)
+  adaptados de "WIBEditor/WIBWorks" para "WibEdit (goBaDig)", mantendo o
+  crédito de autoria a Wilson Pilon. Teste de regressão novo
+  (`internal/tui/editor_menu_test.go`) confirmado como capaz de detectar
+  regressão (testado quebrando o roteamento de propósito e revertendo).
+  Chrome visual do WibEdit (bordas duplas/sombra desenhadas manualmente
+  em `editor.go`) mantido como está, coexistindo com o `chrome.go` do
+  goBaDig sem tentar unificar os dois sistemas agora. Impressão/exportação
+  PDF portadas junto (não adiadas): nova dependência `go-pdf/fpdf
+  v0.9.0`, `golang.org/x/image` atualizado de v0.24.0 para v0.48.0 (usado
+  também pela GUI Fyne — build da GUI não pôde ser verificado de ponta a
+  ponta neste sandbox por causa da limitação pré-existente de
+  `CGO_ENABLED=0`, não relacionada a esta mudança). Ainda não ligado a
+  nada específico de BASIC (realce de sintaxe, abertura direto de
+  `.bas`/arquivos-fonte das 3 plataformas) — é a base crua do editor;
+  isso fica para os próximos passos da IDE.
 
 ### Bloco 7 — GUI (Fyne)
 
@@ -824,9 +857,10 @@ Notepad++/UltraEdit (opcional, "se for possível").
 
 **Editor próprio (Norton Editor 2.0) e outros:**
 
-- [ ] Editor próprio baseado no Norton Editor 2.0 — **fora de escopo
-  agora**, o usuário já tem uma base pronta em outro local; não iniciar
-  sem pedido explícito. — **A**, **3**
+- [x] Editor próprio baseado no Norton Editor 2.0 — **integrado em
+  2026-11-21** como WibEdit (`internal/editor`, portado de
+  `E:\wibworks`), embutido na TUI via menu **Editor > Open**. Ver
+  Bloco 6. Versão GUI do mesmo editor ainda não portada.
 - [ ] Avaliar viabilidade de realce de sintaxe para Notepad++ e
   UltraEdit (UDL). — **B** (avaliação), **3**
 
@@ -1019,16 +1053,15 @@ Prioridade confirmada pelo usuário:
    apenas "se sobrar tempo" (reavaliar a nota da seção 5.5: esforço
    baixo, estrutura quase idêntica entre plataformas já no projeto
    Python). Prioridade 2.
-3. **Editor próprio, baseado no Norton Editor 2.0** — o usuário já tem
-   bases prontas em outros projetos próprios: **`msxide`** tem um clone
-   do Norton Editor tanto para **TUI** quanto uma versão **GUI** com as
-   mesmas teclas/funções do NE2, e **`paleobasic`** também contém uma
-   implementação do NE. **Continua fora de escopo de implementação por
-   enquanto** (instrução explícita do usuário em 2026-11-05: "o Norton
-   Editor fica de fora, mas deve ser mencionado") — registrado aqui como
-   opção real de reaproveitamento futuro, não um projeto do zero. Não
-   iniciar nenhum trabalho de integração aqui até ser pedido
-   explicitamente. Ver seção 10.7 e `docs/RESOURCES.md`.
+3. **Editor próprio, baseado no Norton Editor 2.0** — **resolvido em
+   2026-11-21**: o usuário pediu explicitamente a integração, apontando
+   para o projeto **`E:\wibworks`** (WibEdit), não os `msxide`/
+   `paleobasic` mencionados em 2026-11-05 (que continuam existindo como
+   outras implementações do NE do mesmo autor, só não foram as
+   escolhidas). WibEdit foi portado por completo para
+   `internal/editor` (TUI do goBaDig) — ver Bloco 6 para os detalhes
+   técnicos da integração. A versão GUI (Fyne) do editor **não foi
+   portada** nesta rodada; fica para quando for pedida.
 4. **Notepad++ e UltraEdit** — "se for possível": avaliar viabilidade
    (arquivos de realce de sintaxe próprios de cada um — UDL no
    UltraEdit, por exemplo) como item de prioridade baixa/esforço a

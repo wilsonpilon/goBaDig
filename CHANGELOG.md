@@ -72,6 +72,21 @@ exata do pacote.
   tela simulada e falha se o diálogo voltar a ficar invisível; o teste
   de deadlock antigo (`freeze_diagnosis_test.go`) não detectava esse
   bug, já que a aplicação nunca parou de responder.
+- **Editor WibEdit integrado à TUI** como base do futuro editor/IDE do
+  goBaDig: novo pacote `internal/editor` (portado de
+  `E:\wibworks\internal\modules\edit`, mesmo autor — editor estilo
+  WordStar/Norton Editor 2, ~9 mil linhas + ~5,2 mil linhas de testes,
+  já no mesmo stack `tcell`/`tview` do goBaDig) e `internal/printpdf`
+  (exportação PDF). Acessível pelo novo menu **Editor > Open**
+  (`internal/tui/tui.go`), embutido como mais uma página do
+  `tview.Pages` existente — não é um binário separado. Identidade visual
+  (diálogo About, ajuda, nome enviado à impressora) adaptada de
+  "WIBEditor/WIBWorks" para "WibEdit (goBaDig)", mantendo o crédito de
+  autoria. Novo teste de regressão
+  (`internal/tui/editor_menu_test.go`) confirma que o menu abre o editor
+  e que fechá-lo retorna à área de trabalho do goBaDig. Traz suporte a
+  impressão e exportação PDF (nova dependência `go-pdf/fpdf`;
+  `golang.org/x/image` atualizado de v0.24.0 para v0.48.0).
 - Primeira fatia do armazenamento SQLite com driver puro Go
   `modernc.org/sqlite`, tabelas `themes` e `active_themes` por modo.
 - `build.ps1` (raiz do repo): script PowerShell que automatiza o build

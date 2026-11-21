@@ -41,7 +41,8 @@ func TestSetupInstallFreeze(t *testing.T) {
 		time.Sleep(30 * time.Millisecond)
 	}
 
-	// Navigate File -> Setup, open the menu, select "Install".
+	// Navigate File -> Editor -> Setup, open the menu, select "Install".
+	press(tcell.KeyRight, 0, tcell.ModNone) // active menu: Editor
 	press(tcell.KeyRight, 0, tcell.ModNone) // active menu: Setup
 	press(tcell.KeyEnter, 0, tcell.ModNone) // open Setup dropdown
 	press(tcell.KeyEnter, 0, tcell.ModNone) // select Install -> showThemePicker()

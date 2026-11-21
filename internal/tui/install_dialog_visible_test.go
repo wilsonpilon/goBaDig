@@ -47,8 +47,9 @@ func TestSetupInstallDialogIsVisible(t *testing.T) {
 		time.Sleep(30 * time.Millisecond)
 	}
 
-	// Navigate File -> Setup, open the menu, select "Install" ->
+	// Navigate File -> Editor -> Setup, open the menu, select "Install" ->
 	// showThemePicker().
+	press(tcell.KeyRight, 0, tcell.ModNone)
 	press(tcell.KeyRight, 0, tcell.ModNone)
 	press(tcell.KeyEnter, 0, tcell.ModNone)
 	press(tcell.KeyEnter, 0, tcell.ModNone)

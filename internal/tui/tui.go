@@ -13,6 +13,7 @@ import (
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
+	"github.com/wilsonpilon/goBaDig/internal/editor"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
@@ -94,6 +95,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	colors := paletteFor(activeTheme)
 	menus := []menuDef{
 		{icon: iconFile, label: "File", items: []menuItem{{iconExit, "Exit", func() { app.Stop() }}}},
+		{icon: iconEdit, label: "Editor", items: []menuItem{{iconEdit, "Open", nil}}},
 		{icon: iconSetup, label: "Setup", items: []menuItem{{iconInstall, "Install", nil}}},
 		{icon: iconHelp, label: "Help", items: []menuItem{{iconAbout, "About", nil}}},
 	}
@@ -149,6 +151,17 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		AddItem(desk, 0, 1, false).
 		AddItem(statusBar, 1, 0, false)
 	pages.AddPage("app", root, true, true)
+
+	closeEditor := func() {
+		pages.SwitchToPage("app")
+		app.SetFocus(pages)
+	}
+	ed := edit.NewEditor(app, closeEditor)
+	pages.AddPage("editor", ed, true, false)
+	openEditor := func() {
+		pages.SwitchToPage("editor")
+		app.SetFocus(ed.Input())
+	}
 
 	closeMenu := func() {
 		pages.RemovePage("dropdown")
@@ -264,8 +277,9 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		pages.AddPage("theme-error", modal, true, true)
 		app.SetFocus(modal)
 	}
-	menus[1].items[0].action = showThemePicker
-	menus[2].items[0].action = showAbout
+	menus[1].items[0].action = openEditor
+	menus[2].items[0].action = showThemePicker
+	menus[3].items[0].action = showAbout
 
 	var openMenu func(i int)
 	openMenu = func(i int) {
@@ -316,6 +330,9 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		renderBar()
 	}
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if name, _ := pages.GetFrontPage(); name == "editor" {
+			return ed.Capture(event)
+		}
 		if dialogOpen {
 			return event
 		}

@@ -16,6 +16,7 @@ import (
 // monospace console fonts.
 const (
 	iconFile    = "▭" // ▭ WHITE RECTANGLE - a blank sheet of paper.
+	iconEdit    = "✎" // ✎ LOWER RIGHT PENCIL - the Editor menu.
 	iconSetup   = "⚙" // ⚙ GEAR.
 	iconHelp    = "ℹ" // ℹ INFORMATION SOURCE.
 	iconExit    = "✕" // ✕ MULTIPLICATION X.

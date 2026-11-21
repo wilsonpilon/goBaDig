@@ -5,7 +5,11 @@ go 1.27.3
 require (
 	fyne.io/fyne/v2 v2.8.2
 	github.com/gdamore/tcell/v2 v2.13.10
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/rivo/tview v0.42.0
+	github.com/rivo/uniseg v0.4.7
+	golang.org/x/image v0.48.0
+	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.37.0
 	modernc.org/sqlite v1.62.0
 )
@@ -42,16 +46,13 @@ require (
 	github.com/nicksnyder/go-i18n/v2 v2.5.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rymdport/portal v0.4.2 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
-	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
