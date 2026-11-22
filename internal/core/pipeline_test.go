@@ -108,6 +108,86 @@ func newFakeContext(sourceLine string, includeStack []string) *CompileContext {
 	}
 }
 
+// newFakeMultilineContext is newFakeContext but for several source
+// lines - needed to test label resolution/line numbering, which only
+// show up across multiple lines.
+func newFakeMultilineContext(lines []string, includeStack []string) *CompileContext {
+	source := make([]Line, 0, len(lines)+1)
+	source = append(source, Line{Number: 0, Text: "PROGRAM", File: "fake"})
+	for i, l := range lines {
+		source = append(source, Line{Number: i + 1, Text: l, File: "fake.dmx"})
+	}
+	return &CompileContext{
+		Source:       source,
+		Settings:     &CompileSettings{LineStart: 10, LineStep: 10},
+		Symbols:      NewSymbolTables(),
+		IncludeStack: includeStack,
+	}
+}
+
+func runFake(t *testing.T, lines ...string) (GenerateResult, error) {
+	t.Helper()
+	ctx := newFakeMultilineContext(lines, []string{"fake.dmx"})
+	platform := Platform{
+		Description: fakeDescription{},
+		Lexer:       fakeLexer{},
+		Parser:      fakeParser{},
+		Settings:    fakeSettings{},
+	}
+	return Run(ctx, platform)
+}
+
+func TestPass4ResolvesLabelToTheLineItAttachesTo(t *testing.T) {
+	result, err := runFake(t, "goto {dest}", "{dest}", "PRINT 1")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 goto 20", "20 PRINT 1"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (label attaches to the line that follows it, wasting none)", result.Code, want)
+	}
+}
+
+func TestPass4ResolvesAtSignToTheCurrentLine(t *testing.T) {
+	result, err := runFake(t, "PRINT 1", "goto {@}")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 goto 20"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v ({@} resolves to its own line)", result.Code, want)
+	}
+}
+
+func TestPass3CollapsesBlankLinesWithoutWastingLineNumbers(t *testing.T) {
+	result, err := runFake(t, "PRINT 1", "", "", "PRINT 2")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (blank lines must not consume line numbers)", result.Code, want)
+	}
+}
+
+func TestPass3MergesLineContinuationIntoOneNumberedLine(t *testing.T) {
+	result, err := runFake(t, "PRINT 1 _", "PRINT 2")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1 PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (\"_\" at end of line merges into one classic line)", result.Code, want)
+	}
+}
+
+func TestPass4FailsOnAJumpToAnUndeclaredLabel(t *testing.T) {
+	_, err := runFake(t, "goto {missing}")
+	if err == nil {
+		t.Fatal("expected a fatal error jumping to an undeclared label, got none")
+	}
+}
+
 func TestPipelineEndToEnd(t *testing.T) {
 	ctx := newFakeContext("PRINT 1 IGNORE foo", []string{"fake.dmx"})
 	platform := Platform{
@@ -127,8 +207,10 @@ func TestPipelineEndToEnd(t *testing.T) {
 	// "IGNORE" (recognized by fakeLexer, zero tokens) is gone; "foo"
 	// (not recognized by fakeLexer, falls back to core's generic
 	// Dignified-identifier matching) survives as one identifier token;
-	// PRINT/1 (recognized by fakeLexer) survive reclassified.
-	const want = "PRINT 1 foo"
+	// PRINT/1 (recognized by fakeLexer) survive reclassified; "10 " is
+	// core Pass 4's line numbering (added this round - ver OUTLINE.md,
+	// "labels e numeração").
+	const want = "10 PRINT 1 foo"
 	if result.Code[0] != want {
 		t.Fatalf("Code[0] = %q, want %q", result.Code[0], want)
 	}

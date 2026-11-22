@@ -80,8 +80,12 @@ dialeto de verdade); **`v1.6.0`** porta `Parser` Pass 3/4 (alocação
 de variáveis de 2 letras — primeira conversão Dignified→Classic de
 verdade produzindo texto correto); **`v1.7.0`** porta `Parser` Pass 5
 (`?`/`PRINT`, `THEN`/`GOTO`, atribuição composta, `TRUE`/`FALSE`,
-Unicode) — ainda sem nenhum comando de conversão real disponível pro
-usuário: falta Pass 1 e um `generate()` de verdade pra fechar o
+Unicode); **`v1.8.0`** resolve labels (`{nome}`) e numera linhas —
+primeiro programa com `GOTO`/label real compilando de ponta a ponta,
+validado contra um exemplo real completo
+(`badig/examples/msx/CGK173.dmx`) — ainda sem nenhum comando de
+conversão real disponível pro usuário: falta loop labels, `DEFINE`/
+`FUNC`/`RET`, Pass 1 e um `generate()` de verdade pra fechar o
 caminho Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
@@ -167,11 +171,13 @@ converte texto Classic ASCII numerado em binário `.bmx`, e a partir da
 `v1.5.0` o `Description`/`Lexer` MSX já classificam texto Dignified
 real em tokens, a partir da `v1.6.0` o `Parser` MSX já aloca
 variáveis de 2 letras e gera texto Classic de verdade pra isso
-(`counter=0` → `zz = 0`), e a partir da `v1.7.0` as conversões finais
+(`counter=0` → `zz = 0`), a partir da `v1.7.0` as conversões finais
 do Pass 5 também funcionam (`x+=5` → `x = x + 5`,
-`TRUE`/`FALSE` → `-1`/`0`, etc.) — mas ainda falta o Pass 1 do
-`Parser` e um `generate()` de verdade, e ligar tudo isso ao tokenizer.
-Nada disso é utilizável pelo usuário final ainda.
+`TRUE`/`FALSE` → `-1`/`0`, etc.), e a partir da `v1.8.0` labels
+(`{nome}`) resolvem pra números de linha de verdade (`goto {dest}` →
+`goto 20`) — mas ainda falta loop labels, `DEFINE`/`FUNC`/`RET`, o
+Pass 1 do `Parser` e um `generate()` de verdade, e ligar tudo isso ao
+tokenizer. Nada disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

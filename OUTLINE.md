@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-21.
-Estado: **v1.7.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.8.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -16,16 +16,22 @@ e nos Blocos correspondentes abaixo, não repetido aqui.
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
 13 vetores de ouro do Bloco 0 byte-exato), **`Description`/`Lexer` MSX**
-(`description.go`/`lexer.go`), e **`Parser` MSX Pass 3/4/5**
-(`parser.go` — alocação de variáveis de 2 letras + as 5 conversões
-finais do Classic) — a **primeira conversão Dignified→Classic de
-verdade já produzindo texto correto** (`counter=0` → `zz = 0`, com
-`~nome` mantido por extenso, `x+=5`→`x = x + 5`, `TRUE`/`FALSE`→
-`-1`/`0`), confirmada em testes de ponta a ponta completos
-(`Lex`→`Parse`→`Generate`). Quatro desvios reais nas interfaces "v0"
-do Bloco 1 descobertos implementando contra o MSX de verdade, todos
-documentados no Bloco 1 abaixo. **Ainda falta**: Pass 1 do `Parser`
-(separador de chamada Dignified `_`, rendering ainda não entendido),
+(`description.go`/`lexer.go`), **`Parser` MSX Pass 3/4/5** (`parser.go`
+— alocação de variáveis de 2 letras + as 5 conversões finais do
+Classic), e **resolução de labels/numeração de linha** (core-level,
+não específico de MSX) — a **primeira conversão Dignified→Classic de
+verdade já produzindo texto correto, incluindo `GOTO`/label real**
+(`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`), confirmada em
+testes de ponta a ponta completos (`Lex`→`Parse`→`Generate`), e
+cruzada contra um exemplo real completo apontado pelo usuário
+(`badig/examples/msx/CGK173.dmx`). Cinco desvios reais nas interfaces
+"v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
+todos documentados no Bloco 1 abaixo — a resolução de labels foi
+também a primeira vez que o `core` passou a fazer trabalho Dignified
+de verdade antes de delegar pra plataforma, não só documentar a
+intenção. **Ainda falta**: Pass 1 do `Parser` (separador de chamada
+Dignified `_` fora do fim de linha, rendering ainda não entendido),
+loop labels, `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`,
 `generate()` de verdade (espaçamento por palavra reservada, limite de
 linha), e ligar tudo isso ao tokenizer já pronto pra fechar o caminho
 completo até o binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
@@ -859,6 +865,51 @@ capturado como identificador antes de chegar nesse fallback — bug
 real encontrado e corrigido nesta mesma sessão, pego pelo teste
 `TestPass5ReplacesTrueAndFalse`).
 
+**O `core` passou a fazer trabalho Dignified de verdade antes de
+delegar pra plataforma** (2026-11-21, resolução de labels e numeração
+de linha): até aqui, `Pass2`/`Pass3`/`Pass4` eram 100% delegados pro
+hook da plataforma (`platform.Parser.PassN`, via `runPass`) — o
+comentário do `Parser` desde o Bloco 1 já antecipava que isso mudaria
+("Nenhuma dessas responsabilidades de nível core... está implementada
+ainda"). Essa fatia é a primeira vez que isso acontece de verdade,
+confirmado lendo `badig.py` (`pass_2`/`pass_3`/`pass_4`, que fazem seu
+próprio trabalho Dignified primeiro e só caem pro `self.clc.passN()`
+no "senão"): `pass2Labels`/`pass3LineHygiene` (`internal/core/pipeline.go`)
+envolvem o hook da plataforma com esse padrão "core primeiro, cai pra
+plataforma só se não for nada Dignified-específico" — `{nome}`/`{@}`
+(sempre 3 tokens adjacentes, já que espaço nunca gera token: `{`, nome
+ou `@`, `}`) colapsam em 1 token (`KindLabelDeclaration` se no início
+de linha, senão `KindLabelJump`); 3 limpezas de linha (linha em branco
+some, `_` no fim de linha funde com a próxima, `NEWLINE` depois de uma
+declaração de label some) garantem que a numeração não desperdice
+números em coisas que não vão gerar linha de verdade.
+
+`pass4Numbering` **não** cabe no formato `passFunc`/`runPass` (que só
+cobre "decida o destino do token atual") porque o algoritmo real
+resolve os saltos (`{nome}` → número) numa **pós-passada** que muda o
+valor de um token já emitido por uma chamada ANTERIOR — não dá pra
+expressar isso como "retorne um HookAction pra esta chamada". Resolvi
+sem rastrear índice (como o Python faz, porque o loop dele já constrói
+a lista final token a token): a varredura via `runPass` deixa o
+`KindLabelJump` atravessar sem resolver (exceto `{@}`, resolvido na
+hora pro número da linha atual), e **depois** que `runPass` devolve a
+lista pronta, uma segunda passada simples (`for i := range tokens`)
+procura por `KindLabelJump` e sobrescreve `.Value` com o número
+resolvido — como slices em Go compartilham o array por baixo, isso
+muda a lista de verdade sem precisar de índice rastreado. Erro fatal
+se o nome não existir no mapa de labels.
+
+Novos tokens compartilhados: `KindDignifiedSeparator` (`_`, não lexado
+antes — igual aos outros símbolos Dignified), `KindLabelDeclaration`,
+`KindLabelJump`, `KindLineNumber` (token sintético que `pass4Numbering`
+insere depois de cada `NEWLINE` que abre uma linha nova — e depois do
+próprio `PROGRAM`, já que a primeira linha real não tem nenhum
+`NEWLINE` antes dela pra disparar a numeração: achado real, pego pelo
+primeiro teste escrito, corrigido tratando `KindProgram` como gatilho
+também). **Fora de escopo, documentado**: loop labels (`nome{ }`/
+`exit`), inserção de header (2 linhas REM sintéticas), relatório de
+labels (`-lbr`), `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`.
+
 **Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
 que prova que o desenho funciona):
 - [x] Driver do pipeline no core (`internal/core/pipeline.go`:
@@ -1000,11 +1051,44 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   testes novos. **Fora de escopo, documentado, não implementado**:
   capitalização (`capitalise_all`, desligada por default no original
   também). — **A**, **1**
+- [x] **Resolução de labels e numeração de linha** (2026-11-21,
+  `internal/core/pipeline.go`: `pass2Labels`/`pass3LineHygiene`/
+  `pass4Numbering`) — fiel a `badig.py` (`get_label_lines`/
+  `get_jump_labels` 849-921, `pass_2` 1447-1504, limpeza de linha em
+  `pass_3` 1536-1613, `pass_4` completo 1615-1757), confirmado também
+  empiricamente contra `badig/examples/msx/CGK173.dmx`/`.amx`, um
+  exemplo real completo (apontado pelo usuário). `{nome}` no início de
+  linha = declaração; em qualquer outro lugar = referência de salto;
+  `{@}` = linha atual; label nunca gasta linha própria (cola na
+  próxima linha com conteúdo real); linha em branco e `_` no fim de
+  linha (funde com a próxima) não gastam número; erro fatal pra salto
+  a label não declarado. Ver Bloco 1 acima pro detalhamento da mudança
+  de arquitetura do `core` (primeira vez que `Pass2`/`Pass3`/`Pass4` do
+  `core` fazem trabalho Dignified de verdade, não só delegam pra
+  plataforma) e os 4 tokens novos. 10 testes novos (6 em
+  `internal/core`, mecanismo puro; 1 de ponta a ponta em
+  `internal/platforms/msx` confirmando que label+numeração convive com
+  a renomeação de variável do MSX). **Primeiro programa Dignified com
+  `GOTO`/label de verdade compilando de ponta a ponta.**
+  **Fora de escopo, documentado**: loop labels (`nome{ }`/`exit`,
+  usado no `CGK173.dmx` em `keys{ }` etc.), inserção de header,
+  relatório de labels (`-lbr`). — **A**, **1**
 - [ ] Pass 1 MSX (separador de chamada Dignified `_` → "instrução de
-  chamada") — ainda não está claro o que esse recurso deveria gerar no
+  chamada", só quando `_` NÃO está no fim de linha — o caso "fim de
+  linha" já foi resolvido nesta rodada como fusão de linha, ver item
+  acima) — ainda não está claro o que esse recurso deveria gerar no
   texto Classic final (`.tok` muda, `.val` não; não encontrei nenhuma
   conversão de "_" pra texto "CALL" em nenhum lugar do Python);
   precisa de mais pesquisa antes de portar. — **M**, **1**
+- [ ] `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE` — cada um uma
+  fatia própria, confirmados existirem e serem usados de verdade no
+  `CGK173.dmx`. — **A**, **1**
+- [ ] Loop labels (`nome{ ... }` como laço fechado + `exit`) — pilha de
+  labels abertos, mecanismo separado da resolução simples de labels já
+  implementada. — **M**, **1**
+- [ ] Inserção de header (2 linhas REM sintéticas,
+  `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
+  cosméticos, pequenos. — **B**, **2**
 - [ ] `generate()` de verdade (regras de espaçamento por palavra
   reservada + limite de 256 chars/linha) — hoje usa a versão mínima
   genérica do Bloco 1 (join com 1 espaço, sem limite de linha). Vai

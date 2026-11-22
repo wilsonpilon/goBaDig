@@ -136,6 +136,13 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 				continue
 			}
 
+			if runes[pos] == '_' {
+				tokens = append(tokens, pin(Token{Kind: KindDignifiedSeparator, Value: "_"}))
+				pos++
+				col++
+				continue
+			}
+
 			tokens = append(tokens, pin(Token{Kind: KindUnknown, Value: string(runes[pos])}))
 			pos++
 			col++
@@ -212,15 +219,189 @@ func runPass(ctx *CompileContext, tokens []Token, pass passFunc) ([]Token, error
 	return out, nil
 }
 
+// pass2Labels wraps platform.Parser.Pass2 with the core-level
+// Dignified label handling pass_2 does before ever calling
+// self.clc.pass_2() (badig.py:1447-1504): turns every `{name}` (or
+// `{@}`) - always 3 adjacent tokens, `{`/name-or-`@`/`}`, since
+// whitespace never produces a token - into exactly one
+// KindLabelDeclaration (at the start of a line) or KindLabelJump
+// (anywhere else) token, mirroring D_LBLLIN/D_LBLJMP. Loop labels
+// (`name{ ... }`/`exit`, D_LBLRET/D_LBLEXT) are not implemented yet
+// (ver OUTLINE.md) - a bare `{`/`}` that doesn't fit the 3-token
+// pattern just falls through unchanged.
+func pass2Labels(platform Platform) passFunc {
+	isOpenBrace := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "{" }
+	isCloseBrace := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "}" }
+
+	return func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+		tok := tokens[index]
+
+		if isOpenBrace(tok) && index+2 < len(tokens) && isCloseBrace(tokens[index+2]) {
+			name, ok := tokens[index+1].Value.(string)
+			if !ok {
+				return Continue, nil, nil
+			}
+			atLineStart := index == 0 ||
+				tokens[index-1].Kind == KindNewline ||
+				tokens[index-1].Kind == KindProgram
+			kind := KindLabelJump
+			if atLineStart {
+				kind = KindLabelDeclaration
+			}
+			return Replace, []Token{{Kind: kind, Value: name, Pos: tok.Pos}}, nil
+		}
+
+		// The name/`@` and closing `}` of a 3-token label just handled
+		// above, reached on their own turn - already consumed.
+		if index >= 1 && isOpenBrace(tokens[index-1]) && index+1 < len(tokens) && isCloseBrace(tokens[index+1]) {
+			return Skip, nil, nil
+		}
+		if index >= 2 && isOpenBrace(tokens[index-2]) && isCloseBrace(tok) {
+			return Skip, nil, nil
+		}
+
+		return platform.Parser.Pass2(ctx, tokens, index)
+	}
+}
+
+// pass3LineHygiene wraps platform.Parser.Pass3 with the core-level
+// line cleanup pass_3 does (badig.py:1536-1613) before ever falling
+// through to self.clc.pass_3(): consecutive blank lines collapse to
+// none, a `_` immediately followed by NEWLINE merges that line into
+// the next one (both tokens vanish), and the NEWLINE right after a
+// label declaration vanishes too (a label never gets a blank line of
+// its own before the code that follows it). All three only ever look
+// at tokens[index-1], same lookback already used by MSX's own Pass 3.
+func pass3LineHygiene(platform Platform) passFunc {
+	return func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+		tok := tokens[index]
+
+		if tok.Kind == KindNewline && index > 0 {
+			switch tokens[index-1].Kind {
+			case KindNewline, KindLabelDeclaration, KindDignifiedSeparator:
+				return Skip, nil, nil
+			}
+			return Continue, nil, nil
+		}
+
+		if tok.Kind == KindDignifiedSeparator {
+			if index+1 < len(tokens) && tokens[index+1].Kind == KindNewline {
+				return Skip, nil, nil
+			}
+			// Not at the end of a line: MSX's own Pass 1 "_ as a call
+			// separator" territory, not implemented yet (ver
+			// OUTLINE.md) - left unchanged.
+			return Continue, nil, nil
+		}
+
+		return platform.Parser.Pass3(ctx, tokens, index)
+	}
+}
+
+// pass4Numbering replaces the generic runPass(platform.Parser.Pass4)
+// call in Parse with the core-level label-resolution + line-numbering
+// pass_4 does (badig.py:1615-1757) before ever falling through to
+// self.clc.pass_4() (MSX's variable renaming, which keeps running
+// exactly as before for every token this function doesn't itself
+// recognize).
+//
+// It doesn't fit passFunc/runPass's one-call-per-token shape as a
+// single pass, because the original resolves jump placeholders in a
+// POST-pass that mutates a token emitted by an EARLIER call - not
+// expressible as "decide this call's own HookAction". Instead of
+// tracking an output index the way badig.py does (its own loop
+// already builds the final list token by token, so it always knows
+// that index), this runs the forward scan via the ordinary runPass
+// first (registering each label declaration's line number, resolving
+// `{@}` inline, but leaving every other KindLabelJump token
+// untouched), then walks the RETURNED slice once more - Go slices
+// share the underlying array, so overwriting tokens[i].Value there is
+// exactly the original's "mutate tok_list_out[l.index].val" in effect,
+// just found by a second linear scan instead of a tracked index.
+func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
+	labelLines := map[string]int{}
+	var lineNumber int
+
+	forward := func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+		tok := tokens[index]
+
+		switch tok.Kind {
+		case KindProgram:
+			// The first real content line has no NEWLINE before it to
+			// trigger numbering the way every later line does - number
+			// it here instead, right after the sentinel (which never
+			// renders in Generate, so this becomes that line's first
+			// rendered token).
+			lineNumber = ctx.Settings.LineStart
+			return Replace, []Token{tok, {Kind: KindLineNumber, Value: lineNumber, Pos: tok.Pos}}, nil
+
+		case KindLabelDeclaration:
+			name, _ := tok.Value.(string)
+			labelLines[name+tok.Pos.File()] = lineNumber
+			return Skip, nil, nil
+
+		case KindLabelJump:
+			if name, _ := tok.Value.(string); name == "@" {
+				tok.Value = lineNumber
+				return Replace, []Token{tok}, nil
+			}
+			return Continue, nil, nil
+
+		case KindNewline:
+			if index+1 < len(tokens) && tokens[index+1].Kind != KindEOF {
+				lineNumber += ctx.Settings.LineStep
+				return Replace, []Token{tok, {Kind: KindLineNumber, Value: lineNumber, Pos: tok.Pos}}, nil
+			}
+			return Continue, nil, nil
+
+		default:
+			return platform.Parser.Pass4(ctx, tokens, index)
+		}
+	}
+
+	tokens, err := runPass(ctx, tokens, forward)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range tokens {
+		if tokens[i].Kind != KindLabelJump {
+			continue
+		}
+		// A `{@}` self-reference is already resolved to an int line
+		// number inline, during the forward scan above - its Value is
+		// no longer a name to look up.
+		name, ok := tokens[i].Value.(string)
+		if !ok {
+			continue
+		}
+		line, ok := labelLines[name+tokens[i].Pos.File()]
+		if !ok {
+			return nil, Diagnostic{
+				Severity: SeverityError,
+				Message:  fmt.Sprintf("label does not exist: %s", name),
+				Pos:      &tokens[i].Pos,
+			}
+		}
+		tokens[i].Value = line
+	}
+
+	return tokens, nil
+}
+
 // Parse runs the parser's five passes over tokens (the output of
 // Lex), gating passes 4 and 5 to the main file only - mirrors par()'s
 // `pass_1(); pass_2(); pass_3(); if is_main_file(): pass_4(); pass_5()`
-// in the original engine. INCLUDE expansion (which happens inside
-// pass 3 in the original engine) is not implemented yet (ver
-// OUTLINE.md, Bloco 1, Fase 3).
+// in the original engine. Pass 2/3/4 wrap the platform's own hook with
+// core-level Dignified work (labels, line hygiene, numbering - ver
+// pass2Labels/pass3LineHygiene/pass4Numbering) exactly the way the
+// original's own pass_2/pass_3/pass_4 do before ever calling
+// self.clc.passN(). INCLUDE expansion (which happens inside pass 3 in
+// the original engine) is not implemented yet (ver OUTLINE.md, Bloco
+// 1, Fase 3).
 func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
 	var err error
-	for _, pass := range []passFunc{platform.Parser.Pass1, platform.Parser.Pass2, platform.Parser.Pass3} {
+	for _, pass := range []passFunc{platform.Parser.Pass1, pass2Labels(platform), pass3LineHygiene(platform)} {
 		tokens, err = runPass(ctx, tokens, pass)
 		if err != nil {
 			return nil, err
@@ -229,11 +410,13 @@ func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, err
 	if !ctx.IsMainFile() {
 		return tokens, nil
 	}
-	for _, pass := range []passFunc{platform.Parser.Pass4, platform.Parser.Pass5} {
-		tokens, err = runPass(ctx, tokens, pass)
-		if err != nil {
-			return nil, err
-		}
+	tokens, err = pass4Numbering(ctx, tokens, platform)
+	if err != nil {
+		return nil, err
+	}
+	tokens, err = runPass(ctx, tokens, platform.Parser.Pass5)
+	if err != nil {
+		return nil, err
 	}
 	return tokens, nil
 }

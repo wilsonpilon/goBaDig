@@ -38,12 +38,14 @@ func parseLines(t *testing.T, lines ...string) ([]core.Token, *core.CompileConte
 
 // renamedValues returns the (possibly renamed) Value of every
 // identifier-shaped token left in the stream, skipping structural
-// tokens, in source order.
+// tokens (including the line numbers core Pass 4 now inserts - these
+// tests are about variable renaming/Pass 5, not numbering, which has
+// its own tests in internal/core/pipeline_test.go), in source order.
 func renamedValues(tokens []core.Token) []string {
 	var out []string
 	for _, tok := range tokens {
 		switch tok.Kind {
-		case core.KindProgram, core.KindNewline, core.KindEOF:
+		case core.KindProgram, core.KindNewline, core.KindEOF, core.KindLineNumber:
 			continue
 		}
 		out = append(out, tok.String())
@@ -145,7 +147,7 @@ func TestEndToEndLexParseGenerateRenamesVariables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("core.Run: %v", err)
 	}
-	want := []string{"zz = 0", "print zz", "print kept"}
+	want := []string{"10 zz = 0", "20 print zz", "30 print kept"}
 	if len(result.Code) != len(want) {
 		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
 	}
@@ -235,6 +237,28 @@ func TestPass5TranslatesUnicodeInsideAString(t *testing.T) {
 	want := []string{"print", `"A"`}
 	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// TestEndToEndLabelAndVariableRenamingCoexist confirms core's new
+// label resolution/line numbering (ver internal/core/pipeline_test.go
+// for the mechanism's own tests, not repeated here) and MSX's
+// existing variable renaming don't interfere with each other when
+// they run in the same compile.
+func TestEndToEndLabelAndVariableRenamingCoexist(t *testing.T) {
+	ctx, platform := contextPlatform(t, "goto {dest}", "{dest}", "print longvar")
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 goto 20", "20 print zz"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
 	}
 }
 

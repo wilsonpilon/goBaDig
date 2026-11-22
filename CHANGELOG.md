@@ -35,6 +35,38 @@ exata do pacote.
 
 ---
 
+## [1.8.0] — 2026-11-21 — bloco **NEW**, feature **label-numbering** (build 0)
+
+**Resolução de labels e numeração de linha** — a peça que faltava
+pra qualquer programa Dignified real (mesmo o mais simples, com um
+`GOTO {algumlugar}`) compilar de ponta a ponta. Validada contra um
+exemplo real completo (`CGK173.dmx`, "Change Graph Kit") que o
+usuário apontou.
+
+### Adicionado
+
+- `{nome}` no início de linha é declaração; em qualquer outro lugar é
+  referência de salto; `{@}` aponta pra linha atual. Label nunca
+  gasta linha própria — "cola" na próxima linha com conteúdo real.
+- Linhas em branco somem sem gastar número; `_` no fim de linha funde
+  com a linha seguinte numa só linha numerada.
+- Erro fatal ao saltar pra um label não declarado.
+- **`internal/core` passou a fazer trabalho Dignified de verdade
+  antes de delegar pra plataforma** — a primeira vez que isso
+  acontece (`pass2Labels`/`pass3LineHygiene`/`pass4Numbering`), não
+  só documentado como intenção futura.
+- 10 testes novos (6 no mecanismo core-level, 1 de ponta a ponta
+  confirmando que convive com a renomeação de variável do MSX).
+
+### Observações
+
+- Loop labels (`nome{ }`/`exit`), inserção de header, relatório de
+  labels (`-lbr`), `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE` e
+  o Pass 1 (`_` fora do fim de linha) ainda faltam — ver
+  `OUTLINE.md`, Bloco 2.
+
+---
+
 ## [1.7.0] — 2026-11-21 — bloco **NEW**, feature **msx-parser-pass5** (build 0)
 
 **`Parser` MSX Pass 5** — as 5 conversões finais específicas do

@@ -60,6 +60,33 @@ const (
 	// KindIdentifier/KindDignifiedSymbol. MSX Pass 5 (Bloco 2) is the
 	// first - so far only - Parser pass that acts on it.
 	KindDignifiedOperator TokenKind = "DIGNIFIED_OPERATOR"
+	// KindDignifiedSeparator is `_` (d_instsp in badig_dignified.py):
+	// shared by every platform, same reasoning as KindDignifiedSymbol.
+	// At the end of a line (immediately followed by KindNewline) it
+	// merges that line into the next one (core Pass 3, Bloco 1/2 -
+	// "labels e numeração"); anywhere else it is MSX's own "_ as a
+	// call separator" concern (Pass 1, still not implemented - see
+	// OUTLINE.md).
+	KindDignifiedSeparator TokenKind = "DIGNIFIED_SEPARATOR"
+	// KindLabelDeclaration is a resolved `{name}` (or loop-label, not
+	// implemented yet) appearing at the start of a line (D_LBLLIN in
+	// badig.py) - collapsed from 3 tokens (`{`, name, `}`) into one by
+	// core Pass 2. Removed entirely by core Pass 4 once its line
+	// number is recorded (a label never gets a line of its own - see
+	// OUTLINE.md, "labels e numeração").
+	KindLabelDeclaration TokenKind = "LABEL_DECLARATION"
+	// KindLabelJump is a resolved `{name}` (or `{@}`, the current-line
+	// self-reference) appearing anywhere else (D_LBLJMP in badig.py) -
+	// same 3-token collapse as KindLabelDeclaration. Core Pass 4
+	// replaces its Value with the resolved line number (int); a
+	// reference to a name that's never declared is a fatal error.
+	// Loop-label returns/exits (D_LBLRET/D_LBLEXT) are a separate,
+	// not-yet-implemented mechanism (ver OUTLINE.md).
+	KindLabelJump TokenKind = "LABEL_JUMP"
+	// KindLineNumber is a synthetic token (C_LINENB in badig.py) core
+	// Pass 4 inserts right after every KindNewline that starts a new
+	// classic line, carrying that line's number (int) as Value.
+	KindLineNumber TokenKind = "LINE_NUMBER"
 	// KindUnknown is a single raw character core.Lex could not
 	// classify by any means (not the platform's, not an identifier,
 	// not a quoted string) - mirrors the original engine's "character
