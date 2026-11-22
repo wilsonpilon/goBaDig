@@ -29,6 +29,19 @@ var (
 		"PSET", "PUT", "READ", "RSET", "SAVE", "SCREEN", "SET",
 		"SOUND", "STEP", "STOP", "SWAP", "TIME", "TO", "TROFF",
 		"TRON", "USING", "VPOKE", "WAIT", "WIDTH",
+		// "?" (PRINT's own shorthand) is genuinely in c_instrc too
+		// (badig_msx.py:38: `r'\?'`, easy to miss reading the list -
+		// confirmed real: generate()'s own c_reserved_kw strips
+		// backslashes from every regex-escaped entry, so `\?` becomes
+		// a clean "?" there, unlike `DEFUSR(\d)?` which is left as
+		// garbage ("DEFUSR()?") by that same cleanup and so never
+		// actually matches anything - confirmed running badig.py for
+		// real: "?" gets reserved-keyword spacing exactly like PRINT
+		// (`?"hello"` renders as `? "hello"`), DEFUSR does not. Not
+		// added to the lexer's own switch above - "?" already has
+		// its own dedicated case there, unaffected either way - only
+		// read via ReservedKeywords()/FunctionCallBoundaryWords().
+		"?",
 	}
 
 	// functionsDollar mirrors c_funcdl (badig_msx.py:41-44): functions

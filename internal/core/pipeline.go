@@ -1578,8 +1578,48 @@ func pass2Labels(ctx *CompileContext, tokens []Token, platform Platform) ([]Toke
 // literally be a quoted filename.
 func pass3Includes(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
 	quote := platform.Description.QuoteChar()
+	sep := platform.Description.StatementSeparator()
 	var out []Token
 	i := 0
+
+	// collapsesNewline reports whether a NEWLINE right after a token
+	// shaped like (k, v) must vanish - every one of these is a
+	// SEPARATE elif branch in badig.py's own pass_3 (badig.py:1556-1588),
+	// all sharing the same "continue" shape: KindLabelDeclaration (a
+	// label's own line never gets a blank line after it),
+	// KindDignifiedSeparator (a `_` at end of line - already consumed
+	// without ever reaching out, hence the dual lookback below),
+	// KindFunctionDefinition ("Remove newline after function
+	// definitions" - confirmed missing before this round: a FUNC's
+	// body was wasting a blank line), and the classic statement
+	// separator by VALUE, not Kind ("Remove newline after instruction
+	// separator", badig.py:1568-1572) - MSX's own ":" has a
+	// platform-specific Kind (KindSeparator) this core-level function
+	// shouldn't reference, same value-only principle used everywhere
+	// else in this pipeline. Unlike KindDignifiedSeparator, the
+	// separator itself is NOT removed here - only its NEWLINE is -
+	// confirmed empirically running badig.py against a minimal
+	// "for f=0 to 5:\n\tprint f:\nnext:\n\tprint \"done\"\n" repro:
+	// it becomes ONE line, "for f=0 to 5:print f:next:print "done"",
+	// with every original ":" still there.
+	// KindProgram is included too: a file whose first physical line is
+	// itself blank (or whose content vanishes entirely - KEEP/comment
+	// blocks right at the top, etc.) must not waste the file's first
+	// line number on nothing. Confirmed empirically: a real
+	// "\nprint 1\n" (blank first line) renders as just "10 print 1"
+	// in badig.py, not "10" + "20 print 1" - found cross-checking the
+	// FULL badig/examples/msx/CGK173.dmx (891 lines, starts with a
+	// blank line before its own header comment block) against
+	// badig.py's real output: every jump target was off by exactly
+	// 10, consistently, which is exactly what this one extra wasted
+	// leading line number would cause throughout the whole file.
+	collapsesNewline := func(k TokenKind, v string) bool {
+		switch k {
+		case KindNewline, KindProgram, KindLabelDeclaration, KindDignifiedSeparator, KindFunctionDefinition:
+			return true
+		}
+		return v == sep
+	}
 
 	for i < len(tokens) {
 		tok := tokens[i]
@@ -1608,16 +1648,15 @@ func pass3Includes(ctx *CompileContext, tokens []Token, platform Platform) ([]To
 			// string, not a NEWLINE - but out's own last entry is
 			// still the PREVIOUS real newline, and this one must
 			// collapse against it all the same.
-			prevKind := tokens[i-1].Kind
+			prevTok := tokens[i-1]
 			if len(out) > 0 {
-				switch out[len(out)-1].Kind {
-				case KindNewline, KindLabelDeclaration, KindDignifiedSeparator:
+				last := out[len(out)-1]
+				if collapsesNewline(last.Kind, last.String()) {
 					i++
 					continue
 				}
 			}
-			switch prevKind {
-			case KindNewline, KindLabelDeclaration, KindDignifiedSeparator:
+			if collapsesNewline(prevTok.Kind, prevTok.String()) {
 				i++
 				continue
 			}
@@ -1639,6 +1678,50 @@ func pass3Includes(ctx *CompileContext, tokens []Token, platform Platform) ([]To
 			continue
 		}
 
+		// The classic statement separator (":" for MSX) - by VALUE,
+		// same reasoning as collapsesNewline above. Two adjacent
+		// separators collapse into one ("Remove excess :",
+		// badig.py:1556-1559); a separator right after a NEWLINE
+		// (i.e. a line that STARTS with it) instead merges into the
+		// PREVIOUS line by popping that boundary NEWLINE ("Remove
+		// newline before instruction separator", badig.py:1574-1578) -
+		// confirmed empirically: "print 1\n:print 2\nprint 3" becomes
+		// "10 print 1:print 2" / "20 print 3".
+		if tok.String() == sep {
+			if n := len(out); n > 0 && out[n-1].Kind == KindNewline {
+				out = out[:n-1]
+			} else if n := len(out); n > 0 && out[n-1].String() == sep {
+				i++
+				continue
+			}
+			out = append(out, tok)
+			i++
+			continue
+		}
+
+		// Join adjacent string literals (badig.py:1590-1605) - same
+		// line, or separated by just a NEWLINE (that NEWLINE vanishes
+		// too). Confirmed real and necessary, not cosmetic: a
+		// DEFINE's own expansion can produce two adjacent literals
+		// with no operator between them (e.g. `define [x]["hello"]`
+		// called as `[x]"world"`), which wouldn't even be valid
+		// Classic BASIC without merging them into one string first -
+		// confirmed running badig.py for real, both forms.
+		if tok.Kind == KindString {
+			if n := len(out); n > 0 && out[n-1].Kind == KindString {
+				out[n-1] = mergeAdjacentStrings(out[n-1], tok, quote)
+				i++
+				continue
+			}
+			if n := len(out); n > 1 && out[n-1].Kind == KindNewline && out[n-2].Kind == KindString {
+				merged := mergeAdjacentStrings(out[n-2], tok, quote)
+				out = out[:n-2]
+				out = append(out, merged)
+				i++
+				continue
+			}
+		}
+
 		action, result, err := platform.Parser.Pass3(ctx, tokens, i)
 		if err != nil {
 			return nil, err
@@ -1655,6 +1738,17 @@ func pass3Includes(ctx *CompileContext, tokens []Token, platform Platform) ([]To
 		}
 	}
 	return out, nil
+}
+
+// mergeAdjacentStrings mirrors "Join adjacent strings" (badig.py:1590-1605):
+// `self.last_tok().val.rstrip(qs) + self.tk.val.lstrip(qs)` - strips
+// the touching quote off each side and concatenates. The merged
+// token's position is b's own, same as the original mutating
+// self.tk (the second/current token), not a's.
+func mergeAdjacentStrings(a, b Token, quote byte) Token {
+	av := strings.TrimRight(a.String(), string(quote))
+	bv := strings.TrimLeft(b.String(), string(quote))
+	return Token{Kind: KindString, Value: av + bv, Pos: b.Pos}
 }
 
 // resolveInclude reads the quoted filename right after an INCLUDE

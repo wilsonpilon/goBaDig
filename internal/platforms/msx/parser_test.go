@@ -330,7 +330,13 @@ func TestEndToEndFuncRetAndVariableRenamingCoexist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("core.Run: %v", err)
 	}
-	want := []string{"10", "20 print zz", "30 return", "40 zz=5:gosub 10"}
+	// No wasted blank line before "print zz" - the function
+	// definition's own marker (KindFunctionDefinition) is now
+	// collapsed the same way a label is (pass3Includes' own
+	// collapsesNewline, achado da rodada de fusão de linha pelo ":"):
+	// the function's first real statement attaches directly to the
+	// line number that would otherwise have gone to waste.
+	want := []string{"10 print zz", "20 return", "30 zz=5:gosub 10"}
 	if len(result.Code) != len(want) {
 		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
 	}

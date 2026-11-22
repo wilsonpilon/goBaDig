@@ -376,6 +376,61 @@ func TestLexFailsOnAnUnclosedClassicCommentBlock(t *testing.T) {
 	}
 }
 
+func TestPass3CollapsesTwoAdjacentSeparatorsIntoOne(t *testing.T) {
+	result, err := runFake(t, "PRINT 1::PRINT 2")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1:PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (two adjacent \":\" must collapse into one)", result.Code, want)
+	}
+}
+
+func TestPass3MergesLinesAcrossATrailingSeparatorKeepingIt(t *testing.T) {
+	result, err := runFake(t, "PRINT 1:", "PRINT 2")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1:PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (unlike \"_\", a trailing \":\" merges the next line in WITHOUT disappearing itself)", result.Code, want)
+	}
+}
+
+func TestPass3MergesALineStartingWithASeparatorIntoThePreviousOne(t *testing.T) {
+	result, err := runFake(t, "PRINT 1", ":PRINT 2")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1:PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (a line starting with \":\" merges into the previous line)", result.Code, want)
+	}
+}
+
+func TestPass3JoinsTwoAdjacentStringLiteralsOnTheSameLine(t *testing.T) {
+	result, err := runFake(t, `PRINT "a""b"`)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{`10 PRINT "ab"`}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (two adjacent string literals with nothing between them must merge into one)", result.Code, want)
+	}
+}
+
+func TestPass3JoinsTwoAdjacentStringLiteralsAcrossANewline(t *testing.T) {
+	result, err := runFake(t, `PRINT "a"`, `"b"`)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{`10 PRINT "ab"`}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (the NEWLINE between two lines that are each just a string literal must vanish too, merging them into one)", result.Code, want)
+	}
+}
+
 func TestPass1ExpandsASimpleDefineWithNoPlaceholder(t *testing.T) {
 	result, err := runFake(t, "define [a][PRINT 1]", "[a]")
 	if err != nil {
