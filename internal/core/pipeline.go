@@ -1766,42 +1766,109 @@ func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, err
 	return tokens, nil
 }
 
+// generalSpaces is the padding Generate's spacing rules insert -
+// badig.py's self.stg.general_spaces, which defaults to a single
+// space and squeezes to "" under the `-ss` CLI flag
+// (support/badig_settings.py:524). No CLI flag wiring exists for that
+// yet (ver OUTLINE.md), so this is hardcoded to the original's own
+// default rather than added as unused CompileSettings plumbing.
+const generalSpaces = " "
+
+// maxLineLength is the classic listing's per-line character limit -
+// a literal in the original engine's generate() (badig.py:1865),
+// never read from its own Settings, so this mirrors it as a literal
+// too rather than inventing new configurability.
+const maxLineLength = 256
+
 // Generate runs the parser's Generate hook over tokens (the output of
-// Parse) and assembles the final classic listing.
+// Parse) and assembles the final classic listing, line by line -
+// mirrors generate() (badig.py:1796-1878).
 //
-// Unlike the original engine's generate() (badig.py), which rejoins
-// tokens with dialect-specific spacing rules sourced from Description
-// and enforces a configurable per-line character limit (OUTLINE.md,
-// seção 3.5), this assembly is deliberately minimal for now: it
-// starts a new output line on each KindNewline token and joins every
-// other token's text with a single space. Real spacing/line-limit
-// rules are Bloco 2 work, once there is a real Description to drive
-// them (ver OUTLINE.md, Bloco 1, Fase 3).
+// Spacing is purely value-based, not Kind-based (same as the
+// original's own `self.token.uval in self.des.c_reserved_kw`): a
+// reserved keyword (platform.Description.ReservedKeywords(), already
+// built for DECLARE - ver contract.go) gets a padding space on each
+// side, unless the line already ends in one or the neighboring
+// token's own value is a "compound symbol"
+// (platform.Description.CompoundSymbols(), c_symb_comp in
+// badig_msx.py - new for this). A KindLineNumber token always gets a
+// trailing space, unconditionally (so "10" + "print" doesn't collide
+// into "10print").
+//
+// Doesn't literally append the line's own trailing NEWLINE to the
+// per-line token group the way badig.py's self.line does (its own
+// negative-index lookbacks at the line's two ends never actually
+// fire in practice, confirmed tracing the short-circuit `and`s - the
+// line number is never reserved, and NEWLINE is never reserved
+// either - so a bounds-checked `n > 0` / `n+1 < len` here reaches the
+// exact same result without needing NEWLINE in the slice at all).
 func Generate(ctx *CompileContext, tokens []Token, platform Platform) (GenerateResult, error) {
 	tokens, err := runPass(ctx, tokens, platform.Parser.Generate)
 	if err != nil {
 		return GenerateResult{}, err
 	}
 
-	var code []string
-	var currentLine []string
-	flush := func() {
-		if len(currentLine) > 0 {
-			code = append(code, strings.Join(currentLine, " "))
-			currentLine = nil
-		}
+	reserved := map[string]bool{}
+	for _, w := range platform.Description.ReservedKeywords() {
+		reserved[strings.ToUpper(w)] = true
 	}
+	compound := map[string]bool{}
+	for _, s := range platform.Description.CompoundSymbols() {
+		compound[s] = true
+	}
+
+	var code []string
+	var line []Token
+
+	flush := func() error {
+		if len(line) == 0 {
+			return nil
+		}
+		var b strings.Builder
+		for n, tok := range line {
+			text := tok.String()
+			isReserved := reserved[strings.ToUpper(text)]
+
+			if n > 0 && isReserved {
+				rendered := b.String()
+				lastIsSpace := len(rendered) > 0 && rendered[len(rendered)-1] == ' '
+				if !lastIsSpace && !compound[line[n-1].String()] {
+					b.WriteString(generalSpaces)
+				}
+			}
+
+			b.WriteString(text)
+
+			if tok.Kind == KindLineNumber || (isReserved && n+1 < len(line) && !compound[line[n+1].String()]) {
+				b.WriteString(generalSpaces)
+			}
+		}
+
+		rendered := strings.TrimRight(b.String(), " ")
+		if len(rendered) > maxLineLength {
+			pos := line[0].Pos
+			return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("line too long: %d characters", len(rendered)), Pos: &pos}
+		}
+		code = append(code, rendered)
+		line = nil
+		return nil
+	}
+
 	for _, tok := range tokens {
 		switch tok.Kind {
 		case KindProgram:
 			// sentinela: nunca faz parte do texto gerado
 		case KindNewline, KindEOF:
-			flush()
+			if err := flush(); err != nil {
+				return GenerateResult{}, err
+			}
 		default:
-			currentLine = append(currentLine, tok.String())
+			line = append(line, tok)
 		}
 	}
-	flush()
+	if err := flush(); err != nil {
+		return GenerateResult{}, err
+	}
 
 	return GenerateResult{Code: code}, nil
 }

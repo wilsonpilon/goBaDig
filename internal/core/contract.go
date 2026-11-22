@@ -65,10 +65,15 @@ type Description interface {
 	// get_declares) rejects as a variable name (c_reserved_kw in
 	// badig_msx.py - note this is a DIFFERENT, larger list than
 	// FunctionCallBoundaryWords' c_func_stop_kw: it also includes
-	// operators and "DATA"). Also what a real generate() will
-	// eventually need for reserved-keyword spacing (ver OUTLINE.md) -
-	// not wired to that yet.
+	// operators and "DATA"). Also used by Generate's real
+	// reserved-keyword spacing (pipeline.go).
 	ReservedKeywords() []string
+	// CompoundSymbols are the punctuation values Generate's spacing
+	// rules never pad a reserved keyword against (c_symb_comp in
+	// badig_msx.py: every classic symbol EXCEPT `#` - removed on
+	// purpose in the original, so "PRINT #1" still gets a space after
+	// PRINT - plus `:` and `_`).
+	CompoundSymbols() []string
 }
 
 // SystemInfo is a dialect's name and on-disk file extensions -

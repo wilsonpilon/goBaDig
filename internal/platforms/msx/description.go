@@ -151,6 +151,21 @@ func (description) ReservedKeywords() []string {
 	return words
 }
 
+// CompoundSymbols mirrors c_symb_comp (badig_msx.py:88-90: "c_symbol_str"
+// - symbols, minus "#", which is removed there on purpose - "+ [':'] +
+// ['_']").
+func (description) CompoundSymbols() []string {
+	words := make([]string, 0, len(symbols)+1)
+	for _, s := range symbols {
+		if s == "#" {
+			continue
+		}
+		words = append(words, s)
+	}
+	words = append(words, ":", "_")
+	return words
+}
+
 // Variable allocation constants, confirmed reading process_variable
 // (badig_msx.py:516-558) in a previous session and process_variable's
 // surrounding Description fields (badig_msx.py:133-150) directly this

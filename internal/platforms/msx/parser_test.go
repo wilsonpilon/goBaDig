@@ -149,7 +149,7 @@ func TestEndToEndLexParseGenerateRenamesVariables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("core.Run: %v", err)
 	}
-	want := []string{"10 zz = 0", "20 print zz", "30 print kept"}
+	want := []string{"10 zz=0", "20 print zz", "30 print kept"}
 	if len(result.Code) != len(want) {
 		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
 	}
@@ -303,7 +303,7 @@ func TestEndToEndDefineLabelAndVariableRenamingCoexist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("core.Run: %v", err)
 	}
-	want := []string{"10 if a = 0 then 20", "20 print zz"}
+	want := []string{"10 if a=0 then 20", "20 print zz"}
 	if len(result.Code) != len(want) {
 		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
 	}
@@ -330,7 +330,7 @@ func TestEndToEndFuncRetAndVariableRenamingCoexist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("core.Run: %v", err)
 	}
-	want := []string{"10", "20 print zz", "30 return", "40 zz = 5 : gosub 10"}
+	want := []string{"10", "20 print zz", "30 return", "40 zz=5:gosub 10"}
 	if len(result.Code) != len(want) {
 		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
 	}
@@ -381,7 +381,7 @@ func TestEndToEndToggleRemCoexistsWithMSXsOwnHashSymbol(t *testing.T) {
 	if err != nil {
 		t.Fatalf("core.Run: %v", err)
 	}
-	want := []string{"10 print # 1 , 1", "20 print 2"}
+	want := []string{"10 print #1,1", "20 print 2"}
 	if len(result.Code) != len(want) {
 		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
 	}

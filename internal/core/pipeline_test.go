@@ -44,7 +44,17 @@ func (fakeDescription) FunctionCallBoundaryWords() []string { return []string{"P
 
 func (fakeDescription) VariableAliasLength() int { return 2 }
 
-func (fakeDescription) ReservedKeywords() []string { return []string{"PRINT", "FOO"} }
+// ReservedKeywords includes the fake's own declared instruction words
+// (LoopBackInstruction/FunctionCallInstruction/
+// FunctionReturnInstruction below) alongside PRINT/FOO - any real
+// dialect's "goto"/"gosub"/"return" equivalents would genuinely be
+// reserved keywords too, so leaving them out here would just be an
+// incomplete fake, not a more honest one.
+func (fakeDescription) ReservedKeywords() []string {
+	return []string{"PRINT", "FOO", "GOTO", "GOSUB", "RETURN"}
+}
+
+func (fakeDescription) CompoundSymbols() []string { return []string{"(", ")", ",", ":", "_"} }
 
 type fakeLexer struct{}
 
@@ -223,7 +233,7 @@ func TestPass2InsertsASeparatorWhenTheCloserSharesItsLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	want := []string{"10 PRINT 1 : goto 10"}
+	want := []string{"10 PRINT 1:goto 10"}
 	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
 		t.Fatalf("Code = %v, want %v (\"}\" not alone on its line needs a separator before the goto)", result.Code, want)
 	}
@@ -371,8 +381,10 @@ func TestPass2ExpandsAFunctionCallWithAnExplicitArgument(t *testing.T) {
 	// "x=5:gosub <f's line>" - x differs from the default (x itself),
 	// so an explicit assignment is emitted before the gosub. Each
 	// line is prefixed with its own number, so this checks Contains,
-	// not HasPrefix.
-	want := "x = 5 : gosub "
+	// not HasPrefix. No spaces around "=" or ":" - neither is a
+	// reserved keyword, only "gosub" gets padding (real spacing
+	// rules, ver Generate's own doc comment).
+	want := "x=5:gosub "
 	if len(result.Code) == 0 || !strings.Contains(result.Code[len(result.Code)-1], want) {
 		t.Fatalf("Code = %v, want last line to contain %q", result.Code, want)
 	}
@@ -384,11 +396,13 @@ func TestPass2ExpandsAFunctionCallCapturingReturnValues(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	// "x=1:gosub <line>:a=y" - the call captured "y" (the function's
-	// internal return variable) into the caller's "a".
-	want := "x = 1 : gosub "
+	// internal return variable) into the caller's "a". No spaces
+	// around "=" or ":" - real spacing rules only pad reserved
+	// keywords (ver Generate's own doc comment).
+	want := "x=1:gosub "
 	last := result.Code[len(result.Code)-1]
-	if !strings.Contains(last, want) || !strings.HasSuffix(last, ": a = y") {
-		t.Fatalf("Code = %v, want last line containing %q and ending in %q", result.Code, want, ": a = y")
+	if !strings.Contains(last, want) || !strings.HasSuffix(last, ":a=y") {
+		t.Fatalf("Code = %v, want last line containing %q and ending in %q", result.Code, want, ":a=y")
 	}
 }
 
@@ -749,6 +763,57 @@ func TestPass3IncludeFailsWhenTheLoaderErrors(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected a fatal error when the loader can't find the file, got none")
+	}
+}
+
+func TestGenerateAddsSpaceAroundAReservedKeywordWhenNeighborsArentCompound(t *testing.T) {
+	result, err := runFake(t, "PRINT FOO")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT FOO"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (two reserved words in a row get exactly one space, not a double space)", result.Code, want)
+	}
+}
+
+func TestGenerateSuppressesSpacingAgainstACompoundSymbol(t *testing.T) {
+	result, err := runFake(t, "PRINT(1)")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT(1)"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (\"(\" is a compound symbol - no space between a reserved keyword and it)", result.Code, want)
+	}
+}
+
+func TestGenerateStillPadsAHashAfterAReservedKeyword(t *testing.T) {
+	result, err := runFake(t, "PRINT#1")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT #1"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (\"#\" is deliberately NOT a compound symbol, badig_msx.py's own c_symbol_str.remove('#') - PRINT still gets its trailing space)", result.Code, want)
+	}
+}
+
+func TestGenerateAlwaysPadsAfterTheLineNumberEvenWithoutAnyReservedWord(t *testing.T) {
+	result, err := runFake(t, "a")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 a"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (the line number's own trailing space is unconditional, not tied to the reserved-keyword rule)", result.Code, want)
+	}
+}
+
+func TestGenerateFailsOnALineOverTheCharacterLimit(t *testing.T) {
+	_, err := runFake(t, `PRINT "`+strings.Repeat("x", 260)+`"`)
+	if err == nil {
+		t.Fatal("expected a fatal error for a line over 256 characters, got none")
 	}
 }
 
