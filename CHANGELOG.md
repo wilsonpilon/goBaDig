@@ -35,6 +35,34 @@ exata do pacote.
 
 ---
 
+## [1.7.0] — 2026-11-21 — bloco **NEW**, feature **msx-parser-pass5** (build 0)
+
+**`Parser` MSX Pass 5** — as 5 conversões finais específicas do
+Classic, fechando as conversões de token-para-token do `Parser`.
+
+### Adicionado
+
+- `?`/`PRINT` convertível nos dois sentidos, strip de `THEN` antes de
+  `GOTO` (ou `GOTO` depois de `THEN`/`ELSE`), expansão de atribuição
+  composta/incremento/decremento (`x+=5`→`x = x + 5`, `x++`→
+  `x = x + 1`), `TRUE`/`FALSE`→`-1`/`0`, tradução Unicode→ASCII de
+  caracteres literais — tudo fiel a `pass_5` do motor original.
+- **Quarto desvio na interface `core.Parser`**: expandir 1 token em
+  vários (a atribuição composta) exigiu trocar o payload de `Replace`
+  de `Token` para `[]Token`. `core.Lex()` ganhou reconhecimento de
+  `TRUE`/`FALSE` (`KindDignifiedOperator`).
+- 8 testes novos.
+
+### Observações
+
+- Pass 1 (separador de chamada Dignified `_`) e um `generate()` de
+  verdade (espaçamento por palavra reservada, limite de 256
+  chars/linha) ainda faltam — ver `OUTLINE.md`, Bloco 2.
+- `ConvertPrint`/`StripThenGoto`/`Translate` só são configuráveis via
+  código por ora; os flags de CLI (`-cp`/`-tg`) ainda não existem.
+
+---
+
 ## [1.6.0] — 2026-11-21 — bloco **NEW**, feature **msx-parser-variables** (build 0)
 
 **Primeira conversão Dignified→Classic de verdade produzindo texto

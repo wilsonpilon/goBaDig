@@ -54,6 +54,12 @@ const (
 	// platform Description's QuoteChar, Value including both
 	// delimiters verbatim (no escaping, same as the original engine).
 	KindString TokenKind = "STRING"
+	// KindDignifiedOperator is TRUE/FALSE (d_operat in
+	// badig_dignified.py): shared by every platform, case-insensitive,
+	// matched as a whole word (not a prefix) - same reasoning as
+	// KindIdentifier/KindDignifiedSymbol. MSX Pass 5 (Bloco 2) is the
+	// first - so far only - Parser pass that acts on it.
+	KindDignifiedOperator TokenKind = "DIGNIFIED_OPERATOR"
 	// KindUnknown is a single raw character core.Lex could not
 	// classify by any means (not the platform's, not an identifier,
 	// not a quoted string) - mirrors the original engine's "character

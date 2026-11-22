@@ -116,6 +116,34 @@ const (
 	variableAliasLen = 2
 )
 
+// cReplacements mirrors c_replacements (badig_msx.py:66-72): a direct
+// substitution for specific box-drawing/smiley glyphs, applied before
+// cOriginal/cOriginalRunes below. Read directly from the source file
+// this session, not retyped from memory - Unicode glyphs are easy to
+// get subtly wrong by hand.
+var cReplacements = map[rune]rune{
+	'☺': 'A', '☻': 'B', '♥': 'C', '♦': 'D', '♣': 'E', '♠': 'F',
+	'·': 'G', '◘': 'H', '○': 'I', '◙': 'J', '♂': 'K', '♀': 'L',
+	'♪': 'M', '♬': 'N', '☼': 'O', '┿': 'P', '┴': 'Q', '┬': 'R',
+	'┤': 'S', '├': 'T', '┼': 'U', '│': 'V', '─': 'W', '┌': 'X',
+	'┐': 'Y', '└': 'Z', '┘': '[', '╳': ']', '╱': '\\', '╲': '^',
+	'╂': '_',
+}
+
+// cOriginal mirrors c_original (badig_msx.py:76-77): 128 characters,
+// index-paired with MSX's internal 8-bit character codes \u0080-ÿ
+// (translateChars, parser.go, maps cOriginal[i] -> rune(0x80+i)).
+// Extracted programmatically from the Python source this session
+// (`eval()`'d and length-checked at 128) rather than retyped by hand,
+// to avoid a transcription error in a 128-character Unicode literal.
+const cOriginal = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»ÃãĨĩÕõŨũĲĳ¾∽◇‰¶§" +
+	"▂▚▆▔◾▇▎▞▊▕▉▨▧▼▲▶◀⧗⧓▘▗▝▖▒Δǂω█▄▌▐▀αβΓπΣσμτΦθΩδ∞φ∈∩≡±≥≤⌠⌡÷≈°∙‐√ⁿ²❚■"
+
+// cOriginalRunes is cOriginal decoded once, so translateChars can
+// search it by character position (what the index->0x80+i mapping
+// needs), not byte offset.
+var cOriginalRunes = []rune(cOriginal)
+
 // variableCategory is the single MSX variable category (core's
 // VariableAllocator, from Bloco 1, is parametrized by category - MSX
 // just has one, since it uses the same 2-letter scheme for every

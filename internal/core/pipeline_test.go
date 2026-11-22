@@ -67,29 +67,29 @@ type fakeParser struct {
 	pass5Calls *int
 }
 
-func (fakeParser) Pass1(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
-	return Continue, tokens[index], nil
+func (fakeParser) Pass1(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+	return Continue, nil, nil
 }
-func (fakeParser) Pass2(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
-	return Continue, tokens[index], nil
+func (fakeParser) Pass2(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+	return Continue, nil, nil
 }
-func (fakeParser) Pass3(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
-	return Continue, tokens[index], nil
+func (fakeParser) Pass3(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+	return Continue, nil, nil
 }
-func (p fakeParser) Pass4(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
+func (p fakeParser) Pass4(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
 	if p.pass4Calls != nil {
 		*p.pass4Calls++
 	}
-	return Continue, tokens[index], nil
+	return Continue, nil, nil
 }
-func (p fakeParser) Pass5(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
+func (p fakeParser) Pass5(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
 	if p.pass5Calls != nil {
 		*p.pass5Calls++
 	}
-	return Continue, tokens[index], nil
+	return Continue, nil, nil
 }
-func (fakeParser) Generate(_ *CompileContext, tokens []Token, index int) (HookAction, Token, error) {
-	return Continue, tokens[index], nil
+func (fakeParser) Generate(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+	return Continue, nil, nil
 }
 
 type fakeSettings struct{}

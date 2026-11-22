@@ -93,16 +93,22 @@ type Lexer interface {
 // identifier (badig_msx.py's get_hard_variable checks
 // `self.par.last_tok()`) - a single-token hook can't do that. Still
 // just classifies the one token at tokens[index] and returns a
-// HookAction for it, same as before; it just gets to look at
-// tokens[index-1]/[index+1]/etc. too, for context, without needing to
-// retroactively change a decision already made about a neighbor.
+// HookAction for it; it just gets to look at tokens[index-1]/[index+1]/
+// etc. too, for context, without needing to retroactively change a
+// decision already made about a neighbor.
+//
+// On Replace, a method returns []Token (not Token, v2 of this
+// interface, Bloco 2) - MSX's real Pass 5 needed to expand ONE input
+// token into several (`x+=5` -> `=`, `x`, `+`, badig_msx.py's pass_5),
+// which a single-Token Replace can't express. 0 tokens behaves like
+// Skip, 1 like the old single-Token Replace; several is the new case.
 type Parser interface {
-	Pass1(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
-	Pass2(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
-	Pass3(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
-	Pass4(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
-	Pass5(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
-	Generate(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+	Pass1(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
+	Pass2(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
+	Pass3(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
+	Pass4(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
+	Pass5(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
+	Generate(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
 }
 
 // Settings holds dialect-specific config, applied after the shared

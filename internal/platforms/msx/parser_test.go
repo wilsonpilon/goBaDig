@@ -51,6 +51,35 @@ func renamedValues(tokens []core.Token) []string {
 	return out
 }
 
+// parseLinesWithParser is parseLines, but letting the caller pass a
+// pre-configured *Parser (set ConvertPrint/StripThenGoto/Translate
+// before calling) instead of always getting NewParser()'s defaults.
+func parseLinesWithParser(t *testing.T, parser *Parser, lines ...string) []core.Token {
+	t.Helper()
+	source := make([]core.Line, 0, len(lines)+1)
+	source = append(source, core.Line{Number: 0, Text: "PROGRAM", File: "test"})
+	for i, l := range lines {
+		source = append(source, core.Line{Number: i + 1, Text: l, File: "test.dmx"})
+	}
+	ctx := &core.CompileContext{
+		Source:       source,
+		Settings:     &core.CompileSettings{LineStart: 10, LineStep: 10},
+		Symbols:      core.NewSymbolTables(),
+		IncludeStack: []string{"test.dmx"},
+	}
+	platform := core.Platform{Description: Description, Lexer: Lexer{}, Parser: parser}
+
+	tokens, err := core.Lex(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Lex(%v): %v", lines, err)
+	}
+	tokens, err = core.Parse(ctx, tokens, platform)
+	if err != nil {
+		t.Fatalf("core.Parse(%v): %v", lines, err)
+	}
+	return tokens
+}
+
 func TestParseRenamesLongVariableToDescendingAlias(t *testing.T) {
 	tokens, _ := parseLines(t, "print counter")
 	got := renamedValues(tokens)
@@ -124,6 +153,88 @@ func TestEndToEndLexParseGenerateRenamesVariables(t *testing.T) {
 		if result.Code[i] != want[i] {
 			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
 		}
+	}
+}
+
+func TestPass5ExpandsCompoundAssignment(t *testing.T) {
+	tokens := parseLinesWithParser(t, NewParser(), "ab+=5")
+	got := renamedValues(tokens)
+	want := []string{"ab", "=", "ab", "+", "5"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestPass5ExpandsIncrementWithTrailingOne(t *testing.T) {
+	tokens := parseLinesWithParser(t, NewParser(), "ab++")
+	got := renamedValues(tokens)
+	want := []string{"ab", "=", "ab", "+", "1"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestPass5ReplacesTrueAndFalse(t *testing.T) {
+	tokens := parseLinesWithParser(t, NewParser(), "print true", "print false")
+	got := renamedValues(tokens)
+	want := []string{"print", "-", "1", "print", "0"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestPass5ConvertsPrintToQuestionMark(t *testing.T) {
+	parser := NewParser()
+	parser.ConvertPrint = "?"
+	tokens := parseLinesWithParser(t, parser, "print ab")
+	got := renamedValues(tokens)
+	want := []string{"?", "ab"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestPass5ConvertsQuestionMarkToPrint(t *testing.T) {
+	parser := NewParser()
+	parser.ConvertPrint = "p"
+	tokens := parseLinesWithParser(t, parser, "? ab")
+	got := renamedValues(tokens)
+	want := []string{"print", "ab"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestPass5StripsThenBeforeGoto(t *testing.T) {
+	parser := NewParser()
+	parser.StripThenGoto = "T"
+	tokens := parseLinesWithParser(t, parser, "if ab=1 then goto 100")
+	got := renamedValues(tokens)
+	want := []string{"if", "ab", "=", "1", "goto", "100"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v (no \"then\")", got, want)
+	}
+}
+
+func TestPass5StripsGotoAfterThen(t *testing.T) {
+	parser := NewParser()
+	parser.StripThenGoto = "G"
+	tokens := parseLinesWithParser(t, parser, "if ab=1 then goto 100")
+	got := renamedValues(tokens)
+	want := []string{"if", "ab", "=", "1", "then", "100"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v (no \"goto\")", got, want)
+	}
+}
+
+func TestPass5TranslatesUnicodeInsideAString(t *testing.T) {
+	parser := NewParser()
+	parser.Translate = true
+	tokens := parseLinesWithParser(t, parser, `print "☺"`)
+	got := renamedValues(tokens)
+	want := []string{"print", `"A"`}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }
 

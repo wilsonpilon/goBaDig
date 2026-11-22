@@ -22,6 +22,16 @@ var dignifiedSymbols = map[byte]bool{
 	'~': true, '[': true, ']': true, '{': true, '}': true, '@': true,
 }
 
+// dignifiedOperatorWord extracts a leading run of ASCII letters (not a
+// platform's job - this is checked before any platform gets a chance,
+// same priority as dignifiedSymbols/identifierPattern below).
+var dignifiedOperatorWord = regexp.MustCompile(`^[A-Za-z]+`)
+
+// dignifiedOperators are badig_dignified.py's d_operat (TRUE/FALSE) -
+// shared by every dialect, matched as a whole word (not a prefix, so
+// "truest" never matches "TRUE"), same reasoning as dignifiedSymbols.
+var dignifiedOperators = map[string]bool{"TRUE": true, "FALSE": true}
+
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
 // token first, then one token per recognized item plus a NEWLINE per
 // source line, ending in EOF.
@@ -90,6 +100,19 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 				continue
 			}
 
+			// Shared Dignified operators (TRUE/FALSE) are checked before
+			// the identifier pattern - same priority as every other
+			// dialect/shared keyword winning over identifier
+			// interpretation (ver Lex's doc comment) - otherwise a
+			// lowercase "true"/"false" would already have matched
+			// identifierPattern below and never reach here.
+			if word := dignifiedOperatorWord.FindString(remaining); word != "" && dignifiedOperators[strings.ToUpper(word)] {
+				tokens = append(tokens, pin(Token{Kind: KindDignifiedOperator, Value: word}))
+				pos += len(word)
+				col += len(word)
+				continue
+			}
+
 			if id := identifierPattern.FindString(remaining); id != "" {
 				n := len([]rune(id))
 				tokens = append(tokens, pin(Token{Kind: KindIdentifier, Value: id}))
@@ -154,7 +177,11 @@ func scanGenericString(runes []rune, quote byte) int {
 // input slice plus the index being classified this call (not just
 // that one token in isolation) - see Parser, in contract.go, for why:
 // MSX's real Pass 3 (Bloco 2) needed to look at the previous token.
-type passFunc func(ctx *CompileContext, tokens []Token, index int) (HookAction, Token, error)
+// On Replace, it emits every token in the returned slice (0, 1, or
+// several) - MSX's real Pass 5 (Bloco 2) needed to expand ONE compound
+// assignment token (`x+=5`) into several (`=`, `x`, `+`), which a
+// single-Token Replace couldn't express.
+type passFunc func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
 
 // runPass walks tokens once, calling pass for each and applying its
 // HookAction - the shared traversal behind every pass_N in the
@@ -177,7 +204,7 @@ func runPass(ctx *CompileContext, tokens []Token, pass passFunc) ([]Token, error
 		case Skip:
 			continue
 		case Replace:
-			out = append(out, result)
+			out = append(out, result...)
 		default: // Continue
 			out = append(out, tok)
 		}
