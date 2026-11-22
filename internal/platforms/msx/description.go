@@ -131,6 +131,26 @@ func (description) FunctionCallBoundaryWords() []string {
 	return words
 }
 
+// VariableAliasLength mirrors c_var_valid_chars (badig_msx.py:146,
+// already variableAliasLen below - exposed here for core.Description
+// callers outside this package, e.g. core Pass 1's DECLARE).
+func (description) VariableAliasLength() int { return variableAliasLen }
+
+// ReservedKeywords mirrors c_reserved_kw (badig_msx.py:95-99:
+// "c_instrc + c_jumpin + c_funcdl + c_funcnm + c_operat + ['DATA']" -
+// a DIFFERENT, larger list than FunctionCallBoundaryWords' own
+// c_func_stop_kw: this one also includes operators and "DATA").
+func (description) ReservedKeywords() []string {
+	words := make([]string, 0, len(instructions)+len(jumpKeywords)+len(functionsDollar)+len(functionsPlain)+len(operators)+1)
+	words = append(words, instructions...)
+	words = append(words, jumpKeywords...)
+	words = append(words, functionsDollar...)
+	words = append(words, functionsPlain...)
+	words = append(words, operators...)
+	words = append(words, "DATA")
+	return words
+}
+
 // Variable allocation constants, confirmed reading process_variable
 // (badig_msx.py:516-558) in a previous session and process_variable's
 // surrounding Description fields (badig_msx.py:133-150) directly this

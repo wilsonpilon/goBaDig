@@ -339,6 +339,34 @@ func TestEndToEndFuncRetAndVariableRenamingCoexist(t *testing.T) {
 	}
 }
 
+// TestEndToEndDeclareForcesAnExplicitAliasAndVariableRenamingCoexist
+// confirms MSX's EXISTING Pass 3/4 (get_hard_variable/
+// process_variable - no changes needed for DECLARE at all) correctly
+// consult the Declares table core Pass 1's DECLARE (badig.py's
+// get_declares) writes straight into: the declared variable gets
+// EXACTLY the given alias, and the auto-allocator still works
+// normally (and doesn't collide with it) for everything else.
+func TestEndToEndDeclareForcesAnExplicitAliasAndVariableRenamingCoexist(t *testing.T) {
+	ctx, platform := contextPlatform(t,
+		"declare longvar:zq",
+		"print longvar",
+		"print othervar",
+	)
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 print zq", "20 print zz"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
 func TestParseFailsUsingTildeOnAnAlreadyShortName(t *testing.T) {
 	_, err := core.Run(contextPlatform(t, "print ~ab"))
 	if err == nil {

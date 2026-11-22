@@ -54,6 +54,21 @@ type Description interface {
 	// doesn't otherwise expose as one list, so each platform assembles
 	// its own).
 	FunctionCallBoundaryWords() []string
+	// VariableAliasLength is how many characters a variable alias has
+	// (2 for MSX, c_var_valid_chars in badig_msx.py) - core Pass 1's
+	// DECLARE (badig.py's get_declares) uses this to decide whether a
+	// bare `DECLARE name` (no explicit alias) reserves name itself as
+	// an already-short variable or keeps it verbatim as a long one,
+	// and to validate an explicit `DECLARE name:alias`'s alias length.
+	VariableAliasLength() int
+	// ReservedKeywords are every word DECLARE (badig.py's
+	// get_declares) rejects as a variable name (c_reserved_kw in
+	// badig_msx.py - note this is a DIFFERENT, larger list than
+	// FunctionCallBoundaryWords' c_func_stop_kw: it also includes
+	// operators and "DATA"). Also what a real generate() will
+	// eventually need for reserved-keyword spacing (ver OUTLINE.md) -
+	// not wired to that yet.
+	ReservedKeywords() []string
 }
 
 // SystemInfo is a dialect's name and on-disk file extensions -

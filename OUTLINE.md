@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.11.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.12.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -21,15 +21,17 @@ e nos Blocos correspondentes abaixo, não repetido aqui.
 Classic), **resolução de labels/numeração de linha, incluindo loop
 labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX),
 **`DEFINE`** (macro de texto com placeholder/valor padrão/chamadas
-aninhadas, também core-level), e **`FUNC`/`RET`** (função Dignified →
-`GOSUB` + troca de variáveis, idem core-level) — a **primeira
-conversão Dignified→Classic de verdade já produzindo texto correto,
-incluindo `GOTO`/label, laço fechado, macro e função reais**
-(`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`, `keys{ }` →
-`GOTO` implícito de volta, `[nome](arg)` → texto expandido,
-`.func(5)` → `param = 5 : gosub <linha>`), confirmada em testes de
-ponta a ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra
-um exemplo real completo apontado pelo usuário
+aninhadas, também core-level), **`FUNC`/`RET`** (função Dignified →
+`GOSUB` + troca de variáveis, idem core-level), e **`DECLARE`**
+(reserva manual de alias de variável, idem core-level) — a
+**primeira conversão Dignified→Classic de verdade já produzindo
+texto correto, incluindo `GOTO`/label, laço fechado, macro, função e
+alias manual reais** (`counter=0` → `zz = 0`, `goto {dest}` →
+`goto 20`, `keys{ }` → `GOTO` implícito de volta, `[nome](arg)` →
+texto expandido, `.func(5)` → `param = 5 : gosub <linha>`,
+`declare x:ab` → `x` sempre vira `ab`), confirmada em testes de ponta
+a ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra um
+exemplo real completo apontado pelo usuário
 (`badig/examples/msx/CGK173.dmx`). Oito desvios reais nas interfaces
 "v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
 todos documentados no Bloco 1 abaixo — a resolução de labels foi
@@ -38,14 +40,17 @@ de verdade antes de delegar pra plataforma, não só documentar a
 intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
 explícito em vez do modelo `passFunc`/`runPass`; `FUNC`/`RET` foi a
 primeira vez que uma pass inteira nova (`pass2Functions`) precisou
-existir fora do molde de "envolve o hook da plataforma". Também
-corrigido nesta janela: `identifierPattern` (compartilhado) era
-restrito a ASCII minúsculo — bug real, latente desde as rodadas de
-variável/label, que cortava nomes camelCase/mixedCase (`v1.9.1`).
-**Ainda falta**: Pass 1 do `Parser` (separador de chamada Dignified
-`_` fora do fim de linha, rendering ainda não entendido),
-`INCLUDE`/`KEEP`/`DECLARE`, `generate()` de verdade (espaçamento por
-palavra reservada, limite de linha), e ligar tudo isso ao tokenizer
+existir fora do molde de "envolve o hook da plataforma"; `DECLARE`
+foi a primeira vez que um recurso novo não precisou tocar em
+`msx/parser.go` NENHUM pouco (escreve direto nas tabelas que o
+Pass 3/4 já consulta). Também corrigido nesta janela:
+`identifierPattern` (compartilhado) era restrito a ASCII minúsculo —
+bug real, latente desde as rodadas de variável/label, que cortava
+nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1 do
+`Parser` (separador de chamada Dignified `_` fora do fim de linha,
+rendering ainda não entendido), `INCLUDE`/`KEEP`, `generate()` de
+verdade (espaçamento por palavra reservada, limite de linha), e
+ligar tudo isso ao tokenizer
 já pronto pra fechar o caminho completo até o binário. Ver Blocos 1-4
 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
@@ -1125,6 +1130,47 @@ o parâmetro/padrão de uma função (só são identificadores comuns no
 momento em que `FUNC`/`RET` são lidos, no Pass 1 — ganham a chance de
 serem renomeados normalmente quando Pass 3/4 rodam depois).
 
+**`DECLARE` implementado** (2026-11-22, `internal/core/pipeline.go`):
+fiel a `get_declares` (`badig.py:747-846`, lido linha a linha).
+`DECLARE nome1[:curto1], nome2[:curto2], ...` escreve DIRETO nas 3
+tabelas que `core.SymbolTables` já tem e que o `Parser` MSX Pass 3/4
+JÁ CONSULTAM — **zero mudança em `msx/parser.go`** pra isso funcionar.
+Sem `:` (nome sozinho): se o nome já tem o tamanho de um alias (2 no
+MSX), reserva em `HardShortVars`; senão reserva em `HardLongVars`
+(**exatamente o mesmo efeito de `~nome` inline**, só declarado
+antecipadamente). Com `:curto`: atribui `Declares[nome@arquivo] =
+curto` direto, pulando o alocador. Mesmo "deve estar no início de
+linha" e mesma linha inteira desaparecendo (como `DEFINE`, não como
+`FUNC` — `DECLARE` TEM o `continue` no dispatch original) — entrou
+dentro de `pass1Dignified`, mais um `case`.
+
+Confirmado que o separador `:` nunca é validado contra seu valor
+exato no original (só checa se o próximo token NÃO é `,` nem
+`NEWLINE`, daí assume que tem `:curto` e consome 1 token sem
+checar) — replicado exatamente, não apertado.
+
+2 métodos novos em `core.Description`: `VariableAliasLength()`
+(`c_var_valid_chars`, já existia como `variableAliasLen` dentro do
+pacote MSX, só nunca exposto pro `core`) e `ReservedKeywords()`
+(`c_reserved_kw` — **diferente** de `FunctionCallBoundaryWords`'
+`c_func_stop_kw`: tem 2 grupos mais, `c_operat` e `'DATA'` — lista já
+derivada numa pesquisa anterior, da rodada do `generate()` real
+ainda adiada, reaproveitável quando ela chegar).
+
+**Correção deliberada, documentada**: `c_varsna` (regex validando o
+nome curto) tem um erro de digitação real no original (`[a-zA-z]` —
+o intervalo `A-z` em ASCII inclui `[\]^_` por acidente, junto com
+A-Z) — uso o padrão claramente pretendido (`[a-zA-Z0-9]`) em vez de
+replicar o typo, mesmo espírito do bug do `AS` de 2 dígitos já
+corrigido no tokenizer. **Fora de escopo**: os 5 loops de aviso
+não-fatal (`Info.log` nível 2, conflito de prefixo).
+
+8 testes novos em `internal/core` (inspecionando `ctx.Symbols`
+direto, já que a plataforma fake não tem renomeação de variável de
+verdade) + 1 de ponta a ponta no MSX confirmando que o Pass 3/4 JÁ
+EXISTENTE respeita o que `DECLARE` escreveu, sem precisar mudar nada
+nele.
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1333,10 +1379,15 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   de `FUNC` desperdiça 1 número, diferente de label). 9 testes novos
   + 1 de ponta a ponta confirmando que a renomeação de variável
   alcança parâmetro/padrão de função. — **A**, **1**
-- [ ] `INCLUDE`/`KEEP`/`DECLARE` — cada um uma fatia própria,
-  confirmados existirem e serem usados de verdade no `CGK173.dmx`
-  (`DECLARE` já pesquisado parcialmente — `get_declares`,
-  `badig.py:747-846` — ao ler `FUNC`/`RET` nesta rodada). — **A**, **1**
+- [x] **`DECLARE` implementado** (2026-11-22,
+  `internal/core/pipeline.go`) — escreve direto nas 3 tabelas de
+  variável que o `Parser` MSX Pass 3/4 já consultam (zero mudança em
+  `msx/parser.go`). Sem `:` = mesmo efeito de `~nome`; com `:curto` =
+  atribui o alias manualmente, pulando o alocador. Ver Bloco 1 acima
+  pro detalhamento (inclusive a correção do typo de `c_varsna`). 8
+  testes novos + 1 de ponta a ponta. — **A**, **1**
+- [ ] `INCLUDE`/`KEEP` — cada um uma fatia própria, confirmados
+  existirem e serem usados de verdade no `CGK173.dmx`. — **A**, **1**
 - [ ] Inserção de header (2 linhas REM sintéticas,
   `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
   cosméticos, pequenos. — **B**, **2**

@@ -87,8 +87,9 @@ validado contra um exemplo real completo
 (`nome{ ... }` + `exit`); **`v1.10.0`** implementa `DEFINE` (macro de
 texto com placeholder/valor padrão/chamadas aninhadas); **`v1.11.0`**
 implementa `FUNC`/`RET` (função Dignified → `GOSUB` + troca de
-variáveis) — ainda sem nenhum comando de conversão real disponível
-pro usuário: falta `INCLUDE`/`KEEP`/`DECLARE`, Pass 1 e um
+variáveis); **`v1.12.0`** implementa `DECLARE` (reserva manual de
+alias de variável) — ainda sem nenhum comando de conversão real
+disponível pro usuário: falta `INCLUDE`/`KEEP`, Pass 1 e um
 `generate()` de verdade pra fechar o caminho Dignified→Classic (ver
 seção 6).
 
@@ -182,11 +183,13 @@ do Pass 5 também funcionam (`x+=5` → `x = x + 5`,
 `goto 20`), a partir da `v1.9.0` loop labels também (`nome{ ... }`
 vira um `GOTO` implícito de volta, `exit` salta pra fora), e a partir
 da `v1.10.0` `DEFINE` expande macros de texto (`[nome](arg)` →
-conteúdo registrado, com placeholder/valor padrão), e a partir da
+conteúdo registrado, com placeholder/valor padrão), a partir da
 `v1.11.0` `FUNC`/`RET` também (`.func(5)` → `param = 5 : gosub
-<linha>`) — mas ainda falta `INCLUDE`/`KEEP`/`DECLARE`, o Pass 1 do
-`Parser` e um `generate()` de verdade, e ligar tudo isso ao
-tokenizer. Nada disso é utilizável pelo usuário final ainda.
+<linha>`), e a partir da `v1.12.0` `DECLARE` reserva alias manual de
+variável (`declare x:ab` → `x` sempre vira `ab`) — mas ainda falta
+`INCLUDE`/`KEEP`, o Pass 1 do `Parser` e um `generate()` de verdade,
+e ligar tudo isso ao tokenizer. Nada disso é utilizável pelo usuário
+final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.12.0] — 2026-11-22 — bloco **NEW**, feature **declare** (build 0)
+
+**`DECLARE`** — reserva manual de alias de variável, usada no
+`CGK173.dmx` (`keep #none` e vizinhos).
+
+### Adicionado
+
+- `DECLARE nome[:curto], ...` — sem `:`, mantém o nome por extenso
+  (mesmo efeito de `~nome`) ou reserva um nome já curto; com `:curto`,
+  atribui o alias manualmente, pulando o alocador automático.
+- Escreve direto nas 3 tabelas que o `Parser` MSX Pass 3/4 já
+  consultam — **zero mudança** em `internal/platforms/msx/parser.go`
+  foi necessária.
+- 2 métodos novos em `core.Description`.
+- 8 testes novos no mecanismo core-level + 1 de ponta a ponta
+  confirmando que o Pass 3/4 já existente respeita o que `DECLARE`
+  escreveu.
+
+### Observações
+
+- Corrigido um erro de digitação real do original (`c_varsna`'s
+  `[a-zA-z]`, que por acidente de intervalo ASCII aceitava
+  `[\]^_` também) — usado o padrão claramente pretendido em vez de
+  replicar o typo.
+- `INCLUDE`/`KEEP`, Pass 1 (`_` fora do fim de linha) e um
+  `generate()` de verdade ainda faltam — ver `OUTLINE.md`, Bloco 2.
+
+---
+
 ## [1.11.0] — 2026-11-22 — bloco **NEW**, feature **func-ret** (build 0)
 
 **`FUNC`/`RET`** — funções Dignified, usadas em quase toda sub-rotina

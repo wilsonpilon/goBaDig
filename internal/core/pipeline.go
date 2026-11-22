@@ -325,6 +325,24 @@ func readParenArgs(tokens []Token, i *int) ([][]Token, error) {
 	}
 }
 
+// isAlphanumeric reports whether every character in s is an ASCII
+// letter or digit - used to validate a DECLARE's explicit short-alias
+// shape. Mirrors the OBVIOUSLY intended shape of c_varsna
+// (badig_msx.py:138, `^[a-zA-z][a-zA-Z0-9]?$`) rather than its actual
+// text: `A-z` is a well-known ASCII range typo (it spans A-Z plus
+// `[\]^_` before reaching a-z), clearly not meant to accept those
+// punctuation characters - corrected here rather than reproduced,
+// same spirit as the tokenizer's 2-digit AS/ord() TypeError bug being
+// fixed, not replicated (ver OUTLINE.md).
+func isAlphanumeric(s string) bool {
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
 // tokenTextEqual mirrors compare_func_args (badig.py:1139-1147): joins
 // each slice's token values with a space and compares the text -
 // used to skip a redundant `param = param` self-assignment when a
@@ -528,6 +546,111 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 		inFunc = nil
 		out = append(out, Token{Kind: KindSynthetic, Value: platform.Description.FunctionReturnInstruction(), Pos: retTok.Pos})
 		return nil
+	}
+
+	// readDeclares reads one whole `DECLARE name[:alias], ...` line
+	// (mirrors get_declares, badig.py:747-846) - writes straight into
+	// ctx.Symbols, the same 3 tables MSX's own Pass 3/4 (get_hard_
+	// variable/process_variable) already consult before allocating an
+	// alias, so nothing downstream needs to change to respect a
+	// DECLARE. Consumes the terminating NEWLINE, same as DEFINE.
+	//
+	// The original never actually validates the `:` separator's own
+	// value (badig.py:800-804: it only checks the NEXT token is
+	// neither `,` nor NEWLINE, then blindly consumes one token
+	// assuming it's `:`) - replicated exactly, not tightened.
+	//
+	// Deliberately not ported: 5 non-fatal (Info.log level 2)
+	// prefix-collision warning loops, same as get_hard_variable's own
+	// skipped warnings (ver OUTLINE.md).
+	readDeclares := func() error {
+		aliasLen := platform.Description.VariableAliasLength()
+		reserved := platform.Description.ReservedKeywords()
+		isReserved := func(name string) bool {
+			upper := strings.ToUpper(name)
+			for _, w := range reserved {
+				if upper == w {
+					return true
+				}
+			}
+			return false
+		}
+
+		for {
+			if i >= len(tokens) || tokens[i].Kind != KindIdentifier {
+				pos := Position{}
+				if i < len(tokens) {
+					pos = tokens[i].Pos
+				}
+				return Diagnostic{Severity: SeverityError, Message: "invalid declared variable", Pos: &pos}
+			}
+			longTok := tokens[i]
+			longName := strings.ToLower(longTok.String())
+			i++
+
+			if len(longName) == 1 {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("declared variable too short: %s", longName), Pos: &longTok.Pos}
+			}
+			if isReserved(longName) {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("variable is a reserved keyword: %s", longName), Pos: &longTok.Pos}
+			}
+			key := longName + "@" + longTok.Pos.File()
+
+			if i < len(tokens) && (tokens[i].Value == "," || tokens[i].Kind == KindNewline) {
+				// Bare reservation, no explicit alias.
+				if len(longName) == aliasLen {
+					ctx.Symbols.HardShortVars[longName] = true
+				} else {
+					ctx.Symbols.HardLongVars[key] = true
+				}
+				if tokens[i].Kind == KindNewline {
+					i++
+					return nil
+				}
+				i++ // consume ","
+				continue
+			}
+			if i >= len(tokens) {
+				return Diagnostic{Severity: SeverityError, Message: `expecting ":"`, Pos: &longTok.Pos}
+			}
+			i++ // consume whatever is assumed to be ":" - unchecked, see doc comment above
+
+			if i >= len(tokens) {
+				return Diagnostic{Severity: SeverityError, Message: "invalid declared short variable", Pos: &longTok.Pos}
+			}
+			shortTok := tokens[i]
+			shortName := strings.ToLower(shortTok.String())
+			i++
+
+			if len(shortName) < 1 || len(shortName) > aliasLen || !isAlphanumeric(shortName) {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("invalid declared short variable: %s", shortName), Pos: &shortTok.Pos}
+			}
+			if _, declared := ctx.Symbols.Declares[key]; declared {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("long variable already declared: %s", longName), Pos: &shortTok.Pos}
+			}
+			for _, alias := range ctx.Symbols.Declares {
+				if alias == shortName {
+					return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("short variable already declared: %s", shortName), Pos: &shortTok.Pos}
+				}
+			}
+			if ctx.Symbols.HardLongVars[key] {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("long variable already reserved: %s", longName), Pos: &longTok.Pos}
+			}
+			ctx.Symbols.Declares[key] = shortName
+
+			if i >= len(tokens) {
+				return Diagnostic{Severity: SeverityError, Message: `expecting ","`, Pos: &shortTok.Pos}
+			}
+			if tokens[i].Value == "," {
+				i++
+				continue
+			}
+			if tokens[i].Kind == KindNewline {
+				i++
+				return nil
+			}
+			return Diagnostic{Severity: SeverityError, Message: `expecting ","`, Pos: &tokens[i].Pos}
+		}
 	}
 
 	// readBracketName reads `[name]` at i (mirrors get_in_bracket,
@@ -744,7 +867,7 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 
 		if tok.Kind == KindDignifiedInstruction {
 			upper := strings.ToUpper(tok.String())
-			if (upper == "DEFINE" || upper == "FUNC" || upper == "RET") && !atOutputLineStart() {
+			if (upper == "DEFINE" || upper == "FUNC" || upper == "RET" || upper == "DECLARE") && !atOutputLineStart() {
 				return nil, nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("%s must be at the start of a line", tok.String()), Pos: &tok.Pos}
 			}
 			switch upper {
@@ -763,6 +886,12 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 			case "RET":
 				i++
 				if err := readFuncRet(tok); err != nil {
+					return nil, nil, err
+				}
+				continue
+			case "DECLARE":
+				i++
+				if err := readDeclares(); err != nil {
 					return nil, nil, err
 				}
 				continue

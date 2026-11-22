@@ -41,6 +41,10 @@ func (fakeDescription) FunctionReturnInstruction() string { return "return" }
 
 func (fakeDescription) FunctionCallBoundaryWords() []string { return []string{"PRINT"} }
 
+func (fakeDescription) VariableAliasLength() int { return 2 }
+
+func (fakeDescription) ReservedKeywords() []string { return []string{"PRINT", "FOO"} }
+
 type fakeLexer struct{}
 
 func (fakeLexer) Init(*CompileContext) {}
@@ -451,6 +455,93 @@ func TestPass1FailsWhenFuncIsNotAtTheStartOfALine(t *testing.T) {
 	_, err := runFake(t, "PRINT 1 func .f()")
 	if err == nil {
 		t.Fatal("expected a fatal error for FUNC not at the start of a line, got none")
+	}
+}
+
+// runFakeWithSymbols is runFake but also returns the CompileContext,
+// so a test can inspect ctx.Symbols afterward - DECLARE writes
+// straight into those 3 tables (Declares/HardShortVars/
+// HardLongVars), and the fake platform has no real variable-renaming
+// Pass 3/4 of its own to observe the effect through rendered output
+// the way the MSX end-to-end tests do.
+func runFakeWithSymbols(t *testing.T, lines ...string) (*CompileContext, error) {
+	t.Helper()
+	ctx := newFakeMultilineContext(lines, []string{"fake.dmx"})
+	platform := Platform{
+		Description: fakeDescription{},
+		Lexer:       fakeLexer{},
+		Parser:      fakeParser{},
+		Settings:    fakeSettings{},
+	}
+	_, err := Run(ctx, platform)
+	return ctx, err
+}
+
+func TestPass1DeclareAssignsAnExplicitAlias(t *testing.T) {
+	ctx, err := runFakeWithSymbols(t, "declare longname:zz")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got := ctx.Symbols.Declares["longname@fake.dmx"]; got != "zz" {
+		t.Fatalf("Declares[longname@fake.dmx] = %q, want %q", got, "zz")
+	}
+}
+
+func TestPass1DeclareBareKeepsALongNameVerbatim(t *testing.T) {
+	ctx, err := runFakeWithSymbols(t, "declare longname")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !ctx.Symbols.HardLongVars["longname@fake.dmx"] {
+		t.Fatal("\"longname\" was not registered in HardLongVars (same effect as ~longname)")
+	}
+}
+
+func TestPass1DeclareBareReservesAnAlreadyShortName(t *testing.T) {
+	ctx, err := runFakeWithSymbols(t, "declare ab")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !ctx.Symbols.HardShortVars["ab"] {
+		t.Fatal("\"ab\" was not registered in HardShortVars")
+	}
+}
+
+func TestPass1ReadsSeveralDeclaresOnOneLine(t *testing.T) {
+	ctx, err := runFakeWithSymbols(t, "declare a1:aa, b2:bb")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if ctx.Symbols.Declares["a1@fake.dmx"] != "aa" || ctx.Symbols.Declares["b2@fake.dmx"] != "bb" {
+		t.Fatalf("Declares = %v, want a1->aa and b2->bb", ctx.Symbols.Declares)
+	}
+}
+
+func TestPass1FailsWhenDeclareIsNotAtTheStartOfALine(t *testing.T) {
+	_, err := runFake(t, "PRINT 1 declare a1:aa")
+	if err == nil {
+		t.Fatal("expected a fatal error for DECLARE not at the start of a line, got none")
+	}
+}
+
+func TestPass1FailsDeclaringAReservedKeywordAsAVariable(t *testing.T) {
+	_, err := runFake(t, "declare foo:aa")
+	if err == nil {
+		t.Fatal("expected a fatal error declaring a reserved keyword as a variable, got none")
+	}
+}
+
+func TestPass1FailsDeclaringATooShortVariableName(t *testing.T) {
+	_, err := runFake(t, "declare a:aa")
+	if err == nil {
+		t.Fatal("expected a fatal error for a 1-character declared variable, got none")
+	}
+}
+
+func TestPass1FailsOnADuplicateDeclaredAlias(t *testing.T) {
+	_, err := runFake(t, "declare a1:xx, b2:xx")
+	if err == nil {
+		t.Fatal("expected a fatal error reusing the same alias for two different variables, got none")
 	}
 }
 
