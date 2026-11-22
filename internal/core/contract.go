@@ -28,6 +28,32 @@ type Description interface {
 	// closing `}` (and a matching `exit`) use to jump ("goto" for MSX,
 	// c_loop_back in badig_msx.py).
 	LoopBackInstruction() string
+	// CommentChar is the classic alternate-REM character (`'` for MSX,
+	// c_altrem in badig_msx.py) - core Pass 1's RET (badig.py's
+	// get_func_ret) uses this to tell "ret" with no return variables,
+	// immediately followed by a comment, apart from "ret" followed by
+	// an actual variable list.
+	CommentChar() string
+	// AssignmentOperator is the classic assignment symbol (`=` for
+	// MSX, c_equal in badig_msx.py) - core Pass 2's function-call
+	// expansion (badig.py's replace_func_calls) uses this to build the
+	// synthetic `param = value` assignments a call generates.
+	AssignmentOperator() string
+	// FunctionCallInstruction is the instruction a Dignified function
+	// call expands into ("gosub" for MSX, c_func_call in
+	// badig_msx.py).
+	FunctionCallInstruction() string
+	// FunctionReturnInstruction is the instruction a Dignified `ret`
+	// expands into ("return" for MSX, c_func_ret in badig_msx.py).
+	FunctionReturnInstruction() string
+	// FunctionCallBoundaryWords are the reserved words that stop
+	// replace_func_calls' backward scan (looking for a call's
+	// receiving-variable list, `a, b = .name()`) from scanning past
+	// where a statement clearly began (c_func_stop_kw in
+	// badig_msx.py - MSX builds this from vocabulary core.Description
+	// doesn't otherwise expose as one list, so each platform assembles
+	// its own).
+	FunctionCallBoundaryWords() []string
 }
 
 // SystemInfo is a dialect's name and on-disk file extensions -

@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.10.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.11.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -19,31 +19,35 @@ e nos Blocos correspondentes abaixo, não repetido aqui.
 (`description.go`/`lexer.go`), **`Parser` MSX Pass 3/4/5** (`parser.go`
 — alocação de variáveis de 2 letras + as 5 conversões finais do
 Classic), **resolução de labels/numeração de linha, incluindo loop
-labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX), e
+labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX),
 **`DEFINE`** (macro de texto com placeholder/valor padrão/chamadas
-aninhadas, também core-level) — a **primeira conversão
-Dignified→Classic de verdade já produzindo texto correto, incluindo
-`GOTO`/label, laço fechado e macro reais** (`counter=0` → `zz = 0`,
-`goto {dest}` → `goto 20`, `keys{ }` → `GOTO` implícito de volta,
-`[nome](arg)` → texto expandido), confirmada em testes de ponta a
-ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra um
-exemplo real completo apontado pelo usuário
-(`badig/examples/msx/CGK173.dmx`). Sete desvios reais nas interfaces
+aninhadas, também core-level), e **`FUNC`/`RET`** (função Dignified →
+`GOSUB` + troca de variáveis, idem core-level) — a **primeira
+conversão Dignified→Classic de verdade já produzindo texto correto,
+incluindo `GOTO`/label, laço fechado, macro e função reais**
+(`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`, `keys{ }` →
+`GOTO` implícito de volta, `[nome](arg)` → texto expandido,
+`.func(5)` → `param = 5 : gosub <linha>`), confirmada em testes de
+ponta a ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra
+um exemplo real completo apontado pelo usuário
+(`badig/examples/msx/CGK173.dmx`). Oito desvios reais nas interfaces
 "v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
 todos documentados no Bloco 1 abaixo — a resolução de labels foi
 também a primeira vez que o `core` passou a fazer trabalho Dignified
 de verdade antes de delegar pra plataforma, não só documentar a
 intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
-explícito em vez do modelo `passFunc`/`runPass`. Também corrigido
-nesta janela: `identifierPattern` (compartilhado) era restrito a
-ASCII minúsculo — bug real, latente desde as rodadas de variável/
-label, que cortava nomes camelCase/mixedCase (`v1.9.1`). **Ainda
-falta**: Pass 1 do `Parser` (separador de chamada Dignified `_` fora
-do fim de linha, rendering ainda não entendido),
-`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`, `generate()` de verdade
-(espaçamento por palavra reservada, limite de linha), e ligar tudo
-isso ao tokenizer já pronto pra fechar o caminho
-completo até o binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
+explícito em vez do modelo `passFunc`/`runPass`; `FUNC`/`RET` foi a
+primeira vez que uma pass inteira nova (`pass2Functions`) precisou
+existir fora do molde de "envolve o hook da plataforma". Também
+corrigido nesta janela: `identifierPattern` (compartilhado) era
+restrito a ASCII minúsculo — bug real, latente desde as rodadas de
+variável/label, que cortava nomes camelCase/mixedCase (`v1.9.1`).
+**Ainda falta**: Pass 1 do `Parser` (separador de chamada Dignified
+`_` fora do fim de linha, rendering ainda não entendido),
+`INCLUDE`/`KEEP`/`DECLARE`, `generate()` de verdade (espaçamento por
+palavra reservada, limite de linha), e ligar tudo isso ao tokenizer
+já pronto pra fechar o caminho completo até o binário. Ver Blocos 1-4
+na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -1009,7 +1013,9 @@ não faz isso ao montar a chave de variável) — sem evidência de que
 isso ocorra de verdade no `CGK173.dmx`, adiado.
 
 **`DEFINE` implementado** (2026-11-22, `internal/core/pipeline.go`,
-`pass1Defines`): fiel a `get_defines`/`get_defined_content`/
+`pass1Dignified` — renomeada de `pass1Defines` na rodada seguinte, ver
+abaixo, já que passou a cobrir mais que `DEFINE`): fiel a
+`get_defines`/`get_defined_content`/
 `replace_define` (`badig.py:596-745`, lido linha a linha). `DEFINE`
 já era lexado como `KindDignifiedInstruction` e `[`/`]` já eram
 `KindDignifiedSymbol` (rodadas anteriores) — nada novo no Lexer.
@@ -1029,7 +1035,7 @@ própria posição.
 
 **Primeira pass que não cabe nem um pouco no modelo `passFunc`/
 `runPass`** (diferente de labels, que usavam janela fixa de 3 tokens):
-conteúdo/argumento têm comprimento variável e recursivo. `pass1Defines`
+conteúdo/argumento têm comprimento variável e recursivo. `pass1Dignified`
 usa um **cursor explícito** (mesmo estilo do `next_tok()`/`prev_tok()`
 original) que substitui por completo a chamada de
 `runPass(ctx, tokens, platform.Parser.Pass1)` em `Parse()` — pra
@@ -1045,13 +1051,79 @@ Novo `core.KindDefinePlaceholder` (marca interna, nunca chega na
 saída de verdade — sempre substituído na expansão). O check de
 parêntese de argumento usa Kind de plataforma no original
 (`C_SYMBOL`); eu comparo só o VALOR (`"("`), simplificação pragmática
-documentada. **Fora de escopo**: `DECLARE`/`KEEP`/`FUNC`/`RET`/
-`INCLUDE`/`ENDIF` (ainda caem no fallback genérico); permissão
-especial de nome igual a `c_print_alt` ("?"). 7 testes novos em
-`internal/core` + 1 de ponta a ponta no MSX confirmando `DEFINE` +
-label + renomeação de variável convivendo (replicando o padrão real
+documentada. **Fora de escopo** (nessa rodada): `DECLARE`/`KEEP`/
+`FUNC`/`RET`/`INCLUDE`/`ENDIF` (ainda caem no fallback genérico);
+permissão especial de nome igual a `c_print_alt` ("?"). 7 testes
+novos em `internal/core` + 1 de ponta a ponta no MSX confirmando
+`DEFINE` + label + renomeação de variável convivendo (replicando o
+padrão real
 do `CGK173.dmx`, onde `pauseKEY`/`pauseANY` têm `{@}` dentro do
 próprio conteúdo).
+
+**`FUNC`/`RET` implementados** (2026-11-22, `internal/core/pipeline.go`):
+fiel a `get_func_def`/`get_func_ret`/`replace_func_calls`/
+`compare_func_args`/`get_func_args` (`badig.py:947-1193`, lido linha
+a linha). `.nomefunção` (`D_FUNCNM`) é vocabulário Dignified
+COMPARTILHADO (`badig_dignified.py`), não MSX — novo `core.KindFunctionName`,
+novo fallback no `Lex()` (não colide com número decimal começando em
+`.`, que a plataforma já captura primeiro). Declaração (`FUNC`/`RET`,
+mesmo "deve estar no início de linha" do `DEFINE`) entrou dentro de
+`pass1Defines`, agora renomeada **`pass1Dignified`** (já cobre mais
+que `DEFINE`). Cada parâmetro é `nome[=padrão]`; no `CGK173.dmx` o
+padrão é sempre `nome=nome` ("usa o valor atual da mesma variável
+global" — não existe escopo local, "parâmetro" é só açúcar sintático
+pra gerar atribuições condicionais antes do `GOSUB`). O registro em
+`d_functions` só acontece no `RET` (não no `FUNC`) — precisei do
+mesmo tipo de estado (`inFunc`/pendências) carregado de um dispatch
+pro outro que o `self.in_func` original tem.
+
+**Chamada é uma pass NOVA e SEPARADA** (`pass2Functions`), não dentro
+de `pass2Labels`: no original, `replace_func_calls` roda do `pass_2`
+junto com labels, numa única passada interligada — mas a captura de
+retorno (`a, b = .func()`) exige **remover retroativamente tokens já
+emitidos** (`tok_list_out.pop()`, varredura pra trás até achar
+`NEWLINE`/separador/palavra de parada — `c_func_stop_kw`) — mesmo tipo
+de problema do `DEFINE` (Achado 2 da rodada anterior), só que pra
+trás em vez de pra frente, e não cabe em `runPass`. **Simplificação
+deliberada, documentada**: `pass2Functions` roda ANTES de
+`pass2Labels` e nunca chama `platform.Parser.Pass2` ela mesma (só
+`Continue` pra token que não é chamada de função) — `pass2Labels`
+continua sendo a única que chama o hook da plataforma. Efeito
+colateral inofensivo: os tokens sintéticos que uma expansão de
+chamada insere passam pelo hook de `pass2Labels` também (no original,
+nunca passariam de novo por `self.clc.pass_2()`) — sem diferença
+observável enquanto o `Pass2` do MSX for um no-op.
+
+Resolução de linha da função é EXATAMENTE igual a labels, só em mapa
+separado (`func_defs`, namespace diferente de `label_lines` no
+original) — `pass4Numbering` ganhou 2 casos novos
+(`KindFunctionDefinition`/`KindFunctionCall`).
+
+5 métodos novos em `core.Description` (`AssignmentOperator`/
+`FunctionCallInstruction`/`FunctionReturnInstruction`/
+`FunctionCallBoundaryWords`/`CommentChar`) — o último (`c_altrem`,
+"'") resolve se um `ret` sozinho antes de comentário tem retorno ou
+não. Novo helper de nível de pacote `readParenArgs` (não-closure,
+usado tanto pela assinatura `FUNC` quanto pela chamada — mirrors
+`get_func_args`, compartilhado nos dois lugares igual o original).
+
+**Achado real sobre numeração**: diferente de label, a linha de
+declaração de `FUNC` NÃO tem o `NEWLINE` removido por `pass3LineHygiene`
+(confirmado que o `pass_3` original só remove `NEWLINE` depois de
+`D_LBLLIN`, não depois de `D_FUNCDF`) — ou seja, toda declaração
+`func` desperdiça 1 número de linha (sem conteúdo nenhum nessa
+linha), diferente de label. Replicado fielmente, não "corrigido" —
+confirmado também que `zip()` parando na lista mais curta (quando a
+chamada dá menos argumentos que a função declara) é uma consequência
+INTENCIONAL do padrão `nome=nome`: parâmetro omitido = continua com o
+valor atual da variável global = exatamente o mesmo efeito de um
+`nome=nome` redundante.
+
+9 testes novos em `internal/core` + 1 de ponta a ponta no MSX
+confirmando que a renomeação de variável do MSX alcança corretamente
+o parâmetro/padrão de uma função (só são identificadores comuns no
+momento em que `FUNC`/`RET` são lidos, no Pass 1 — ganham a chance de
+serem renomeados normalmente quando Pass 3/4 rodam depois).
 
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
@@ -1249,9 +1321,22 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   `passFunc`/`runPass`). Ver Bloco 1 acima pro detalhamento. 7 testes
   novos + 1 de ponta a ponta confirmando que convive com label e
   renomeação de variável (padrão real do `CGK173.dmx`). — **A**, **1**
-- [ ] `FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE` — cada um uma fatia
-  própria, confirmados existirem e serem usados de verdade no
-  `CGK173.dmx`. — **A**, **1**
+- [x] **`FUNC`/`RET` implementados** (2026-11-22,
+  `internal/core/pipeline.go`) — declaração em `pass1Dignified`
+  (renomeada de `pass1Defines`); chamada numa pass nova
+  (`pass2Functions`), já que a captura de retorno
+  (`a, b = .func()`) precisa remover retroativamente tokens já
+  emitidos — mesmo tipo de problema do `DEFINE`, só pra trás. Cada
+  parâmetro é `nome[=padrão]`; resolução de linha igual label, mapa
+  separado. 5 métodos novos em `core.Description`. Ver Bloco 1 acima
+  pro detalhamento (inclusive o achado de que a linha de declaração
+  de `FUNC` desperdiça 1 número, diferente de label). 9 testes novos
+  + 1 de ponta a ponta confirmando que a renomeação de variável
+  alcança parâmetro/padrão de função. — **A**, **1**
+- [ ] `INCLUDE`/`KEEP`/`DECLARE` — cada um uma fatia própria,
+  confirmados existirem e serem usados de verdade no `CGK173.dmx`
+  (`DECLARE` já pesquisado parcialmente — `get_declares`,
+  `badig.py:747-846` — ao ler `FUNC`/`RET` nesta rodada). — **A**, **1**
 - [ ] Inserção de header (2 linhas REM sintéticas,
   `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
   cosméticos, pequenos. — **B**, **2**

@@ -35,6 +35,43 @@ exata do pacote.
 
 ---
 
+## [1.11.0] — 2026-11-22 — bloco **NEW**, feature **func-ret** (build 0)
+
+**`FUNC`/`RET`** — funções Dignified, usadas em quase toda sub-rotina
+de `CGK173.dmx` (`.move_cursor_files`, `.show_content`, etc.).
+
+### Adicionado
+
+- `func .nome(param=padrão, ...)` ... `ret retvar, ...` declara uma
+  função; chamada `.nome(args)` (em qualquer lugar, antes ou depois
+  da declaração no texto) expande pra `param = valor : gosub <linha>`
+  seguido, se a chamada capturar retorno (`a = .nome()`), de
+  `: a = retvar`.
+- Atribuição redundante (`param = param`) é sempre pulada, igual o
+  original.
+- Parâmetro omitido na chamada fica intocado (nem o padrão é
+  aplicado) — mesmo efeito de um `param=param` redundante, dado que
+  o padrão real é sempre "usa o valor atual da própria variável".
+- 5 métodos novos em `core.Description`.
+- Primeira pass inteiramente nova (`pass2Functions`) fora do molde
+  "envolve o hook da plataforma" — a captura de retorno precisa
+  remover retroativamente tokens já emitidos, mesmo tipo de problema
+  do `DEFINE`, só pra trás.
+- 9 testes novos no mecanismo core-level + 1 de ponta a ponta
+  confirmando que a renomeação de variável do MSX alcança
+  parâmetro/padrão de função.
+
+### Observações
+
+- `INCLUDE`/`KEEP`/`DECLARE`, Pass 1 (`_` fora do fim de linha) e um
+  `generate()` de verdade ainda faltam — ver `OUTLINE.md`, Bloco 2.
+- Achado real replicado fielmente: a linha de declaração de `FUNC`
+  desperdiça 1 número de linha (diferente de label) — confirmado que
+  o `pass_3` original só remove o `NEWLINE` depois de uma declaração
+  de label, não depois de `FUNC`.
+
+---
+
 ## [1.10.0] — 2026-11-22 — bloco **NEW**, feature **define** (build 0)
 
 **`DEFINE`** — macro de texto Dignified, usada de verdade em

@@ -31,6 +31,16 @@ func (fakeDescription) StatementSeparator() string { return ":" }
 
 func (fakeDescription) LoopBackInstruction() string { return "goto" }
 
+func (fakeDescription) CommentChar() string { return "'" }
+
+func (fakeDescription) AssignmentOperator() string { return "=" }
+
+func (fakeDescription) FunctionCallInstruction() string { return "gosub" }
+
+func (fakeDescription) FunctionReturnInstruction() string { return "return" }
+
+func (fakeDescription) FunctionCallBoundaryWords() []string { return []string{"PRINT"} }
+
 type fakeLexer struct{}
 
 func (fakeLexer) Init(*CompileContext) {}
@@ -348,6 +358,102 @@ func TestPass1FailsWhenDefineIsNotAtTheStartOfALine(t *testing.T) {
 	}
 }
 
+func TestPass2ExpandsAFunctionCallWithAnExplicitArgument(t *testing.T) {
+	result, err := runFake(t, "func .f(x=x)", "PRINT x", "ret y", ".f(5)")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// "x=5:gosub <f's line>" - x differs from the default (x itself),
+	// so an explicit assignment is emitted before the gosub. Each
+	// line is prefixed with its own number, so this checks Contains,
+	// not HasPrefix.
+	want := "x = 5 : gosub "
+	if len(result.Code) == 0 || !strings.Contains(result.Code[len(result.Code)-1], want) {
+		t.Fatalf("Code = %v, want last line to contain %q", result.Code, want)
+	}
+}
+
+func TestPass2ExpandsAFunctionCallCapturingReturnValues(t *testing.T) {
+	result, err := runFake(t, "func .f(x=x)", "ret y", "a = .f(1)")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// "x=1:gosub <line>:a=y" - the call captured "y" (the function's
+	// internal return variable) into the caller's "a".
+	want := "x = 1 : gosub "
+	last := result.Code[len(result.Code)-1]
+	if !strings.Contains(last, want) || !strings.HasSuffix(last, ": a = y") {
+		t.Fatalf("Code = %v, want last line containing %q and ending in %q", result.Code, want, ": a = y")
+	}
+}
+
+func TestPass2SkipsARedundantSelfAssignmentInAFunctionCall(t *testing.T) {
+	result, err := runFake(t, "func .f(x=x)", "ret", ".f(x)")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// Calling .f(x) with the SAME text as the parameter's own name -
+	// compare_func_args finds them equal, so no "x=x" assignment is
+	// emitted at all, straight to "gosub".
+	last := result.Code[len(result.Code)-1]
+	if strings.Contains(last, "=") {
+		t.Fatalf("Code = %v, want no redundant self-assignment in %q", result.Code, last)
+	}
+	if !strings.Contains(last, "gosub ") {
+		t.Fatalf("Code = %v, want %q to contain \"gosub \"", result.Code, last)
+	}
+}
+
+func TestPass2LeavesAnOmittedTrailingParameterUntouched(t *testing.T) {
+	result, err := runFake(t, "func .f(x=x, y=y)", "ret", ".f(9)")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// Calling .f(9) gives only ONE value for a 2-parameter function -
+	// "y" is never reached at all (not even assigned its own default)
+	// since the call has no second comma-separated slot for it -
+	// mirrors replace_func_calls' zip() stopping at the shorter list.
+	last := result.Code[len(result.Code)-1]
+	if strings.Contains(last, "y") {
+		t.Fatalf("Code = %v, want the omitted trailing parameter \"y\" untouched in %q", result.Code, last)
+	}
+}
+
+func TestPass1AllowsRetWithNoReturnValues(t *testing.T) {
+	_, err := runFake(t, "func .f()", "ret", ".f()")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+}
+
+func TestPass2FailsCallingAnUndefinedFunction(t *testing.T) {
+	_, err := runFake(t, ".missing()")
+	if err == nil {
+		t.Fatal("expected a fatal error calling an undefined function, got none")
+	}
+}
+
+func TestPass1FailsOnRetWithoutFunc(t *testing.T) {
+	_, err := runFake(t, "ret")
+	if err == nil {
+		t.Fatal("expected a fatal error for ret without func, got none")
+	}
+}
+
+func TestPass1FailsOnANestedFunc(t *testing.T) {
+	_, err := runFake(t, "func .a()", "func .b()", "ret", "ret")
+	if err == nil {
+		t.Fatal("expected a fatal error for a func nested inside another, got none")
+	}
+}
+
+func TestPass1FailsWhenFuncIsNotAtTheStartOfALine(t *testing.T) {
+	_, err := runFake(t, "PRINT 1 func .f()")
+	if err == nil {
+		t.Fatal("expected a fatal error for FUNC not at the start of a line, got none")
+	}
+}
+
 func TestPipelineEndToEnd(t *testing.T) {
 	ctx := newFakeContext("PRINT 1 IGNORE foo", []string{"fake.dmx"})
 	platform := Platform{
@@ -379,7 +485,8 @@ func TestPipelineEndToEnd(t *testing.T) {
 func TestParseSkipsPass4And5ForIncludedFiles(t *testing.T) {
 	var pass4Calls, pass5Calls int
 	platform := Platform{
-		Parser: fakeParser{pass4Calls: &pass4Calls, pass5Calls: &pass5Calls},
+		Description: fakeDescription{},
+		Parser:      fakeParser{pass4Calls: &pass4Calls, pass5Calls: &pass5Calls},
 	}
 	tokens := []Token{{Kind: KindEOF}}
 

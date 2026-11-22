@@ -120,6 +120,23 @@ const (
 	// since every occurrence is always substituted away when a call
 	// (`[var0]` or `[var0](&h20)`) expands.
 	KindDefinePlaceholder TokenKind = "DEFINE_PLACEHOLDER"
+	// KindFunctionName is `.name` (D_FUNCNM in badig_dignified.py - a
+	// dot followed by an identifier, case-insensitive) - shared
+	// Dignified vocabulary, not platform-specific, confirmed in
+	// badig/examples/msx/CGK173.dmx (`.move_cursor_files`,
+	// `.show_content`, etc.). Marks both a FUNC declaration's own name
+	// and every call site.
+	KindFunctionName TokenKind = "FUNCTION_NAME"
+	// KindFunctionDefinition is a FUNC declaration (D_FUNCDF in
+	// badig.py), emitted once its matching RET is processed - resolved
+	// exactly like KindLabelDeclaration but against a separate
+	// function-name map (core Pass 4, pass4Numbering).
+	KindFunctionDefinition TokenKind = "FUNCTION_DEFINITION"
+	// KindFunctionCall is a function call's GOSUB target placeholder
+	// (D_FUNCAL in badig.py), part of a call's expansion - resolved
+	// exactly like KindLabelJump but against the function-name map,
+	// not the label map.
+	KindFunctionCall TokenKind = "FUNCTION_CALL"
 	// KindUnknown is a single raw character core.Lex could not
 	// classify by any means (not the platform's, not an identifier,
 	// not a quoted string) - mirrors the original engine's "character

@@ -312,6 +312,33 @@ func TestEndToEndDefineLabelAndVariableRenamingCoexist(t *testing.T) {
 	}
 }
 
+// TestEndToEndFuncRetAndVariableRenamingCoexist confirms a FUNC's
+// parameter/default (just an ordinary identifier at Pass 1 time, when
+// FUNC/RET are parsed) still gets renamed like any other long
+// variable once Pass 3/4 run afterward - both in the function's own
+// body AND in the assignment a call site's expansion inserts.
+func TestEndToEndFuncRetAndVariableRenamingCoexist(t *testing.T) {
+	ctx, platform := contextPlatform(t,
+		"func .f(longvar=longvar)",
+		"print longvar",
+		"ret",
+		".f(5)",
+	)
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10", "20 print zz", "30 return", "40 zz = 5 : gosub 10"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
 func TestParseFailsUsingTildeOnAnAlreadyShortName(t *testing.T) {
 	_, err := core.Run(contextPlatform(t, "print ~ab"))
 	if err == nil {

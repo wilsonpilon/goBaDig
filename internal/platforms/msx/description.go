@@ -106,6 +106,31 @@ func (description) StatementSeparator() string { return ":" }
 // LoopBackInstruction mirrors c_loop_back (badig_msx.py:162).
 func (description) LoopBackInstruction() string { return "goto" }
 
+// CommentChar mirrors c_altrem (badig_msx.py:118).
+func (description) CommentChar() string { return "'" }
+
+// AssignmentOperator mirrors c_equal (badig_msx.py:159).
+func (description) AssignmentOperator() string { return "=" }
+
+// FunctionCallInstruction mirrors c_func_call (badig_msx.py:165).
+func (description) FunctionCallInstruction() string { return "gosub" }
+
+// FunctionReturnInstruction mirrors c_func_ret (badig_msx.py:167).
+func (description) FunctionReturnInstruction() string { return "return" }
+
+// FunctionCallBoundaryWords mirrors c_func_stop_kw (badig_msx.py:169:
+// "c_instrc + c_jumpin + c_funcdl + c_funcnm" - MSX's own instruction/
+// jump/dollar-function/plain-function vocabulary, already assembled
+// as package vars above).
+func (description) FunctionCallBoundaryWords() []string {
+	words := make([]string, 0, len(instructions)+len(jumpKeywords)+len(functionsDollar)+len(functionsPlain))
+	words = append(words, instructions...)
+	words = append(words, jumpKeywords...)
+	words = append(words, functionsDollar...)
+	words = append(words, functionsPlain...)
+	return words
+}
+
 // Variable allocation constants, confirmed reading process_variable
 // (badig_msx.py:516-558) in a previous session and process_variable's
 // surrounding Description fields (badig_msx.py:133-150) directly this

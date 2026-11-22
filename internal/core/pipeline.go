@@ -42,13 +42,24 @@ var dignifiedOperators = map[string]bool{"TRUE": true, "FALSE": true}
 
 // dignifiedInstructions are badig_dignified.py's d_instrc: 8 shared
 // Dignified instruction words, matched the same way as
-// dignifiedOperators. Only EXIT has a Parser acting on it so far
-// (core Pass 2, loop labels); the rest are recognized but unused
-// until DEFINE/DECLARE/INCLUDE/KEEP/FUNC/RET exist.
+// dignifiedOperators. Only EXIT/DEFINE/FUNC/RET have a Parser acting
+// on them so far; DECLARE/INCLUDE/KEEP/ENDIF are recognized but
+// unused still.
 var dignifiedInstructions = map[string]bool{
 	"DEFINE": true, "DECLARE": true, "INCLUDE": true, "KEEP": true,
 	"ENDIF": true, "FUNC": true, "RET": true, "EXIT": true,
 }
+
+// functionNamePattern is badig_dignified.py's d_funcnm (`^\.{d_idnocaps}$`,
+// also compiled under re.I - ver identifierPattern's own doc comment
+// for why that matters): a `.` followed by a letter-starting word -
+// shared Dignified vocabulary (a FUNC's own declared name, or a call
+// to it), not platform-specific. Confirmed used in
+// badig/examples/msx/CGK173.dmx (".move_cursor_files", ".show_content",
+// etc.). Doesn't collide with a leading-dot decimal number (e.g.
+// ".5") - the platform's own Lexer.Lex already claims that first,
+// since numbers are platform vocabulary and get first refusal.
+var functionNamePattern = regexp.MustCompile(`(?i)^\.[a-z][a-z_0-9]*`)
 
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
 // token first, then one token per recognized item plus a NEWLINE per
@@ -136,6 +147,14 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 				tokens = append(tokens, pin(Token{Kind: KindDignifiedInstruction, Value: word}))
 				pos += len(word)
 				col += len(word)
+				continue
+			}
+
+			if name := functionNamePattern.FindString(remaining); name != "" {
+				tokens = append(tokens, pin(Token{Kind: KindFunctionName, Value: name}))
+				n := len([]rune(name))
+				pos += n
+				col += n
 				continue
 			}
 
@@ -245,6 +264,97 @@ func runPass(ctx *CompileContext, tokens []Token, pass passFunc) ([]Token, error
 	return out, nil
 }
 
+// readParenArgs parses a comma-separated, paren-delimited argument
+// list starting at *i (which must point at `(`) - mirrors
+// get_func_args (badig.py:1149-1193), used both by a FUNC's own
+// signature (badig.py's get_func_def) and by a call site's arguments
+// (replace_func_calls) - the original shares one function for both,
+// so this does too, as a package-level helper rather than a closure
+// private to one pass. Nested parens are tracked (depth) so a
+// sub-expression's own `(...)` doesn't prematurely end the outer
+// list; `(` / `,` / `)` are matched by VALUE, not Kind, same pragmatic
+// simplification already used for DEFINE's call-argument parens
+// (ver pass1Dignified) - every classic dialect uses these same
+// characters regardless of what Kind its own Lexer gives them. An
+// empty `()` returns (nil, nil), matching get_func_args' own
+// `return []` for that case.
+func readParenArgs(tokens []Token, i *int) ([][]Token, error) {
+	if *i >= len(tokens) || tokens[*i].Value != "(" {
+		pos := Position{}
+		if *i < len(tokens) {
+			pos = tokens[*i].Pos
+		}
+		return nil, Diagnostic{Severity: SeverityError, Message: `missing "("`, Pos: &pos}
+	}
+	open := tokens[*i]
+	*i++
+	if *i < len(tokens) && tokens[*i].Value == ")" {
+		*i++
+		return nil, nil
+	}
+
+	var args [][]Token
+	var cur []Token
+	depth := 1
+	for {
+		if *i >= len(tokens) || tokens[*i].Kind == KindNewline {
+			return nil, Diagnostic{Severity: SeverityError, Message: `unbalanced "("`, Pos: &open.Pos}
+		}
+		tok := tokens[*i]
+		switch {
+		case tok.Value == "(":
+			depth++
+			cur = append(cur, tok)
+			*i++
+		case tok.Value == "," && depth == 1:
+			args = append(args, cur)
+			cur = nil
+			*i++
+		case tok.Value == ")":
+			depth--
+			*i++
+			if depth == 0 {
+				args = append(args, cur)
+				return args, nil
+			}
+			cur = append(cur, tok)
+		default:
+			cur = append(cur, tok)
+			*i++
+		}
+	}
+}
+
+// tokenTextEqual mirrors compare_func_args (badig.py:1139-1147): joins
+// each slice's token values with a space and compares the text -
+// used to skip a redundant `param = param` self-assignment when a
+// function call's given argument (or captured return variable) is
+// already exactly what the parameter/return name itself is.
+func tokenTextEqual(a, b []Token) bool {
+	text := func(toks []Token) string {
+		parts := make([]string, len(toks))
+		for i, t := range toks {
+			parts[i] = t.String()
+		}
+		return strings.Join(parts, " ")
+	}
+	return text(a) == text(b)
+}
+
+// functionEntry is one FUNC's registered signature (badig.py's
+// func_def namedtuple: args/rets/equl) - populated only once its
+// matching RET is processed (badig.py's get_func_ret), never by FUNC
+// alone. args/equl pair up positionally (one entry per declared
+// parameter: args[n] is just the parameter's own name token, equl[n]
+// is its default-value expression, empty if the parameter has none).
+// rets is one entry per RET variable (each the function's own
+// internal variable that holds that return value).
+type functionEntry struct {
+	args [][]Token
+	equl [][]Token
+	rets [][]Token
+}
+
 // defineEntry is one DEFINE's stored content (badig.py's def_grp
 // namedtuple: repl/varv) - content may contain a KindDefinePlaceholder
 // marker (at most one DISTINCT value, though the marker can repeat;
@@ -258,36 +368,166 @@ type defineEntry struct {
 	defaultVar []Token
 }
 
-// pass1Defines replaces the generic runPass(platform.Parser.Pass1)
-// call in Parse with DEFINE declarations/calls (badig.py:596-745:
-// get_defines/get_defined_content/replace_define) before ever falling
-// through to platform.Parser.Pass1 for every other token - DEFINE is
-// shared Dignified vocabulary (badig_dignified.py), not MSX-specific.
+// pass1Dignified replaces the generic runPass(platform.Parser.Pass1)
+// call in Parse with every Pass-1-level Dignified instruction that's
+// implemented so far: DEFINE declarations/calls (badig.py:596-745:
+// get_defines/get_defined_content/replace_define) and FUNC/RET
+// declarations (badig.py:947-1031: get_func_def/get_func_ret) -
+// before ever falling through to platform.Parser.Pass1 for every
+// other token. All of it is shared Dignified vocabulary
+// (badig_dignified.py), not MSX-specific. Named "Dignified", not
+// "Defines", because it now covers more than DEFINE (ver OUTLINE.md).
+//
+// Function CALLS are a separate concern (badig.py's own
+// replace_func_calls runs from pass_2, not pass_1 - ver
+// pass2Functions below); this only registers a FUNC's signature once
+// its matching RET is seen, into the functions map it returns, so
+// pass2Functions can resolve calls against it (a call may legally
+// appear, in the source, before its function's own declaration -
+// pass_1 runs to completion before pass_2 ever starts, so by the time
+// any call is resolved every function in the whole file is already
+// registered).
 //
 // Unlike every other pass (even the bespoke pass2Labels/
 // pass4Numbering, which still delegate their per-token work to
 // runPass), this can't be expressed as "classify the token at index
 // i, maybe peeking at a few fixed neighbors" at all: a DEFINE's
-// content and a call's argument are arbitrary-length, recursively
-// bracket-balanced constructs (a call's argument can itself be
-// ANOTHER call, nested arbitrarily - confirmed in
-// badig/examples/msx/CGK173.dmx, e.g. nested [name](args) chains).
+// content and a call's argument, and a FUNC's own parameter list, are
+// arbitrary-length, recursively bracket-balanced constructs (a call's
+// argument can itself be ANOTHER call, nested arbitrarily - confirmed
+// in badig/examples/msx/CGK173.dmx, e.g. nested [name](args) chains).
 // So this walks the input with its own explicit cursor instead,
 // mirroring the original's own recursive-descent helpers
 // (next_tok/prev_tok et al, badig.py:566-594) directly - and because
 // it builds its output slice by hand, it has TRUE output-lookback
 // (unlike the runPass-driven passes' input-based approximation): "is
-// DEFINE at the start of a line" is answered by checking out's own
-// last entry, exactly like the original's last_tok().
-func pass1Defines(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
+// DEFINE/FUNC/RET at the start of a line" is answered by checking
+// out's own last entry, exactly like the original's last_tok().
+func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, map[string]functionEntry, error) {
 	defines := map[string]defineEntry{}
+	functions := map[string]functionEntry{}
 	var out []Token
 	i := 0
+
+	// inFunc/pendingFuncName/pendingArgs/pendingEqul carry a FUNC
+	// declaration's signature across to its matching RET (badig.py's
+	// self.in_func/self.func_def_args/self.func_def_equl) - RET is
+	// what actually registers into functions, not FUNC itself.
+	var inFunc *Token
+	var pendingFuncName string
+	var pendingArgs, pendingEqul [][]Token
 
 	isOpenBracket := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "[" }
 	isCloseBracket := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "]" }
 	atOutputLineStart := func() bool {
 		return len(out) == 0 || out[len(out)-1].Kind == KindNewline || out[len(out)-1].Kind == KindProgram
+	}
+
+	// readFuncDef reads a FUNC declaration's name and parenthesized
+	// signature at i (mirrors get_func_def, badig.py:947-994) -
+	// "FUNC" itself has already been consumed. Each parameter is
+	// `name[=default]`; no `=` means no default at all. Appends the
+	// KindFunctionDefinition marker to out itself (the original
+	// falls through to its own "append self.tk" after get_func_def
+	// returns - there's no equivalent "fall through" here, so this
+	// does it directly).
+	readFuncDef := func() error {
+		if inFunc != nil {
+			return Diagnostic{Severity: SeverityError, Message: "already inside a function", Pos: &inFunc.Pos}
+		}
+		if i >= len(tokens) || tokens[i].Kind != KindFunctionName {
+			pos := Position{}
+			if i < len(tokens) {
+				pos = tokens[i].Pos
+			}
+			return Diagnostic{Severity: SeverityError, Message: "invalid function name", Pos: &pos}
+		}
+		funcTok := tokens[i]
+		i++
+		name := strings.ToLower(funcTok.String())
+		if _, dup := functions[name]; dup {
+			return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function name duplicated: %s", funcTok.String()), Pos: &funcTok.Pos}
+		}
+
+		rawArgs, err := readParenArgs(tokens, &i)
+		if err != nil {
+			return err
+		}
+		var defArgs, defEqul [][]Token
+		for _, group := range rawArgs {
+			if len(group) == 0 {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function definition missing argument: %s", funcTok.String()), Pos: &funcTok.Pos}
+			}
+			if group[0].Kind != KindIdentifier {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function definition only takes variables: %s", group[0].String()), Pos: &group[0].Pos}
+			}
+			var equl []Token
+			if len(group) > 1 {
+				if group[1].Value != "=" {
+					return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function definition only takes one variable: %s", group[1].String()), Pos: &group[1].Pos}
+				}
+				equl = group[2:]
+			}
+			defArgs = append(defArgs, []Token{group[0]})
+			defEqul = append(defEqul, equl)
+		}
+
+		inFunc = &funcTok
+		pendingFuncName = name
+		pendingArgs, pendingEqul = defArgs, defEqul
+		out = append(out, Token{Kind: KindFunctionDefinition, Value: name, Pos: funcTok.Pos})
+		return nil
+	}
+
+	// readFuncRet reads RET's own optional comma-separated return
+	// variable list at i (mirrors get_func_ret, badig.py:996-1031) -
+	// "RET" itself (retTok) has already been consumed. Registers the
+	// function's full signature into functions (only now, not at
+	// FUNC time) and appends a synthetic "return" token (never a
+	// KindFunctionDefinition/etc. - RET itself needs no resolution,
+	// only FUNC's own name does).
+	readFuncRet := func(retTok Token) error {
+		if inFunc == nil {
+			return Diagnostic{Severity: SeverityError, Message: "ret without function", Pos: &retTok.Pos}
+		}
+		sep := platform.Description.StatementSeparator()
+		com := platform.Description.CommentChar()
+		isBoundary := func(tok Token) bool {
+			return tok.Kind == KindNewline || tok.Value == sep || strings.HasPrefix(tok.String(), com)
+		}
+
+		var retList [][]Token
+		if i < len(tokens) && !isBoundary(tokens[i]) {
+			var cur []Token
+			for {
+				if i >= len(tokens) {
+					return Diagnostic{Severity: SeverityError, Message: "function return missing variable", Pos: &retTok.Pos}
+				}
+				tok := tokens[i]
+				if tok.Value == "," {
+					retList = append(retList, cur)
+					cur = nil
+					i++
+					continue
+				}
+				if isBoundary(tok) {
+					retList = append(retList, cur)
+					break // leave the boundary token for the caller
+				}
+				cur = append(cur, tok)
+				i++
+			}
+		}
+		for _, r := range retList {
+			if len(r) == 0 {
+				return Diagnostic{Severity: SeverityError, Message: "function return missing variable", Pos: &retTok.Pos}
+			}
+		}
+
+		functions[pendingFuncName] = functionEntry{args: pendingArgs, equl: pendingEqul, rets: retList}
+		inFunc = nil
+		out = append(out, Token{Kind: KindSynthetic, Value: platform.Description.FunctionReturnInstruction(), Pos: retTok.Pos})
+		return nil
 	}
 
 	// readBracketName reads `[name]` at i (mirrors get_in_bracket,
@@ -502,21 +742,37 @@ func pass1Defines(ctx *CompileContext, tokens []Token, platform Platform) ([]Tok
 	for i < len(tokens) {
 		tok := tokens[i]
 
-		if tok.Kind == KindDignifiedInstruction && strings.EqualFold(tok.String(), "DEFINE") {
-			if !atOutputLineStart() {
-				return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("%s must be at the start of a line", tok.String()), Pos: &tok.Pos}
+		if tok.Kind == KindDignifiedInstruction {
+			upper := strings.ToUpper(tok.String())
+			if (upper == "DEFINE" || upper == "FUNC" || upper == "RET") && !atOutputLineStart() {
+				return nil, nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("%s must be at the start of a line", tok.String()), Pos: &tok.Pos}
 			}
-			i++
-			if err := readDefines(); err != nil {
-				return nil, err
+			switch upper {
+			case "DEFINE":
+				i++
+				if err := readDefines(); err != nil {
+					return nil, nil, err
+				}
+				continue
+			case "FUNC":
+				i++
+				if err := readFuncDef(); err != nil {
+					return nil, nil, err
+				}
+				continue
+			case "RET":
+				i++
+				if err := readFuncRet(tok); err != nil {
+					return nil, nil, err
+				}
+				continue
 			}
-			continue
 		}
 
 		if isOpenBracket(tok) {
 			expanded, err := expandDefineCall()
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			out = append(out, expanded...)
 			continue
@@ -524,7 +780,7 @@ func pass1Defines(ctx *CompileContext, tokens []Token, platform Platform) ([]Tok
 
 		action, result, err := platform.Parser.Pass1(ctx, tokens, i)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		switch action {
 		case Skip:
@@ -536,7 +792,183 @@ func pass1Defines(ctx *CompileContext, tokens []Token, platform Platform) ([]Tok
 		i++
 	}
 
+	if inFunc != nil {
+		return nil, nil, Diagnostic{Severity: SeverityError, Message: "func without ret", Pos: &inFunc.Pos}
+	}
+
+	return out, functions, nil
+}
+
+// pass2Functions expands every Dignified function call (badig.py's
+// replace_func_calls, 1033-1137) against the functions map
+// pass1Dignified registered. In the original this runs as the first
+// branch of pass_2's own dispatch (`if self.tk.tok == "D_FUNCNM":`);
+// here it's its own pass, running before pass2Labels, because it
+// needs the same kind of cursor-based, build-output-by-hand approach
+// pass1Dignified does - not for forward-scanning a variable-length
+// construct this time, but for a variable-length BACKWARD scan: a
+// call that captures return values (`a, b = .name()`) is written
+// with the receiving variables and `=` BEFORE the call, already
+// emitted to out by the time the call itself is reached, and has to
+// be POPPED back off (badig.py's own tok_list_out.pop() loop) to
+// recover them - not expressible as "decide this call's own
+// HookAction" any more than pass1Dignified's forward constructs were.
+//
+// Deliberate simplification, documented: this never calls
+// platform.Parser.Pass2 itself (pass2Labels, right after it in
+// Parse, is left as the one place that still does, unchanged) -
+// splitting what was one interleaved original pass into two
+// sequential Go ones means a call's expanded tokens get one extra,
+// harmless pass through Pass2's hook that the original never gave
+// them (today a no-op for MSX either way).
+func pass2Functions(ctx *CompileContext, tokens []Token, functions map[string]functionEntry, platform Platform) ([]Token, error) {
+	var out []Token
+	i := 0
+
+	sep := platform.Description.StatementSeparator()
+	eq := platform.Description.AssignmentOperator()
+	boundaryWords := platform.Description.FunctionCallBoundaryWords()
+	isBoundaryWord := func(tok Token) bool {
+		upper := strings.ToUpper(tok.String())
+		for _, w := range boundaryWords {
+			if upper == w {
+				return true
+			}
+		}
+		return false
+	}
+
+	for i < len(tokens) {
+		tok := tokens[i]
+
+		if tok.Kind != KindFunctionName {
+			out = append(out, tok)
+			i++
+			continue
+		}
+
+		funcTok := tok
+		name := strings.ToLower(funcTok.String())
+		def, ok := functions[name]
+		if !ok {
+			return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function not defined: %s", funcTok.String()), Pos: &funcTok.Pos}
+		}
+		i++
+
+		// Does this call capture return values ("a, b = .name()")?
+		// Scan BACKWARD through out, popping tokens, collecting the
+		// comma-separated receiving-variable groups - mirrors
+		// replace_func_calls' own tok_list_out.pop() loop exactly.
+		var callVars [][]Token
+		if len(out) > 0 && out[len(out)-1].Value == eq {
+			out = out[:len(out)-1] // pop the "="
+			var group []Token
+			for {
+				if len(out) == 0 {
+					return nil, Diagnostic{Severity: SeverityError, Message: "function call missing receiving variable", Pos: &funcTok.Pos}
+				}
+				last := out[len(out)-1]
+				if last.Value == "," {
+					out = out[:len(out)-1]
+					callVars = append(callVars, reverseTokens(group))
+					group = nil
+					continue
+				}
+				if last.Kind == KindNewline || last.Value == sep || isBoundaryWord(last) {
+					callVars = append(callVars, reverseTokens(group))
+					break // leave the boundary token where it is
+				}
+				out = out[:len(out)-1]
+				group = append(group, last)
+			}
+			reverseGroups(callVars)
+		}
+		for _, v := range callVars {
+			if len(v) == 0 {
+				continue
+			}
+			if v[0].Kind != KindIdentifier {
+				return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function definition only takes variables: %s", v[0].String()), Pos: &v[0].Pos}
+			}
+			if len(v) > 1 {
+				return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("function definition only takes one variable: %s", v[1].String()), Pos: &v[1].Pos}
+			}
+		}
+
+		callArgs, err := readParenArgs(tokens, &i)
+		if err != nil {
+			return nil, err
+		}
+		if len(callArgs) > len(def.args) {
+			return nil, Diagnostic{Severity: SeverityError, Message: "function arguments mismatch", Pos: &funcTok.Pos}
+		}
+		if len(callVars) > len(def.rets) {
+			return nil, Diagnostic{Severity: SeverityError, Message: "function variable mismatch", Pos: &funcTok.Pos}
+		}
+		if len(callArgs) == 0 {
+			callArgs = [][]Token{{}}
+		}
+
+		var expanded []Token
+		for idx := 0; idx < len(def.args) && idx < len(callArgs) && idx < len(def.equl); idx++ {
+			d, c, e := def.args[idx], callArgs[idx], def.equl[idx]
+			if tokenTextEqual(d, c) {
+				continue
+			}
+			if len(c) > 0 {
+				expanded = append(expanded, d[0])
+				expanded = append(expanded, Token{Kind: KindSynthetic, Value: eq, Pos: funcTok.Pos})
+				expanded = append(expanded, c...)
+				expanded = append(expanded, Token{Kind: KindSynthetic, Value: sep, Pos: funcTok.Pos})
+			} else if len(e) > 0 {
+				expanded = append(expanded, d[0])
+				expanded = append(expanded, Token{Kind: KindSynthetic, Value: eq, Pos: funcTok.Pos})
+				expanded = append(expanded, e...)
+				expanded = append(expanded, Token{Kind: KindSynthetic, Value: sep, Pos: funcTok.Pos})
+			}
+		}
+
+		expanded = append(expanded,
+			Token{Kind: KindSynthetic, Value: platform.Description.FunctionCallInstruction(), Pos: funcTok.Pos},
+			Token{Kind: KindFunctionCall, Value: name, Pos: funcTok.Pos},
+		)
+
+		for idx := 0; idx < len(callVars) && idx < len(def.rets); idx++ {
+			c, d := callVars[idx], def.rets[idx]
+			if tokenTextEqual(d, c) || len(c) == 0 {
+				continue
+			}
+			expanded = append(expanded, Token{Kind: KindSynthetic, Value: sep, Pos: funcTok.Pos})
+			expanded = append(expanded, c[0])
+			expanded = append(expanded, Token{Kind: KindSynthetic, Value: eq, Pos: funcTok.Pos})
+			expanded = append(expanded, d...)
+		}
+
+		out = append(out, expanded...)
+	}
+
 	return out, nil
+}
+
+// reverseTokens returns toks reversed (a fresh slice) - used to undo
+// the backward-to-forward order a backward scan naturally collects
+// tokens in.
+func reverseTokens(toks []Token) []Token {
+	out := make([]Token, len(toks))
+	for i, t := range toks {
+		out[len(toks)-1-i] = t
+	}
+	return out
+}
+
+// reverseGroups reverses groups in place - mirrors
+// replace_func_calls' `cal_vars = cal_vars[::-1]`: groups are found
+// innermost-first by the backward scan, so the overall list needs
+// reversing too, not just each group's own tokens.
+func reverseGroups(groups [][]Token) {
+	for i, j := 0, len(groups)-1; i < j; i, j = i+1, j-1 {
+		groups[i], groups[j] = groups[j], groups[i]
+	}
 }
 
 // pass2Labels wraps platform.Parser.Pass2 with the core-level
@@ -734,6 +1166,7 @@ func pass3LineHygiene(platform Platform) passFunc {
 func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
 	labelLines := map[string]int{}
 	loopReturnLines := map[string]int{} // D_LBLRET's name+file -> line right after it, for a matching KindLoopExit
+	funcDefLines := map[string]int{}    // D_FUNCDF's name+file -> its line - a SEPARATE namespace from labelLines, mirrors func_defs being its own dict in badig.py
 	var lineNumber int
 
 	forward := func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
@@ -770,6 +1203,20 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 			// land: the line right after this one.
 			name, _ := tok.Value.(string)
 			loopReturnLines[name+tok.Pos.File()] = lineNumber + ctx.Settings.LineStep
+			return Continue, nil, nil
+
+		case KindFunctionDefinition:
+			// Resolves/removed exactly like KindLabelDeclaration, but
+			// into its own namespace (func_defs is a separate dict
+			// from label_lines in badig.py too).
+			name, _ := tok.Value.(string)
+			funcDefLines[name+tok.Pos.File()] = lineNumber
+			return Skip, nil, nil
+
+		case KindFunctionCall:
+			// Resolved in the second pass below, same reasoning as
+			// KindLabelJump (no `{@}`-style inline case exists for
+			// function calls).
 			return Continue, nil, nil
 
 		case KindNewline:
@@ -825,6 +1272,18 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 				}
 			}
 			tokens[i].Value = line
+
+		case KindFunctionCall:
+			name, _ := tokens[i].Value.(string)
+			line, ok := funcDefLines[name+tokens[i].Pos.File()]
+			if !ok {
+				return nil, Diagnostic{
+					Severity: SeverityError,
+					Message:  fmt.Sprintf("function not defined: %s", name),
+					Pos:      &tokens[i].Pos,
+				}
+			}
+			tokens[i].Value = line
 		}
 	}
 
@@ -835,14 +1294,20 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 // Lex), gating passes 4 and 5 to the main file only - mirrors par()'s
 // `pass_1(); pass_2(); pass_3(); if is_main_file(): pass_4(); pass_5()`
 // in the original engine. Pass 1/2/3/4 wrap the platform's own hook
-// with core-level Dignified work (DEFINE, labels, line hygiene,
-// numbering - ver pass1Defines/pass2Labels/pass3LineHygiene/
-// pass4Numbering) exactly the way the original's own pass_1/pass_2/
-// pass_3/pass_4 do before ever calling self.clc.passN(). INCLUDE
+// with core-level Dignified work (DEFINE, FUNC/RET, function calls,
+// labels, line hygiene, numbering - ver pass1Dignified/pass2Functions/
+// pass2Labels/pass3LineHygiene/pass4Numbering) exactly the way the
+// original's own pass_1/pass_2/pass_3/pass_4 do before ever calling
+// self.clc.passN() (pass2Functions is the one exception that never
+// calls it at all - ver its own doc comment for why). INCLUDE
 // expansion (which happens inside pass 3 in the original engine) is
 // not implemented yet (ver OUTLINE.md, Bloco 1, Fase 3).
 func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
-	tokens, err := pass1Defines(ctx, tokens, platform)
+	tokens, functions, err := pass1Dignified(ctx, tokens, platform)
+	if err != nil {
+		return nil, err
+	}
+	tokens, err = pass2Functions(ctx, tokens, functions, platform)
 	if err != nil {
 		return nil, err
 	}
