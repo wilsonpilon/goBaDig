@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.12.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.13.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -22,35 +22,39 @@ Classic), **resolução de labels/numeração de linha, incluindo loop
 labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX),
 **`DEFINE`** (macro de texto com placeholder/valor padrão/chamadas
 aninhadas, também core-level), **`FUNC`/`RET`** (função Dignified →
-`GOSUB` + troca de variáveis, idem core-level), e **`DECLARE`**
-(reserva manual de alias de variável, idem core-level) — a
+`GOSUB` + troca de variáveis, idem core-level), **`DECLARE`**
+(reserva manual de alias de variável, idem core-level), e **`KEEP`**
+(compilação condicional via tags `#tag`, idem core-level) — a
 **primeira conversão Dignified→Classic de verdade já produzindo
-texto correto, incluindo `GOTO`/label, laço fechado, macro, função e
-alias manual reais** (`counter=0` → `zz = 0`, `goto {dest}` →
-`goto 20`, `keys{ }` → `GOTO` implícito de volta, `[nome](arg)` →
-texto expandido, `.func(5)` → `param = 5 : gosub <linha>`,
-`declare x:ab` → `x` sempre vira `ab`), confirmada em testes de ponta
-a ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra um
-exemplo real completo apontado pelo usuário
-(`badig/examples/msx/CGK173.dmx`). Oito desvios reais nas interfaces
-"v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
-todos documentados no Bloco 1 abaixo — a resolução de labels foi
-também a primeira vez que o `core` passou a fazer trabalho Dignified
-de verdade antes de delegar pra plataforma, não só documentar a
-intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
-explícito em vez do modelo `passFunc`/`runPass`; `FUNC`/`RET` foi a
-primeira vez que uma pass inteira nova (`pass2Functions`) precisou
-existir fora do molde de "envolve o hook da plataforma"; `DECLARE`
-foi a primeira vez que um recurso novo não precisou tocar em
-`msx/parser.go` NENHUM pouco (escreve direto nas tabelas que o
-Pass 3/4 já consulta). Também corrigido nesta janela:
-`identifierPattern` (compartilhado) era restrito a ASCII minúsculo —
-bug real, latente desde as rodadas de variável/label, que cortava
-nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1 do
-`Parser` (separador de chamada Dignified `_` fora do fim de linha,
-rendering ainda não entendido), `INCLUDE`/`KEEP`, `generate()` de
-verdade (espaçamento por palavra reservada, limite de linha), e
-ligar tudo isso ao tokenizer
+texto correto, incluindo `GOTO`/label, laço fechado, macro, função,
+alias manual e tag condicional reais** (`counter=0` → `zz = 0`,
+`goto {dest}` → `goto 20`, `keys{ }` → `GOTO` implícito de volta,
+`[nome](arg)` → texto expandido, `.func(5)` → `param = 5 : gosub
+<linha>`, `declare x:ab` → `x` sempre vira `ab`, bloco `#a...#a` some
+por padrão a menos que `keep #a`/`keep #all` seja declarado),
+confirmada em testes de ponta a ponta completos
+(`Lex`→`Parse`→`Generate`), e cruzada contra um exemplo real completo
+apontado pelo usuário (`badig/examples/msx/CGK173.dmx`). Nove desvios
+reais nas interfaces "v0" do Bloco 1 descobertos implementando contra
+o MSX de verdade, todos documentados no Bloco 1 abaixo — a resolução
+de labels foi também a primeira vez que o `core` passou a fazer
+trabalho Dignified de verdade antes de delegar pra plataforma, não só
+documentar a intenção; `DEFINE` foi a primeira vez que isso precisou
+de um cursor explícito em vez do modelo `passFunc`/`runPass`;
+`FUNC`/`RET` foi a primeira vez que uma pass inteira nova
+(`pass2Functions`) precisou existir fora do molde de "envolve o hook
+da plataforma"; `DECLARE` foi a primeira vez que um recurso novo não
+precisou tocar em `msx/parser.go` NENHUM pouco (escreve direto nas
+tabelas que o Pass 3/4 já consulta); `KEEP` foi a primeira vez que um
+recurso novo precisou de uma mudança FORA do `core`, no `Lexer` da
+própria plataforma (conflito lexical real: `#` já é símbolo do MSX).
+Também corrigido nesta janela: `identifierPattern` (compartilhado)
+era restrito a ASCII minúsculo — bug real, latente desde as rodadas
+de variável/label, que cortava nomes camelCase/mixedCase (`v1.9.1`).
+**Ainda falta**: Pass 1 do `Parser` (separador de chamada Dignified
+`_` fora do fim de linha, rendering ainda não entendido), `INCLUDE`,
+`generate()` de verdade (espaçamento por palavra reservada, limite de
+linha), e ligar tudo isso ao tokenizer
 já pronto pra fechar o caminho completo até o binário. Ver Blocos 1-4
 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
@@ -1171,6 +1175,62 @@ verdade) + 1 de ponta a ponta no MSX confirmando que o Pass 3/4 JÁ
 EXISTENTE respeita o que `DECLARE` escreveu, sem precisar mudar nada
 nele.
 
+**`KEEP` implementado** (2026-11-22, `internal/core/pipeline.go` +
+`internal/platforms/msx/lexer.go`): fiel a `get_keeps`
+(`badig.py:1196-1211`) e `toggle_lines` (`badig.py:1213-1240`), lidos
+linha a linha. Compilação condicional via tags `#tag` (`D_TGLREM` no
+original) — usada de verdade no `CGK173.dmx` (`keep #none` no topo,
+blocos `#a...#a`/`#b...#b` envolvendo 2 sub-rotinas utilitárias
+opcionais).
+
+**Achado — conflito real de léxico**: `#` já é símbolo de 1 caractere
+do MSX (`PRINT #1`/`OPEN...AS #1`, confirmado no próprio
+`CGK173.dmx`), e o `Lexer.Lex` do MSX reclamava ele incondicionalmente
+ANTES de qualquer fallback do `core` rodar. Resolvido com lookahead
+cirúrgico no loop de símbolos do MSX: `#` seguido de LETRA é recusado
+ali (`ok=false`), deixando o novo fallback do `core.Lex()`
+(`toggleRemPattern`, novo `core.KindToggleRem`) reconhecer a tag
+inteira; `#` seguido de dígito (ou qualquer outra coisa) continua
+símbolo normal. Primeira vez que um recurso novo precisou de uma
+mudança FORA de `internal/core`, no `Lexer` da própria plataforma —
+mas é inerente ao recurso (a ambiguidade é lexical, não de parsing),
+não quebra o desenho estabelecido.
+
+**Achado — duas coisas despachadas pelo mesmo tipo de token, em
+pontos diferentes**: a declaração `KEEP #tag1 #tag2 ...` (via
+`D_INSTRC`, mesma linha toda desaparecendo que `DEFINE`/`DECLARE`) só
+guarda as tags numa lista (`keeps`, variável local fechada em
+`pass1Dignified` — nunca precisa escapar da função, já que só
+`readToggle` a lê, e só dentro do mesmo Pass 1). A alternância em si
+(`#tag` sozinho, em qualquer início de linha fora de uma declaração
+`KEEP`) é despachada ANTES do `D_INSTRC` no original — sem overlap de
+verdade, já que `get_keeps`/`readKeeps` consome os `#tag` argumentos
+direto, nunca devolvendo controle pro despacho externo no meio do
+caminho. Decide manter (`tag` ou `#ALL` em `keeps` E `#NONE` não) ou
+remover; **sem `KEEP` nenhum declarado, todo bloco com tag é removido
+por padrão** (álgebra booleana confirmada: `(false or false) and true
+= false` — extras opt-in). Duas formas: 1 linha (remove só aquela
+linha, incluindo seu próprio `NEWLINE`) e bloco (`#tag` sozinho na
+própria linha, remove da abertura — abertura+seu `NEWLINE` — até achar
+a MESMA tag sozinha depois — remove a tag de fechamento, mas **não**
+o `NEWLINE` depois dela, assimetria real confirmada rastreando a
+interação `continue`+`next_tok()` do original, não um erro de porte).
+Sem erro fatal se `#tag` aparecer fora do início de linha — atravessa
+como texto comum.
+
+**Correção deliberada, documentada**: `get_keeps` compara `keep.val
+in self.des.d_keeps` (case original) contra uma lista que só guarda
+`.uval` (sempre maiúsculo) — a checagem de tag duplicada quase nunca
+bate de verdade. Uso maiúsculo nos dois lados, mesmo espírito das
+correções já feitas (`c_varsna`, `AS` de 2 dígitos).
+
+1 `TokenKind` novo (`KindToggleRem`). 8 testes novos em `internal/core`
+(padrão/bloco mantidos ou removidos conforme `keeps`, `#ALL`, `#NONE`
+com override absoluto, erro fatal de bloco não fechado/tag
+inválida/tag duplicada) + 1 de ponta a ponta no MSX confirmando que
+`#` convive normal como símbolo de canal de arquivo ao lado de um
+bloco `#a...#a`.
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1386,8 +1446,14 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   atribui o alias manualmente, pulando o alocador. Ver Bloco 1 acima
   pro detalhamento (inclusive a correção do typo de `c_varsna`). 8
   testes novos + 1 de ponta a ponta. — **A**, **1**
-- [ ] `INCLUDE`/`KEEP` — cada um uma fatia própria, confirmados
-  existirem e serem usados de verdade no `CGK173.dmx`. — **A**, **1**
+- [x] **`KEEP` implementado** (2026-11-22, `internal/core/pipeline.go`
+  + `internal/platforms/msx/lexer.go`) — compilação condicional via
+  tags `#tag`. Ver Bloco 1 acima pro detalhamento (inclusive o
+  conflito real de léxico com `#` já ser símbolo do MSX, e a correção
+  do bug de comparação de duplicata). 8 testes novos em `core` + 1 de
+  ponta a ponta no MSX. — **A**, **1**
+- [ ] `INCLUDE` — fatia própria, confirmada existir e ser usada de
+  verdade no `CGK173.dmx`. — **A**, **1**
 - [ ] Inserção de header (2 linhas REM sintéticas,
   `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
   cosméticos, pequenos. — **B**, **2**

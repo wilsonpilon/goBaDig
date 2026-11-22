@@ -35,6 +35,31 @@ exata do pacote.
 
 ---
 
+## [1.13.0] — 2026-11-22 — bloco **NEW**, feature **keep** (build 0)
+
+**`KEEP`** — compilação condicional via tags `#tag`, usada no
+`CGK173.dmx` (`keep #none` no topo, blocos `#a...#a`/`#b...#b`).
+
+### Adicionado
+
+- `KEEP #tag1 #tag2 ...` declara quais tags ficam no código final;
+  sem `KEEP` nenhum, todo bloco com tag é removido por padrão
+  (extras opt-in). `#ALL` mantém qualquer tag; `#NONE` sobrepõe
+  qualquer outra tag mantida.
+- `#tag` sozinho numa linha abre/fecha um bloco removido (ou mantido)
+  inteiro; `#tag resto da linha` remove/mantém só aquela linha.
+- Novo `core.KindToggleRem`; lookahead no `Lexer` MSX pra `#` não
+  colidir com o símbolo de canal de arquivo já existente (`PRINT #1`).
+- 8 testes novos no mecanismo core-level + 1 de ponta a ponta no MSX.
+
+### Não mudou / ainda falta
+
+- `INCLUDE`, Pass 1 do separador `_` fora do fim de linha,
+  `generate()` de verdade (espaçamento por palavra reservada, limite
+  de 256 caracteres).
+
+---
+
 ## [1.12.0] — 2026-11-22 — bloco **NEW**, feature **declare** (build 0)
 
 **`DECLARE`** — reserva manual de alias de variável, usada no

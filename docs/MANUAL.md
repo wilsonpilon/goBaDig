@@ -88,8 +88,9 @@ validado contra um exemplo real completo
 texto com placeholder/valor padrão/chamadas aninhadas); **`v1.11.0`**
 implementa `FUNC`/`RET` (função Dignified → `GOSUB` + troca de
 variáveis); **`v1.12.0`** implementa `DECLARE` (reserva manual de
-alias de variável) — ainda sem nenhum comando de conversão real
-disponível pro usuário: falta `INCLUDE`/`KEEP`, Pass 1 e um
+alias de variável); **`v1.13.0`** implementa `KEEP` (compilação
+condicional via tags `#tag`) — ainda sem nenhum comando de conversão
+real disponível pro usuário: falta `INCLUDE`, Pass 1 e um
 `generate()` de verdade pra fechar o caminho Dignified→Classic (ver
 seção 6).
 
@@ -185,11 +186,13 @@ vira um `GOTO` implícito de volta, `exit` salta pra fora), e a partir
 da `v1.10.0` `DEFINE` expande macros de texto (`[nome](arg)` →
 conteúdo registrado, com placeholder/valor padrão), a partir da
 `v1.11.0` `FUNC`/`RET` também (`.func(5)` → `param = 5 : gosub
-<linha>`), e a partir da `v1.12.0` `DECLARE` reserva alias manual de
-variável (`declare x:ab` → `x` sempre vira `ab`) — mas ainda falta
-`INCLUDE`/`KEEP`, o Pass 1 do `Parser` e um `generate()` de verdade,
-e ligar tudo isso ao tokenizer. Nada disso é utilizável pelo usuário
-final ainda.
+<linha>`), a partir da `v1.12.0` `DECLARE` reserva alias manual de
+variável (`declare x:ab` → `x` sempre vira `ab`), e a partir da
+`v1.13.0` `KEEP` compila condicionalmente blocos marcados com `#tag`
+(sem `keep #a` declarado, um bloco `#a...#a` some; com `keep #a`,
+fica) — mas ainda falta `INCLUDE`, o Pass 1 do `Parser` e um
+`generate()` de verdade, e ligar tudo isso ao tokenizer. Nada disso é
+utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não
