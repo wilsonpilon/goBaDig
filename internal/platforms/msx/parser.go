@@ -262,6 +262,36 @@ func (*Parser) Generate(_ *core.CompileContext, tokens []core.Token, index int) 
 	return core.Continue, nil, nil
 }
 
+// BuiltinDefines mirrors badig_msx.py's Parser.initialization
+// (badig_msx.py:448-460): MSX pre-registers "[?](x,y)" as shorthand
+// for "locate x,y:?" in every compile, unconditionally - confirmed
+// used extensively in badig/examples/msx/CGK173.dmx (e.g.
+// "[?](14,11) "INITIALIZING""), never declared there with its own
+// "DEFINE [?][...]" line. The original builds this by tokenizing the
+// literal string "locate VAR:?" and overwriting "VAR"'s own token
+// kind to the placeholder marker; hand-building the same 4 tokens
+// here is simpler than re-lexing a string at runtime for one fixed,
+// known shape. "0,0" is the default (x,y) when a call gives none -
+// never actually exercised in CGK173.dmx, which always calls with
+// explicit coordinates, but kept for fidelity.
+func (*Parser) BuiltinDefines() map[string]core.BuiltinDefine {
+	return map[string]core.BuiltinDefine{
+		"?": {
+			Content: []core.Token{
+				{Kind: KindInstruction, Value: "locate"},
+				{Kind: core.KindDefinePlaceholder},
+				{Kind: KindSeparator, Value: ":"},
+				{Kind: KindInstruction, Value: "?"},
+			},
+			DefaultVar: []core.Token{
+				{Kind: KindNumber, Value: "0"},
+				{Kind: KindSymbol, Value: ","},
+				{Kind: KindNumber, Value: "0"},
+			},
+		},
+	}
+}
+
 // aliasSpaceSize is how many distinct 2-letter MSX aliases exist
 // (c_var_max, badig_msx.py:149 - 26*26=676).
 func aliasSpaceSize() int {

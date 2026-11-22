@@ -118,7 +118,18 @@ type Lexer interface {
 	// ordering "classic_groups | dignified_groups | main_groups |
 	// d_idnttp" - identifiers, d_idnttp, come last). A non-nil error is
 	// fatal and aborts the whole pipeline immediately (see Diagnostic).
-	Lex(ctx *CompileContext, remaining string) (consumed int, tokens []Token, ok bool, err error)
+	//
+	// atLineStart is true exactly when nothing else has been emitted
+	// yet for the CURRENT physical source line (core.Lex's own
+	// atOutputLineStart-style lookback, computed once per call since
+	// the platform otherwise has no way to know) - needed because a
+	// platform's own single-character comment/symbol conventions can
+	// collide with Dignified-shared syntax that only means something
+	// at the start of a line (MSX's own "'" REM vs. the Dignified
+	// "''"/"###" comment-block markers, badig_dignified.py's
+	// C_O_BREM/D_O_EREM - ver pipeline.go's own doc comment on where
+	// core handles those).
+	Lex(ctx *CompileContext, remaining string, atLineStart bool) (consumed int, tokens []Token, ok bool, err error)
 }
 
 // Parser has one method per pass, called by the core pipeline driver
@@ -166,6 +177,26 @@ type Parser interface {
 	Pass4(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
 	Pass5(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
 	Generate(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error)
+	// BuiltinDefines lets a platform pre-register DEFINE-like macros
+	// before Pass 1 ever looks at real source - mirrors
+	// badig_msx.py's Parser.initialization(), called unconditionally
+	// at the start of EVERY Parser instance (main file and every
+	// INCLUDEd file alike, since each gets its own Parser). MSX's own
+	// "[?](x,y)" shorthand for "locate x,y:?" is the only one found
+	// so far - the user never writes "DEFINE [?][...]" themselves,
+	// it's just always there. Return nil if the platform has none.
+	BuiltinDefines() map[string]BuiltinDefine
+}
+
+// BuiltinDefine is one macro a Parser's BuiltinDefines pre-registers
+// - mirrors defineEntry's own two fields (content/defaultVar) without
+// exposing that private type: Content is the replacement token
+// sequence (at most one KindDefinePlaceholder marker in it);
+// DefaultVar is what substitutes the placeholder when a call gives no
+// explicit argument (nil if the macro takes none).
+type BuiltinDefine struct {
+	Content    []Token
+	DefaultVar []Token
 }
 
 // Settings holds dialect-specific config, applied after the shared

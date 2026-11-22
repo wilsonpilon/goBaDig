@@ -429,6 +429,56 @@ func TestEndToEndIncludeMergesARealFileFromDiskAndSharesVariableAllocation(t *te
 	}
 }
 
+func TestEndToEndDignifiedCommentsCoexistWithMSXsOwnHashAndQuote(t *testing.T) {
+	ctx, platform := contextPlatform(t,
+		"'' ",
+		"CHANGE GRAPH KIT",
+		"v1.7.1",
+		"",
+		"Copyright (C) 1984-2023 - Fred Rique (farique)",
+		"''",
+		"###",
+		"	MSX Basic Dignified version",
+		"###",
+		"",
+		"## Sublime Build settings",
+		"##BB:export_file=",
+		`print "x" ' a normal trailing classic comment`,
+		"print #1",
+	)
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	// The "''" block (lines 2-7) becomes 5 real classic comment lines
+	// (one per line in between, including the blank one); the "###"
+	// block (8-10) and the two "##"/"##BB:" lines vanish without a
+	// trace; "'" and "#" keep working normally outside those cases -
+	// confirmed used for real this way in badig/examples/msx/CGK173.dmx's
+	// own header.
+	want := []string{
+		"10 'CHANGE GRAPH KIT",
+		"20 'v1.7.1",
+		"30 '",
+		"40 'Copyright (C) 1984-2023 - Fred Rique (farique)",
+		// No space between the closing quote and "'" here - neither
+		// is a reserved keyword, so Generate's real spacing rules
+		// (ver pipeline.go's own Generate doc comment) don't insert
+		// one; this matches the original's own behavior exactly
+		// (purely value-based spacing), not a bug in this port.
+		`50 print "x"' a normal trailing classic comment`,
+		"60 print #1",
+	}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
 func TestParseFailsUsingTildeOnAnAlreadyShortName(t *testing.T) {
 	_, err := core.Run(contextPlatform(t, "print ~ab"))
 	if err == nil {

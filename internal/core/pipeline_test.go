@@ -64,7 +64,7 @@ func (fakeLexer) Init(*CompileContext) {}
 // text (the v1 Lexer contract, validated for real against MSX in a
 // later round - see OUTLINE.md, Bloco 2): "PRINT", "IGNORE" (consumed
 // and discarded - zero tokens), and a run of digits.
-func (fakeLexer) Lex(_ *CompileContext, remaining string) (int, []Token, bool, error) {
+func (fakeLexer) Lex(_ *CompileContext, remaining string, _ bool) (int, []Token, bool, error) {
 	upper := strings.ToUpper(remaining)
 	switch {
 	case strings.HasPrefix(upper, "PRINT"):
@@ -120,6 +120,7 @@ func (p fakeParser) Pass5(_ *CompileContext, tokens []Token, index int) (HookAct
 func (fakeParser) Generate(_ *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
 	return Continue, nil, nil
 }
+func (fakeParser) BuiltinDefines() map[string]BuiltinDefine { return nil }
 
 type fakeSettings struct{}
 
@@ -305,6 +306,73 @@ func TestLexIdentifierPatternIsCaseInsensitive(t *testing.T) {
 	want := []string{"10 PRINT gameName"}
 	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
 		t.Fatalf("Code = %v, want %v (\"gameName\" must survive as one identifier)", result.Code, want)
+	}
+}
+
+func TestLexDignifiedLineCommentWorksAnywhereOnALine(t *testing.T) {
+	result, err := runFake(t,
+		"PRINT 1 ## trailing comment, same line as real code",
+		"## a whole line that's just a comment",
+		"PRINT 2",
+	)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (\"##\" must consume to end of line with zero tokens, wherever it appears)", result.Code, want)
+	}
+}
+
+func TestLexDignifiedBlockCommentDiscardsEverythingInside(t *testing.T) {
+	result, err := runFake(t,
+		"PRINT 1",
+		"###",
+		"this line is gone",
+		"",
+		"so is this blank one",
+		"###",
+		"PRINT 2",
+	)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (a \"###\" block, including every NEWLINE inside it, must vanish without wasting a line number)", result.Code, want)
+	}
+}
+
+func TestLexFailsOnAnUnclosedDignifiedBlockComment(t *testing.T) {
+	_, err := runFake(t, "PRINT 1", "###", "never closes")
+	if err == nil {
+		t.Fatal("expected a fatal error for a \"###\" block never closed, got none")
+	}
+}
+
+func TestLexClassicCommentBlockExpandsIntoSeparateNumberedLines(t *testing.T) {
+	result, err := runFake(t,
+		"PRINT 1",
+		"''",
+		"hello",
+		"",
+		"world",
+		"''",
+		"PRINT 2",
+	)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 'hello", "30 '", "40 'world", "50 PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (each line inside a \"''\" block, even a blank one, becomes its own real classic comment line)", result.Code, want)
+	}
+}
+
+func TestLexFailsOnAnUnclosedClassicCommentBlock(t *testing.T) {
+	_, err := runFake(t, "PRINT 1", "''", "never closes")
+	if err == nil {
+		t.Fatal("expected a fatal error for a \"''\" block never closed, got none")
 	}
 }
 

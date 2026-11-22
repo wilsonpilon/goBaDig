@@ -73,6 +73,72 @@ var functionNamePattern = regexp.MustCompile(`(?i)^\.[a-z][a-z_0-9]*`)
 // only ever gets a chance once that refusal happens.
 var toggleRemPattern = regexp.MustCompile(`(?i)^#[a-z][a-z_0-9]*`)
 
+// dignifiedLineCommentPrefix is badig_dignified.py's d_linrem ("##",
+// D_LINREM) - a Dignified-exclusive comment that works ANYWHERE on a
+// physical line (confirmed used both standalone and as a trailing
+// comment after real code in badig/examples/msx/CGK173.dmx),
+// consuming the rest of that line with zero tokens - badig.py's own
+// lex() just advances its cursor to end-of-line and never appends
+// anything for it (`self.pos.col = len(self.pos.text) - 1; continue`).
+// "##BB:tag=value" (a remtag, support/badig_settings.py's
+// read_remtags_from_code) is just this same "##" to the lexer/parser
+// - its own extraction happens in a completely separate pass over the
+// raw file text, part of the 4-layer config system already deferred
+// since Bloco 1/Fase 4; this port only needs to not choke on the
+// syntax, not apply it.
+const dignifiedLineCommentPrefix = "##"
+
+// dignifiedBlockCommentMarker is badig_dignified.py's d_o_rems
+// ("###", D_O_EREM) - the Dignified-exclusive counterpart to MSX's
+// own classic block comment (two apostrophes, Description.CommentChar()
+// doubled) - ver findBlockCloseLine's own doc comment for the shared
+// mechanics and get_lit_block (badig.py:331-380).
+const dignifiedBlockCommentMarker = "###"
+
+// scanCommentBlock mirrors get_lit_block's own line-by-line scan
+// (badig.py:331-380) for a Dignified/classic comment BLOCK: openRest
+// is whatever comes right after the marker on the OPENING line itself
+// (already known to start at the beginning of that line); it scans
+// forward - starting with openRest, then ctx.Source's own raw line
+// text from lineIndex+1 onward - for a line ENDING in marker (not
+// needing to be alone: real content can share that same line before
+// it, confirmed used for real in badig/examples/msx/CGK173.dmx, e.g.
+// a block closing with "...VRAM=&h1940###"). Returns every content
+// chunk in between and the index of the line the close marker was
+// found on, or ok=false if the end of the file is reached first.
+//
+// The OPENING line's own remainder (openRest) and the CLOSING line's
+// own remainder-before-the-marker are each skipped when empty (marker
+// alone, nothing else on that line) - confirmed empirically by
+// running badig.py itself against a minimal "”"-block repro: a
+// marker alone on its opening/closing line produces NO extra blank
+// comment line, but a genuinely blank INTERIOR line still does (it's
+// real content, just empty, same as any other content line - only
+// the two boundary chunks get this special treatment).
+func scanCommentBlock(ctx *CompileContext, lineIndex int, openRest, marker string) (content []string, closeLine int, ok bool) {
+	chunk := openRest
+	li := lineIndex
+	first := true
+	for {
+		if strings.HasSuffix(chunk, marker) {
+			inner := chunk[:len(chunk)-len(marker)]
+			if strings.TrimSpace(inner) != "" {
+				content = append(content, inner)
+			}
+			return content, li, true
+		}
+		if !first || strings.TrimSpace(chunk) != "" {
+			content = append(content, chunk)
+		}
+		first = false
+		li++
+		if li >= len(ctx.Source) {
+			return nil, 0, false
+		}
+		chunk = ctx.Source[li].Text
+	}
+}
+
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
 // token first, then one token per recognized item plus a NEWLINE per
 // source line, ending in EOF.
@@ -128,6 +194,13 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 		line := ctx.Source[lineIndex]
 		runes := []rune(line.Text)
 		col := 1
+		// blockConsumed is set when this line turned out to be the
+		// OPENING of a "###"/"''" comment block (ver below) - the
+		// whole multi-line span, including every NEWLINE inside it
+		// and the one that would normally end THIS line, is swallowed
+		// whole, so the usual trailing-NEWLINE append after the inner
+		// loop must be skipped too.
+		blockConsumed := false
 
 		for pos := 0; pos < len(runes); {
 			if unicode.IsSpace(runes[pos]) {
@@ -150,7 +223,16 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 			}
 
 			remaining := string(runes[pos:])
-			consumed, newTokens, ok, err := platform.Lexer.Lex(ctx, remaining)
+			// atLineStart mirrors pass1Dignified's own
+			// atOutputLineStart(), one level down: nothing has been
+			// appended yet for the CURRENT physical line. Needed so
+			// the platform can tell its own single-character
+			// conventions (MSX's "'" REM, "#" file channel) apart
+			// from Dignified-shared syntax that only means something
+			// right at the start of a line (ver contract.go's own doc
+			// comment on Lexer.Lex).
+			atLineStart := len(tokens) == 0 || tokens[len(tokens)-1].Kind == KindNewline || tokens[len(tokens)-1].Kind == KindProgram
+			consumed, newTokens, ok, err := platform.Lexer.Lex(ctx, remaining, atLineStart)
 			if err != nil {
 				return nil, err
 			}
@@ -164,6 +246,72 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 				pos += consumed
 				col += consumed
 				continue
+			}
+
+			// Dignified/classic comment BLOCKS ("###"..."###" or
+			// Description.CommentChar() doubled, e.g. MSX's
+			// "''"..."''") - only triggered right at the start of a
+			// line (same as badig.py's own `self.last_tok.tok ==
+			// 'NEWLINE'` check), but real content CAN share that same
+			// opening/closing line with the marker - confirmed used
+			// for real in badig/examples/msx/CGK173.dmx (a "###"
+			// block whose opener is "###\tInsert ML routines" and
+			// whose closer ends "...VRAM=&h1940###", neither alone on
+			// its own line). scanCommentBlock's own doc comment has
+			// the full mechanics.
+			if atLineStart {
+				hashes := 0
+				for hashes < len(remaining) && remaining[hashes] == '#' {
+					hashes++
+				}
+				classicBlockMarker := platform.Description.CommentChar() + platform.Description.CommentChar()
+				isDignifiedBlock := hashes == len(dignifiedBlockCommentMarker)
+				isClassicBlock := !isDignifiedBlock && strings.HasPrefix(remaining, classicBlockMarker)
+				if isDignifiedBlock || isClassicBlock {
+					marker := dignifiedBlockCommentMarker
+					if isClassicBlock {
+						marker = classicBlockMarker
+					}
+					content, closeLine, closed := scanCommentBlock(ctx, lineIndex, remaining[len(marker):], marker)
+					if !closed {
+						return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("block not closed from: %s", marker), Pos: &Position{Source: ctx.Source, Line: lineIndex, Column: startCol}}
+					}
+					// isDignifiedBlock ("###") discards the whole
+					// span, content included - confirmed reading
+					// get_lit_block's own tail
+					// (`if tk.tok == 'D_O_EREM': rem_block = []`).
+					// isClassicBlock ("''") instead turns each
+					// content chunk into its own real classic comment
+					// line - mirrors badig.py's own Pass 3 expansion
+					// (badig.py:1536-1548) done directly here instead,
+					// since the content is never re-tokenized as code
+					// either way and no other pass needs to see the
+					// block intact (ver pipeline.go's module doc for
+					// why this simplification is safe).
+					if isClassicBlock {
+						com := platform.Description.CommentChar()
+						for _, text := range content {
+							tokens = append(tokens,
+								Token{Kind: KindSynthetic, Value: com, Pos: Position{Source: ctx.Source, Line: lineIndex, Column: startCol}},
+								Token{Kind: KindSynthetic, Value: text, Pos: Position{Source: ctx.Source, Line: lineIndex, Column: startCol}},
+								Token{Kind: KindNewline, Value: "\n", Pos: Position{Source: ctx.Source, Line: lineIndex, Column: startCol}},
+							)
+						}
+					}
+					lineIndex = closeLine
+					blockConsumed = true
+					break
+				}
+			}
+
+			// Dignified-exclusive line comment ("##", works ANYWHERE
+			// on a physical line, not just at its start - confirmed
+			// used both ways in badig/examples/msx/CGK173.dmx; a bare
+			// 2-hash run that ISN'T the "###" block marker above also
+			// lands here, e.g. "##BB:tag=value" remtags - ver
+			// dignifiedLineCommentPrefix's own doc comment).
+			if strings.HasPrefix(remaining, dignifiedLineCommentPrefix) {
+				break
 			}
 
 			// Shared Dignified operators (TRUE/FALSE) are checked before
@@ -238,11 +386,13 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 			col++
 		}
 
-		tokens = append(tokens, Token{
-			Kind:  KindNewline,
-			Value: "\n",
-			Pos:   Position{Source: ctx.Source, Line: lineIndex, Column: col},
-		})
+		if !blockConsumed {
+			tokens = append(tokens, Token{
+				Kind:  KindNewline,
+				Value: "\n",
+				Pos:   Position{Source: ctx.Source, Line: lineIndex, Column: col},
+			})
+		}
 	}
 
 	tokens = append(tokens, Token{
@@ -468,6 +618,9 @@ type defineEntry struct {
 // out's own last entry, exactly like the original's last_tok().
 func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, map[string]functionEntry, error) {
 	defines := map[string]defineEntry{}
+	for name, bd := range platform.Parser.BuiltinDefines() {
+		defines[name] = defineEntry{content: bd.Content, defaultVar: bd.DefaultVar}
+	}
 	functions := map[string]functionEntry{}
 	var out []Token
 	i := 0

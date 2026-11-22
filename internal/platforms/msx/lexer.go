@@ -46,7 +46,7 @@ type Lexer struct{}
 
 func (Lexer) Init(*core.CompileContext) {}
 
-func (Lexer) Lex(_ *core.CompileContext, remaining string) (int, []core.Token, bool, error) {
+func (Lexer) Lex(_ *core.CompileContext, remaining string, atLineStart bool) (int, []core.Token, bool, error) {
 	if remaining == "" {
 		return 0, nil, false, nil
 	}
@@ -71,7 +71,14 @@ func (Lexer) Lex(_ *core.CompileContext, remaining string) (int, []core.Token, b
 		// badig/examples/msx/CGK173.dmx). Refusing here lets core.Lex's
 		// own shared fallback claim the whole "#word" instead; "#1"
 		// etc. still falls through to the plain match right below.
-		if s == "#" && len(remaining) > 1 && isLetter(remaining[1]) {
+		//
+		// "#" immediately followed by ANOTHER "#" is ALSO always
+		// refused, regardless of position: core.Lex's own fallback
+		// decides whether it's "##" (a Dignified line comment, works
+		// anywhere - badig_dignified.py's d_linrem) or "###" (a
+		// Dignified comment BLOCK, only when alone at the start of a
+		// line - d_o_rems), since only core knows atLineStart.
+		if s == "#" && len(remaining) > 1 && (isLetter(remaining[1]) || remaining[1] == '#') {
 			continue
 		}
 		if strings.HasPrefix(remaining, s) {
@@ -81,6 +88,19 @@ func (Lexer) Lex(_ *core.CompileContext, remaining string) (int, []core.Token, b
 
 	switch remaining[0] {
 	case '\'':
+		// "''" at the start of a line is ALWAYS MSX's own classic
+		// comment BLOCK opener (badig_dignified.py's C_O_BREM, "'"
+		// doubled), regardless of what else is on that same line -
+		// confirmed real content routinely shares the opening (and
+		// closing) line with the marker in
+		// badig/examples/msx/CGK173.dmx's own header. Refuse
+		// unconditionally here so core.Lex's own block-comment
+		// fallback (ver pipeline.go) decides the rest; every OTHER
+		// "'"/"''" (mid-line) keeps today's plain behavior: the rest
+		// of the line is one comment.
+		if atLineStart && strings.HasPrefix(remaining, "''") {
+			return 0, nil, false, nil
+		}
 		return len(remaining), one(KindComment, remaining), true, nil
 	case ':':
 		return 1, one(KindSeparator, ":"), true, nil
@@ -103,19 +123,41 @@ func (Lexer) Lex(_ *core.CompileContext, remaining string) (int, []core.Token, b
 
 		word := scanKeywordCandidate(remaining)
 		upper := strings.ToUpper(word)
-		switch {
-		case upper == "REM":
-			return len(remaining), one(KindComment, remaining), true, nil
-		case upper == "DATA":
-			return len(word), one(KindData, word), true, nil
-		case contains(operators, upper):
-			return len(word), one(KindOperator, word), true, nil
-		case contains(functionsDollar, upper), contains(functionsPlain, upper):
-			return len(word), one(KindFunction, word), true, nil
-		case contains(jumpKeywords, upper):
-			return len(word), one(KindJump, word), true, nil
-		case contains(instructions, upper):
-			return len(word), one(KindInstruction, word), true, nil
+		// scanKeywordCandidate stops at the first non-letter, so word
+		// is only a COMPLETE token if what immediately follows isn't
+		// itself a valid identifier-continuation character. Confirmed
+		// two real bugs against badig/examples/msx/CGK173.dmx: "COPY"
+		// is a real instruction, but "copy_VRAM" (an ordinary
+		// identifier that happens to start with it) was being wrongly
+		// split into the COPY instruction + a Dignified separator +
+		// "VRAM"; "COLOR" is a real instruction too, but "color1"
+		// (one of six ordinary numbered parameters,
+		// ".set_color(color1=color1, ...)") was wrongly split into
+		// COLOR + the number 1. Confirmed digits belong in this guard
+		// too (reversing this function's own earlier doc comment,
+		// which assumed otherwise without checking): badig_dignified.py's
+		// join_commands wraps every keyword alternative in `^...$`
+		// (badig.py:134-139), an EXACT match against the lexer's own
+		// pre-segmented word candidate - "GOTO10" segments as ONE
+		// candidate the same way "color1" does, so it would ALSO fail
+		// `^GOTO$` and fall through to the identifier pattern in the
+		// real engine, not split into GOTO+10 as this file assumed
+		// before actually checking.
+		if len(word) >= len(remaining) || !isIdentifierContinuation(remaining[len(word)]) {
+			switch {
+			case upper == "REM":
+				return len(remaining), one(KindComment, remaining), true, nil
+			case upper == "DATA":
+				return len(word), one(KindData, word), true, nil
+			case contains(operators, upper):
+				return len(word), one(KindOperator, word), true, nil
+			case contains(functionsDollar, upper), contains(functionsPlain, upper):
+				return len(word), one(KindFunction, word), true, nil
+			case contains(jumpKeywords, upper):
+				return len(word), one(KindJump, word), true, nil
+			case contains(instructions, upper):
+				return len(word), one(KindInstruction, word), true, nil
+			}
 		}
 		// Not a keyword: let the driver's generic fallback take over.
 		// It only recognizes a lowercase-starting run as a Dignified
@@ -141,6 +183,18 @@ func isDigit(c byte) bool {
 	return c >= '0' && c <= '9'
 }
 
+// isIdentifierContinuation reports whether c could extend an
+// identifier that already started before it - used to reject a
+// keyword-candidate match that's actually just a PREFIX of a longer
+// identifier (ver scanKeywordCandidate's own caller and scanUSRLike).
+// Includes digits (confirmed real: "color1" collided with the COLOR
+// instruction the same way "copy_VRAM" collided with COPY - ver the
+// caller's own doc comment for why "GOTO10" turned out not to be a
+// real counter-example after all).
+func isIdentifierContinuation(c byte) bool {
+	return isLetter(c) || isDigit(c) || c == '_'
+}
+
 func contains(list []string, s string) bool {
 	for _, v := range list {
 		if v == s {
@@ -152,10 +206,13 @@ func contains(list []string, s string) bool {
 
 // scanKeywordCandidate extracts a run of letters, plus one trailing
 // "$" if present (so function names like "ATTR$" are captured whole).
-// It deliberately does NOT consume trailing digits - that is handled
-// separately by scanUSRLike, so an ordinary keyword immediately
-// followed by a digit (unusual, but not a case to silently mismatch)
-// isn't accidentally absorbed into one word.
+// It does NOT itself consume trailing digits - USR/DEFUSR's own
+// single device-number digit is handled separately by scanUSRLike -
+// but the caller's own isIdentifierContinuation check (right after
+// calling this) rejects the match entirely when a digit immediately
+// follows anyway, so a word like "color1" still correctly falls
+// through to the identifier pattern as one token, never split at the
+// letter/digit boundary.
 func scanKeywordCandidate(s string) string {
 	i := 0
 	for i < len(s) && isLetter(s[i]) {
@@ -178,6 +235,9 @@ func scanUSRLike(remaining string) (int, core.Token, bool) {
 		n := len(base)
 		if n < len(remaining) && isDigit(remaining[n]) {
 			n++
+		}
+		if n < len(remaining) && isIdentifierContinuation(remaining[n]) {
+			continue
 		}
 		return n, core.Token{Kind: kind, Value: remaining[:n]}, true
 	}
