@@ -35,6 +35,19 @@ exata do pacote.
 
 ---
 
+## [1.9.1] — 2026-11-22 — bloco **NEW**, feature **loop-labels** (build 1)
+
+**Correção de bug**: o padrão de identificador Dignified compartilhado
+(`internal/core`) era restrito a ASCII minúsculo, cortando nomes
+camelCase/mixedCase (`gameName$`, `fill_VRAM`, `pauseKEY`) no primeiro
+caractere maiúsculo. O motor original é case-insensitive por completo
+(`re.I` no regex combinado) — corrigido com a flag `(?i)` no mesmo
+padrão. Bug latente desde as rodadas de variável/label, nunca
+disparado porque nenhum teste usava nomes mistos; achado pesquisando
+`DEFINE` e confirmado em uso real no `CGK173.dmx`.
+
+---
+
 ## [1.9.0] — 2026-11-22 — bloco **NEW**, feature **loop-labels** (build 0)
 
 **Loop labels** (`nome{ ... }` como laço fechado + `exit`) — usado de

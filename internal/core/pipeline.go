@@ -10,7 +10,15 @@ import (
 // identifierPattern is the shared Dignified identifier pattern - the
 // SAME for every platform (badig_dignified.py's d_idnttp), which is
 // why core.Lex recognizes it itself instead of asking the platform.
-var identifierPattern = regexp.MustCompile(`^[a-z][a-z_0-9]*[%!#$]?`)
+// Case-insensitive: d_idnttp's `[a-z]` looks lowercase-only, but it's
+// compiled inside the original engine's single combined regex with
+// `re.I` (badig.py:127-132), so it actually matches any case - real
+// Dignified source routinely uses camelCase/mixed-case names
+// (confirmed in badig/examples/msx/CGK173.dmx: "gameName$",
+// "fill_VRAM", "pauseKEY", the label "portuguese_ROM", etc.) - a
+// strictly-lowercase pattern here would cut those at the first
+// uppercase letter.
+var identifierPattern = regexp.MustCompile(`(?i)^[a-z][a-z_0-9]*[%!#$]?`)
 
 // dignifiedSymbols are badig_dignified.py's d_symbol: 6 structural
 // symbols shared by every dialect (not platform vocabulary), so

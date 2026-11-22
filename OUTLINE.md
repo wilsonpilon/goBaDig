@@ -981,6 +981,25 @@ mesma técnica de `TRUE`/`FALSE`.
 ponta em `internal/platforms/msx` confirmando que convive com a
 renomeação de variável.
 
+**Bug real corrigido: `identifierPattern` era minúsculo-apenas, devia
+ser case-insensitive** (2026-11-22, achado pesquisando `DEFINE`):
+`self.d_idnttp` (`[a-z][a-z_0-9]*[%!#$]?`) parece restrito a
+minúsculas, mas é compilado dentro do regex combinado único do motor
+original junto com a flag `re.I` (`badig.py:127-132`) — ou seja,
+`[a-z]` ali bate maiúscula também. Confirmado que isso é usado de
+verdade: `CGK173.dmx` tem várias variáveis/labels em camelCase
+(`gameName$`, `fill_VRAM`, `pauseKEY`, label `portuguese_ROM`). Meu
+`identifierPattern` (estritamente ASCII minúsculo) cortava esses
+nomes no primeiro caractere maiúsculo — bug latente desde as rodadas
+de variável/label, nunca disparado porque todo teste usava nomes
+100% minúsculos. Fix cirúrgico: só a flag `(?i)` do Go adicionada ao
+mesmo padrão. **Fora de escopo, documentado**: normalização de case
+pra correspondência de referências à MESMA variável escritas com
+capitalização diferente em lugares diferentes (`Token.var_name`/
+`val_w_file` do Python sempre fazem `.lower()`; `msx/parser.go` ainda
+não faz isso ao montar a chave de variável) — sem evidência de que
+isso ocorra de verdade no `CGK173.dmx`, adiado.
+
 **Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
 que prova que o desenho funciona):
 - [x] Driver do pipeline no core (`internal/core/pipeline.go`:

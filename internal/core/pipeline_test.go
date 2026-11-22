@@ -264,6 +264,25 @@ func TestPass2FailsOnExitOutsideAnyLoopLabel(t *testing.T) {
 	}
 }
 
+// TestLexIdentifierPatternIsCaseInsensitive guards against a real bug
+// found while researching DEFINE: badig_dignified.py's d_idnttp looks
+// lowercase-only but is compiled inside the original engine's single
+// combined regex under re.I (badig.py:127-132), so it actually
+// matches any case - real Dignified source routinely uses mixed-case
+// names ("gameName$", "fill_VRAM", confirmed in
+// badig/examples/msx/CGK173.dmx). A strictly-lowercase pattern here
+// would cut "gameName" at the "N" instead of keeping it as one token.
+func TestLexIdentifierPatternIsCaseInsensitive(t *testing.T) {
+	result, err := runFake(t, "PRINT gameName")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT gameName"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (\"gameName\" must survive as one identifier)", result.Code, want)
+	}
+}
+
 func TestPipelineEndToEnd(t *testing.T) {
 	ctx := newFakeContext("PRINT 1 IGNORE foo", []string{"fake.dmx"})
 	platform := Platform{
