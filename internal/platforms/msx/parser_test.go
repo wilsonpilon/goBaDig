@@ -367,6 +367,29 @@ func TestEndToEndDeclareForcesAnExplicitAliasAndVariableRenamingCoexist(t *testi
 	}
 }
 
+func TestEndToEndToggleRemCoexistsWithMSXsOwnHashSymbol(t *testing.T) {
+	ctx, platform := contextPlatform(t,
+		"print #1,1",
+		"#a",
+		"print 999",
+		"#a",
+		"print 2",
+	)
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 print # 1 , 1", "20 print 2"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v) - the lexer's lookahead for toggle-rem tags must not disturb MSX's own \"#\" file-channel symbol", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
 func TestParseFailsUsingTildeOnAnAlreadyShortName(t *testing.T) {
 	_, err := core.Run(contextPlatform(t, "print ~ab"))
 	if err == nil {

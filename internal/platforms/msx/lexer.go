@@ -64,6 +64,16 @@ func (Lexer) Lex(_ *core.CompileContext, remaining string) (int, []core.Token, b
 		}
 	}
 	for _, s := range symbols {
+		// "#" immediately followed by a letter is a shared Dignified
+		// toggle-rem tag ("#a", "#none", "#all" - badig_dignified.py's
+		// d_togrem), not MSX's own "#" symbol (file channel refs like
+		// "#1" in PRINT/OPEN - confirmed used that way in
+		// badig/examples/msx/CGK173.dmx). Refusing here lets core.Lex's
+		// own shared fallback claim the whole "#word" instead; "#1"
+		// etc. still falls through to the plain match right below.
+		if s == "#" && len(remaining) > 1 && isLetter(remaining[1]) {
+			continue
+		}
 		if strings.HasPrefix(remaining, s) {
 			return len(s), one(KindSymbol, s), true, nil
 		}

@@ -137,6 +137,17 @@ const (
 	// exactly like KindLabelJump but against the function-name map,
 	// not the label map.
 	KindFunctionCall TokenKind = "FUNCTION_CALL"
+	// KindToggleRem is `#tag` (D_TGLREM in badig_dignified.py: `#`
+	// followed by a letter-starting word, case-insensitive) - shared
+	// Dignified vocabulary, confirmed used in
+	// badig/examples/msx/CGK173.dmx ("keep #none", block markers
+	// "#a"..."#a"/"#b"..."#b"). Marks both a KEEP declaration's own
+	// tag arguments and every toggle-block/line marker. Not platform
+	// vocabulary even though `#` alone also happens to be a real MSX
+	// symbol (file channel refs like "#1") - core.Lex only recognizes
+	// this shape once the platform's own Lexer refuses "#"+letter
+	// (ver internal/platforms/msx/lexer.go).
+	KindToggleRem TokenKind = "TOGGLE_REM"
 	// KindUnknown is a single raw character core.Lex could not
 	// classify by any means (not the platform's, not an identifier,
 	// not a quoted string) - mirrors the original engine's "character

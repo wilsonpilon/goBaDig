@@ -545,6 +545,82 @@ func TestPass1FailsOnADuplicateDeclaredAlias(t *testing.T) {
 	}
 }
 
+func TestPass1StripsAToggleBlockByDefaultWithNoKeepDeclared(t *testing.T) {
+	result, err := runFake(t, "PRINT 2", "#a", "PRINT 1", "#a", "PRINT 3")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 2", "20 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (the whole #a block must vanish, wasting no line number)", result.Code, want)
+	}
+}
+
+func TestPass1KeepsAToggleBlockWhenItsOwnTagIsKept(t *testing.T) {
+	result, err := runFake(t, "keep #a", "PRINT 2", "#a", "PRINT 1", "#a", "PRINT 3")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 2", "20 PRINT 1", "30 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (KEEP #a must keep the block's content)", result.Code, want)
+	}
+}
+
+func TestPass1KeepAllKeepsAnyTag(t *testing.T) {
+	result, err := runFake(t, "keep #all", "PRINT 2", "#x", "PRINT 1", "#x", "PRINT 3")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 2", "20 PRINT 1", "30 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (#ALL must keep any tag's block)", result.Code, want)
+	}
+}
+
+func TestPass1KeepNoneOverridesAnyOtherKeptTag(t *testing.T) {
+	result, err := runFake(t, "keep #a #none", "PRINT 2", "#a", "PRINT 1", "#a", "PRINT 3")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 2", "20 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (#NONE must override #a being kept too)", result.Code, want)
+	}
+}
+
+func TestPass1StripsOnlyTheSingleLineForAOneLineToggle(t *testing.T) {
+	result, err := runFake(t, "PRINT 2", "#a PRINT 999", "PRINT 3")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 2", "20 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (only the one tagged line should vanish)", result.Code, want)
+	}
+}
+
+func TestPass1FailsOnAnUnclosedToggleBlock(t *testing.T) {
+	_, err := runFake(t, "#a", "PRINT 1")
+	if err == nil {
+		t.Fatal("expected a fatal error for a toggle block never closed, got none")
+	}
+}
+
+func TestPass1FailsOnAnInvalidKeepTag(t *testing.T) {
+	_, err := runFake(t, "keep somevar")
+	if err == nil {
+		t.Fatal("expected a fatal error for an invalid keep tag, got none")
+	}
+}
+
+func TestPass1FailsOnADuplicateKeepTag(t *testing.T) {
+	_, err := runFake(t, "keep #a #a")
+	if err == nil {
+		t.Fatal("expected a fatal error for a duplicate keep tag, got none")
+	}
+}
+
 func TestPipelineEndToEnd(t *testing.T) {
 	ctx := newFakeContext("PRINT 1 IGNORE foo", []string{"fake.dmx"})
 	platform := Platform{

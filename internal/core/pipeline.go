@@ -61,6 +61,16 @@ var dignifiedInstructions = map[string]bool{
 // since numbers are platform vocabulary and get first refusal.
 var functionNamePattern = regexp.MustCompile(`(?i)^\.[a-z][a-z_0-9]*`)
 
+// toggleRemPattern is badig_dignified.py's d_togrem (`^#{d_idnocaps}$`,
+// also under re.I): `#` followed by a letter-starting word - shared
+// Dignified vocabulary (a KEEP declaration's tag, or a toggle-block/
+// line marker like "#a"). The platform's own Lexer.Lex gets first
+// refusal as always; MSX's (internal/platforms/msx/lexer.go) was
+// taught to refuse "#"+letter specifically, since "#" alone is ALSO
+// real MSX vocabulary (file channel refs like "#1") - this fallback
+// only ever gets a chance once that refusal happens.
+var toggleRemPattern = regexp.MustCompile(`(?i)^#[a-z][a-z_0-9]*`)
+
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
 // token first, then one token per recognized item plus a NEWLINE per
 // source line, ending in EOF.
@@ -153,6 +163,14 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 			if name := functionNamePattern.FindString(remaining); name != "" {
 				tokens = append(tokens, pin(Token{Kind: KindFunctionName, Value: name}))
 				n := len([]rune(name))
+				pos += n
+				col += n
+				continue
+			}
+
+			if tag := toggleRemPattern.FindString(remaining); tag != "" {
+				tokens = append(tokens, pin(Token{Kind: KindToggleRem, Value: tag}))
+				n := len([]rune(tag))
 				pos += n
 				col += n
 				continue
@@ -427,6 +445,14 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 	var out []Token
 	i := 0
 
+	// keeps holds every tag a KEEP declaration has registered so far
+	// (badig.py's self.des.d_keeps, uppercased "#TAG" values) - purely
+	// Pass-1-scoped: toggle_lines (readToggle below) is the only other
+	// thing that ever reads it, and it only ever runs from within this
+	// same pass, so unlike functions this never needs to escape the
+	// function.
+	var keeps []string
+
 	// inFunc/pendingFuncName/pendingArgs/pendingEqul carry a FUNC
 	// declaration's signature across to its matching RET (badig.py's
 	// self.in_func/self.func_def_args/self.func_def_equl) - RET is
@@ -653,6 +679,92 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 		}
 	}
 
+	// readKeeps reads one whole `KEEP #tag1 #tag2 ...` line at i
+	// (mirrors get_keeps, badig.py:1196-1211) - "KEEP" itself has
+	// already been consumed. Consumes the terminating NEWLINE too,
+	// same as DEFINE/DECLARE (the original's own dispatch has
+	// `continue` for KEEP, same as those - unlike FUNC/RET).
+	//
+	// Correction, documented (same spirit as isAlphanumeric's own
+	// fix above): the original compares `keep.val in self.des.d_keeps`
+	// (whatever case the tag was WRITTEN in) against a list that only
+	// ever stores `.uval` (always uppercase) - so its "duplicate tag"
+	// check almost never actually fires. This compares uppercase on
+	// both sides, the clearly intended check.
+	readKeeps := func() error {
+		for {
+			if i >= len(tokens) {
+				return Diagnostic{Severity: SeverityError, Message: "unexpected end of file in keep", Pos: &Position{}}
+			}
+			if tokens[i].Kind == KindNewline {
+				i++
+				return nil
+			}
+			if tokens[i].Kind != KindToggleRem {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("invalid keep tag: %s", tokens[i].String()), Pos: &tokens[i].Pos}
+			}
+			tagUpper := strings.ToUpper(tokens[i].String())
+			for _, existing := range keeps {
+				if existing == tagUpper {
+					return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("keep tag duplicated: %s", tokens[i].String()), Pos: &tokens[i].Pos}
+				}
+			}
+			keeps = append(keeps, tagUpper)
+			i++
+		}
+	}
+
+	// readToggle reads one `#tag` toggle marker at i (i already past
+	// tagTok itself) - mirrors toggle_lines (badig.py:1213-1240).
+	// tagTok is kept (nothing removed) if its tag, or "#ALL", is in
+	// keeps AND "#NONE" is not - with NO keep declared at all, keeps
+	// is empty, so this is always false and every tagged block/line
+	// is stripped by default (confirmed: these are opt-in extras).
+	//
+	// Otherwise removes either just the rest of this physical line
+	// (single-line form: tagTok is NOT alone on its own line) or an
+	// entire block up to a MATCHING closing "#tag" alone on its own
+	// line (block form, same shape as badig/examples/msx/CGK173.dmx's
+	// "#a"..."#a"). Traced the original's own next_tok()/continue
+	// interaction carefully: a single-line toggle's own NEWLINE is
+	// consumed too (the whole line vanishes); a block's closing tag is
+	// consumed, but the NEWLINE right AFTER it is deliberately left
+	// for the caller - that asymmetry is real, not a port mistake.
+	readToggle := func(tagTok Token) error {
+		tagUpper := strings.ToUpper(tagTok.String())
+		keep := false
+		for _, k := range keeps {
+			if k == tagUpper || k == "#ALL" {
+				keep = true
+			}
+			if k == "#NONE" {
+				keep = false
+				break // #NONE always overrides, checked last on purpose
+			}
+		}
+		if keep {
+			return nil
+		}
+
+		blockMode := i < len(tokens) && tokens[i].Kind == KindNewline
+		for {
+			if i >= len(tokens) || tokens[i].Kind == KindEOF {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("toggle rem not closed from %s", tagTok.String()), Pos: &tagTok.Pos}
+			}
+			if !blockMode && tokens[i].Kind == KindNewline {
+				i++ // the whole single line, including its own newline, vanishes
+				return nil
+			}
+			if blockMode && tokens[i].Kind == KindToggleRem && strings.EqualFold(tokens[i].String(), tagTok.String()) &&
+				i > 0 && tokens[i-1].Kind == KindNewline &&
+				i+1 < len(tokens) && tokens[i+1].Kind == KindNewline {
+				i++ // consume the closing tag only - its trailing newline is left for the caller
+				return nil
+			}
+			i++
+		}
+	}
+
 	// readBracketName reads `[name]` at i (mirrors get_in_bracket,
 	// badig.py:821-838, but accepting any single token as the name,
 	// not just an identifier - the original validates alnum shape
@@ -865,9 +977,26 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 	for i < len(tokens) {
 		tok := tokens[i]
 
+		// Checked before KindDignifiedInstruction, same order as the
+		// original's own dispatch (badig.py's pass_1: the D_TGLREM
+		// check comes before D_INSTRC) - not that it matters for
+		// correctness here, since KEEP's own "#tag" arguments are
+		// consumed directly by readKeeps, never reaching this check.
+		// No error if a bare "#tag" isn't at the start of a line - it
+		// just isn't a toggle marker at all, falls through as an
+		// ordinary token (same as the original: no dispatch branch
+		// matches it, so it reaches self.clc.pass_1() unchanged).
+		if tok.Kind == KindToggleRem && atOutputLineStart() {
+			i++
+			if err := readToggle(tok); err != nil {
+				return nil, nil, err
+			}
+			continue
+		}
+
 		if tok.Kind == KindDignifiedInstruction {
 			upper := strings.ToUpper(tok.String())
-			if (upper == "DEFINE" || upper == "FUNC" || upper == "RET" || upper == "DECLARE") && !atOutputLineStart() {
+			if (upper == "DEFINE" || upper == "FUNC" || upper == "RET" || upper == "DECLARE" || upper == "KEEP") && !atOutputLineStart() {
 				return nil, nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("%s must be at the start of a line", tok.String()), Pos: &tok.Pos}
 			}
 			switch upper {
@@ -892,6 +1021,12 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 			case "DECLARE":
 				i++
 				if err := readDeclares(); err != nil {
+					return nil, nil, err
+				}
+				continue
+			case "KEEP":
+				i++
+				if err := readKeeps(); err != nil {
 					return nil, nil, err
 				}
 				continue
