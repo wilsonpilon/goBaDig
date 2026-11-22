@@ -4,11 +4,21 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **stub funcional** (última release v1.1.4; desenvolvimento
-> v1.2.0). Tem `--help`, `--man`, console interativo com temas e Tab e
-> temas na GUI. A TUI está em redesign: `Setup > Install` congela e será
-> refeita na próxima sessão; ainda não há conversor/tokenizer de BASIC.
-> Ver [`OUTLINE.md`](OUTLINE.md) para o
+> Status: **v1.17.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> console interativo com temas, menu suspenso estilo DOS na TUI,
+> editor de texto completo integrado — WibEdit), mas o **motor de
+> conversão** (`internal/core` + `internal/platforms/msx`) é a peça
+> em desenvolvimento ativo agora: já lê um programa MSX Basic
+> Dignified real (macros `DEFINE`, funções `FUNC`/`RET`, alias manual
+> de variável `DECLARE`, compilação condicional `KEEP`, `INCLUDE`,
+> comentários `##`/bloco de 3 cerquilhas/duas aspas simples, fusão de
+> linha pelos separadores `_` e `:`) e gera a listagem Classic
+> numerada e formatada — **validado 100% de ponta a ponta contra um
+> programa MSX real completo (891 linhas) e a saída do `badig.py`
+> original rodando em Python**, descontadas duas diferenças ainda não
+> portadas (cabeçalho REM automático, expansão de TAB). Ainda não
+> está ligado a nenhuma interface (CLI/TUI/GUI) nem ao tokenizer
+> binário. Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.
@@ -50,9 +60,10 @@ cada formato de mídia/fita/disco.
 - **Modo interativo (`--cli`)**: comandos digitados diretamente, seleção
   de tema com `theme <nome>` e conclusão com `Tab` (duplo `Tab` lista as
   opções disponíveis).
-- **TUI**: interface de terminal (`tview`/`tcell`) para configurar e
-  pré-processar arquivos como um gerenciador, com menu suspenso e temas
-  selecionáveis em `Setup > Install`.
+- **TUI**: interface de terminal (`tview`/`tcell`) com visual retrô
+  MS-DOS, menu suspenso estilo Turbo Pascal 7, temas selecionáveis em
+  `Setup > Install`, e um editor de texto completo integrado
+  (`Editor > Open`, portado do WibEdit) como base da futura IDE.
 - **GUI**: interface gráfica (`Fyne`), mesma ideia da TUI, para quem
   prefere mouse.
 - **VSIX único**: uma extensão VSCode só, cobrindo os três dialetos,
@@ -80,8 +91,8 @@ cada formato de mídia/fita/disco.
 
 ## Screenshots
 
-_(ainda não há interface para mostrar — esta seção será preenchida
-assim que a TUI/GUI tiver as primeiras telas funcionais.)_
+_(CLI/TUI/GUI já funcionam, mas esta seção ainda não foi preenchida
+com capturas de tela.)_
 
 ## Documentação
 
