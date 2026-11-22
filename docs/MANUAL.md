@@ -90,9 +90,11 @@ implementa `FUNC`/`RET` (função Dignified → `GOSUB` + troca de
 variáveis); **`v1.12.0`** implementa `DECLARE` (reserva manual de
 alias de variável); **`v1.13.0`** implementa `KEEP` (compilação
 condicional via tags `#tag`); **`v1.14.0`** implementa `INCLUDE`
-(mesclagem de outro arquivo Dignified) — ainda sem nenhum comando de
-conversão real disponível pro usuário: falta Pass 1 e um `generate()`
-de verdade pra fechar o caminho Dignified→Classic (ver seção 6).
+(mesclagem de outro arquivo Dignified); **`v1.15.0`** implementa um
+`generate()` de verdade (espaçamento por palavra reservada + limite
+de 256 caracteres por linha) — ainda sem nenhum comando de conversão
+real disponível pro usuário: falta só o Pass 1 do separador `_` pra
+fechar o caminho Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -185,16 +187,18 @@ do Pass 5 também funcionam (`x+=5` → `x = x + 5`,
 vira um `GOTO` implícito de volta, `exit` salta pra fora), e a partir
 da `v1.10.0` `DEFINE` expande macros de texto (`[nome](arg)` →
 conteúdo registrado, com placeholder/valor padrão), a partir da
-`v1.11.0` `FUNC`/`RET` também (`.func(5)` → `param = 5 : gosub
-<linha>`), a partir da `v1.12.0` `DECLARE` reserva alias manual de
-variável (`declare x:ab` → `x` sempre vira `ab`), e a partir da
-`v1.13.0` `KEEP` compila condicionalmente blocos marcados com `#tag`
-(sem `keep #a` declarado, um bloco `#a...#a` some; com `keep #a`,
-fica), e a partir da `v1.14.0` `INCLUDE` mescla outro arquivo
-Dignified no meio do stream (caminho relativo resolve contra o
-arquivo principal, não o que inclui) — mas ainda falta o Pass 1 do
-`Parser` e um `generate()` de verdade, e ligar tudo isso ao
-tokenizer. Nada disso é utilizável pelo usuário final ainda.
+`v1.11.0` `FUNC`/`RET` também (`.func(5)` → `param=5:gosub <linha>`),
+a partir da `v1.12.0` `DECLARE` reserva alias manual de variável
+(`declare x:ab` → `x` sempre vira `ab`), a partir da `v1.13.0` `KEEP`
+compila condicionalmente blocos marcados com `#tag` (sem `keep #a`
+declarado, um bloco `#a...#a` some; com `keep #a`, fica), a partir da
+`v1.14.0` `INCLUDE` mescla outro arquivo Dignified no meio do stream
+(caminho relativo resolve contra o arquivo principal, não o que
+inclui), e a partir da `v1.15.0` o `generate()` já é de verdade
+(espaçamento por palavra reservada — `print #1,1` ganha espaço só
+depois do `print` — e limite de 256 caracteres por linha) — mas ainda
+falta o Pass 1 do separador `_`, e ligar tudo isso ao tokenizer. Nada
+disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.14.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.15.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -24,21 +24,25 @@ labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX),
 aninhadas, também core-level), **`FUNC`/`RET`** (função Dignified →
 `GOSUB` + troca de variáveis, idem core-level), **`DECLARE`**
 (reserva manual de alias de variável, idem core-level), **`KEEP`**
-(compilação condicional via tags `#tag`, idem core-level), e
+(compilação condicional via tags `#tag`, idem core-level),
 **`INCLUDE`** (mesclagem de outro arquivo Dignified, idem
-core-level) — a **primeira conversão Dignified→Classic de verdade já
-produzindo texto correto, incluindo `GOTO`/label, laço fechado,
-macro, função, alias manual, tag condicional e mesclagem de arquivo
-reais** (`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`, `keys{ }`
-→ `GOTO` implícito de volta, `[nome](arg)` → texto expandido,
-`.func(5)` → `param = 5 : gosub <linha>`, `declare x:ab` → `x` sempre
-vira `ab`, bloco `#a...#a` some por padrão a menos que `keep
-#a`/`keep #all` seja declarado, `include "sub.dmx"` mescla o conteúdo
-de outro arquivo do disco no meio do stream, variável alocada nele
-sem colidir com o arquivo principal), confirmada em testes de ponta a
-ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra um
-exemplo real completo apontado pelo usuário
-(`badig/examples/msx/CGK173.dmx`). Dez desvios reais nas interfaces
+core-level), e um **`generate()` de verdade** (espaçamento por
+palavra reservada + limite de 256 caracteres, idem core-level) — a
+**primeira conversão Dignified→Classic de verdade já produzindo
+texto correto E formatado de verdade, incluindo `GOTO`/label, laço
+fechado, macro, função, alias manual, tag condicional, mesclagem de
+arquivo e espaçamento reais** (`counter=0` → `zz=0`, `goto {dest}` →
+`goto 20`, `keys{ }` → `GOTO` implícito de volta, `[nome](arg)` →
+texto expandido, `.func(5)` → `param=5:gosub <linha>`, `declare
+x:ab` → `x` sempre vira `ab`, bloco `#a...#a` some por padrão a menos
+que `keep #a`/`keep #all` seja declarado, `include "sub.dmx"` mescla
+o conteúdo de outro arquivo do disco no meio do stream, variável
+alocada nele sem colidir com o arquivo principal, `print #1,1` recebe
+espaço só depois do `print` - não ao redor do `#`/`,`/`=` - igual um
+listing BASIC de verdade), confirmada em testes de ponta a ponta
+completos (`Lex`→`Parse`→`Generate`), e cruzada contra um exemplo
+real completo apontado pelo usuário
+(`badig/examples/msx/CGK173.dmx`). Onze desvios reais nas interfaces
 "v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
 todos documentados no Bloco 1 abaixo — a resolução de labels foi
 também a primeira vez que o `core` passou a fazer trabalho Dignified
@@ -55,14 +59,16 @@ plataforma (conflito lexical real: `#` já é símbolo do MSX);
 `INCLUDE` foi a primeira vez que o core precisou tocar disco de
 verdade (I/O injetável, `CompileContext.LoadFile`) e a primeira vez
 que uma pass chama `core.Lex`/`core.Parse` recursivamente sobre um
-`CompileContext` novo. Também corrigido nesta janela: `identifierPattern`
-(compartilhado) era restrito a ASCII minúsculo — bug real, latente
-desde as rodadas de variável/label, que cortava nomes
-camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1 do `Parser`
-(separador de chamada Dignified `_` fora do fim de linha, rendering
-ainda não entendido) e `generate()` de verdade (espaçamento por
-palavra reservada, limite de linha) — depois disso, falta só ligar
-tudo isso ao tokenizer já pronto pra fechar o caminho completo até o
+`CompileContext` novo; o `generate()` de verdade foi a primeira vez
+que uma rodada mudou o TEXTO RENDERIZADO de quase todo teste de ponta
+a ponta já existente (~40 asserções corrigidas pro valor real, não
+regressão - era o próprio objetivo). Também corrigido nesta janela:
+`identifierPattern` (compartilhado) era restrito a ASCII minúsculo —
+bug real, latente desde as rodadas de variável/label, que cortava
+nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1 do
+`Parser` (separador de chamada Dignified `_` fora do fim de linha,
+rendering ainda não entendido) — depois disso, falta só ligar tudo
+isso ao tokenizer já pronto pra fechar o caminho completo até o
 binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
@@ -1329,6 +1335,68 @@ retornando erro) + 1 de ponta a ponta no MSX usando `t.TempDir()` +
 incluído são pulados e que uma variável declarada nele não colide com
 a alocação automática do arquivo principal.
 
+**`generate()` de verdade implementado** (2026-11-22,
+`internal/core/pipeline.go`): fiel a `generate()`
+(`badig.py:1796-1878`), lido linha a linha, junto com
+`c_symb_comp`/`c_reserved_kw`/`general_spaces` (`badig_msx.py:60-99`,
+`support/badig_settings.py:524`).
+
+**Achado — regra de espaçamento é só baseada em VALOR, não em Kind**:
+`self.token.uval in self.des.c_reserved_kw` — comparação puramente
+textual (maiúsculo), nada a ver com o tipo/Kind do token.
+`Description.ReservedKeywords()` (já existia desde o `DECLARE`, com
+um comentário que já previa esse uso) foi reaproveitado SEM mudança
+nenhuma. Só precisou de UMA lista nova: `CompoundSymbols()` (mirrors
+`c_symb_comp` — todo símbolo clássico MENOS `#`, mais `:` e `_`; o
+`#` é removido DE PROPÓSITO no original, pra `print #1` ganhar espaço
+depois do `print` mesmo assim).
+
+**Achado — algoritmo exato** (confirmado rastreando token a token
+dentro de uma linha): antes de cada token, se ele é palavra
+reservada E a linha montada até agora não termina em espaço E o
+token anterior não é símbolo composto → insere espaço; escreve o
+texto do token sempre; depois do token, se é o número de linha
+(sempre, incondicional) OU (é palavra reservada E o próximo não é
+símbolo composto) → insere espaço; no fim da linha, `rstrip()` +
+confere limite de 256 caracteres (fatal se passar). Confirmei, via
+indexação negativa do Python nos dois extremos da linha
+(`self.line[-1]` quando `n=0`, índice fora dos limites quando
+`n=len-1`), que isso NUNCA dispara de verdade na prática — o `and`
+de curto-circuito do Python nunca chega a avaliar esses acessos
+nesses extremos, porque o número de linha nunca é reservado e o
+`NEWLINE` final nunca é reservado — repliquei com guardas simples
+(`n>0`/`n+1<len`) em vez de tentar reproduzir o wraparound, mesmo
+efeito final. Não precisei incluir a própria `NEWLINE` no grupo de
+tokens da linha (diferente do original, que inclui) — o `rstrip()`
+final cobre a diferença, mesmo resultado.
+
+**Fora de escopo, documentado**: `general_spaces` (flag `-ss`,
+"squeeze spaces" — nenhuma flag de CLI existe ainda pra isso,
+hardcodeado `" "`, o default do original sem `-ss`); relatório de
+labels (`-lbr`) — cosmético, já adiado desde o Bloco 1; limite de 256
+é um literal no original (não vem de `Settings`), replicado como
+constante.
+
+**Impacto nos testes existentes**: a troca de "junta tudo com 1
+espaço fixo" pra espaçamento de verdade mudou o texto renderizado de
+quase todo teste de ponta a ponta já existente (~43 asserções de
+`Code` entre `internal/core` e `internal/platforms/msx`) — corrigido
+cada string pro valor real, sem inflar a lista de palavras reservadas
+da plataforma fake só pra forçar saída bonita (ela é deliberadamente
+incompleta, só prova a mecânica) exceto por completar `goto`/
+`gosub`/`return`, que a própria fake já declara como suas instruções
+de salto/chamada/retorno (`LoopBackInstruction`/
+`FunctionCallInstruction`/`FunctionReturnInstruction`) — omiti-las do
+`ReservedKeywords()` seria só uma fake incompleta, não uma mais
+honesta.
+
+5 testes novos em `internal/core` focados especificamente nas regras
+de espaçamento (reservada ganha espaço antes/depois quando o vizinho
+não é símbolo composto; símbolo composto suprime o espaço; `#` ainda
+ganha espaço depois de uma reservada; número de linha sempre ganha
+espaço depois, mesmo sem nenhuma palavra reservada na linha; linha
+com mais de 256 caracteres é erro fatal).
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1563,16 +1631,19 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
 - [ ] Inserção de header (2 linhas REM sintéticas,
   `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
   cosméticos, pequenos. — **B**, **2**
-- [ ] `generate()` de verdade (regras de espaçamento por palavra
-  reservada + limite de 256 chars/linha) — hoje usa a versão mínima
-  genérica do Bloco 1 (join com 1 espaço, sem limite de linha). Vai
-  precisar de `Description.ReservedKeywords()`/`SymbolsWithoutSpacing()`
-  novos (mirrors `c_reserved_kw`/`c_symb_comp`) e trocar o hook
-  `Parser.Generate` (hoje um no-op, nunca usado de verdade) por algo
-  no formato "espaço extra antes do token N dado o buffer já escrito"
-  — o `generate()` original nunca troca/remove tokens, só insere
-  espaços num buffer de texto, então o modelo `HookAction`/`Token` de
-  hoje não é a forma certa pra isso. — **M**, **2**
+- [x] **`generate()` de verdade implementado** (2026-11-22,
+  `internal/core/pipeline.go`) — regras de espaçamento por palavra
+  reservada + limite de 256 chars/linha, fiel a `generate()`
+  (`badig.py:1796-1878`). Ver Bloco 1 acima pro detalhamento
+  (inclusive o achado de que a regra é puramente baseada em VALOR,
+  não em Kind, e por que não precisou trocar o modelo
+  `HookAction`/`runPass` do hook `Parser.Generate` - a montagem de
+  texto por linha roda DEPOIS do hook, não dentro dele). Novo
+  `Description.CompoundSymbols()` (mirrors `c_symb_comp`);
+  `ReservedKeywords()` já existia (rodada do `DECLARE`), reaproveitado
+  sem mudança. 5 testes novos focados em espaçamento + ~43 asserções
+  de `Code` já existentes corrigidas pro valor real (não regressão -
+  era o próprio objetivo da rodada). — **M**, **2**
 - [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
   `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**

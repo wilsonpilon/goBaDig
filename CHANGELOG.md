@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.15.0] — 2026-11-22 — bloco **NEW**, feature **generate** (build 0)
+
+**`generate()` de verdade** — espaçamento por palavra reservada +
+limite de 256 caracteres por linha, substituindo o "junta tudo com 1
+espaço fixo" provisório desde o Bloco 1.
+
+### Adicionado
+
+- Palavra reservada ganha espaço antes/depois de si mesma, a menos
+  que o vizinho seja um símbolo composto (`c_symb_comp`) ou já exista
+  espaço ali — mesma regra do original, puramente baseada em valor,
+  não em tipo de token.
+- `#` é deliberadamente excluído dos símbolos compostos (igual ao
+  original), então `print #1,1` ganha espaço só depois do `print`.
+- Número de linha sempre ganha espaço depois de si, incondicional.
+- Linha com mais de 256 caracteres é erro fatal.
+- Novo `Description.CompoundSymbols()`; `ReservedKeywords()` (já
+  existia desde o `DECLARE`) é reaproveitado sem mudança.
+- 5 testes novos focados em espaçamento; ~43 asserções de saída já
+  existentes corrigidas para o texto real (não regressão — era o
+  próprio objetivo da release).
+
+### Não mudou / ainda falta
+
+- Pass 1 do separador `_` fora do fim de linha — depois disso, falta
+  só ligar tudo ao tokenizer MSX Batoken já pronto.
+
+---
+
 ## [1.14.0] — 2026-11-22 — bloco **NEW**, feature **include** (build 0)
 
 **`INCLUDE`** — mesclagem de outro arquivo Dignified.
