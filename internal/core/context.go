@@ -48,6 +48,17 @@ type CompileContext struct {
 	// IncludeStack names the files open right now, outermost first -
 	// the current file is always the last entry.
 	IncludeStack []string
+
+	// LoadFile reads a source file from disk into Source-ready Lines
+	// for INCLUDE (badig.py's IO.load_file, support/helper.py) -
+	// injected rather than hardcoded to os.ReadFile, same principle as
+	// Platform's own Description/Lexer/Parser (OUTLINE.md, seção 6,
+	// item 1): keeps core.Parse's INCLUDE handling testable without
+	// real files on disk. LoadLines (pipeline.go) is the real,
+	// ready-to-use implementation. Left nil when the compile never
+	// uses INCLUDE; attempting to use INCLUDE with it nil is a fatal
+	// Diagnostic, not a panic.
+	LoadFile func(path string) ([]Line, error)
 }
 
 // IsMainFile reports whether this context is compiling the top-level

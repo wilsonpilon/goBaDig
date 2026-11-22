@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
@@ -87,6 +89,31 @@ var toggleRemPattern = regexp.MustCompile(`(?i)^#[a-z][a-z_0-9]*`)
 // (dialect keywords before the shared identifier pattern) and its
 // tolerant "character not recognized" handling (scanning continues
 // rather than aborting).
+//
+// LoadLines reads path from disk into Source-ready Lines: the real
+// (non-test) implementation for CompileContext.LoadFile, used by
+// INCLUDE (pass3Includes) and reusable later for loading the main
+// file too, once there is real CLI wiring. Mirrors the Line shape
+// every test helper in pipeline_test.go already uses: a dummy
+// Line{Number: 0} placeholder first (core.Lex starts scanning real
+// content at index 1), then one Line per real line, 1-indexed.
+// Deliberately out of scope, same as the original engine's own
+// IO.load_file options this doesn't need yet: encoding/tab-width
+// normalization (CompileSettings doesn't model those).
+func LoadLines(path string) ([]Line, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	rawLines := strings.Split(string(data), "\n")
+	lines := make([]Line, 0, len(rawLines)+1)
+	lines = append(lines, Line{Number: 0, Text: "PROGRAM", File: path})
+	for i, text := range rawLines {
+		lines = append(lines, Line{Number: i + 1, Text: strings.TrimRight(text, "\r"), File: path})
+	}
+	return lines, nil
+}
+
 func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 	platform.Lexer.Init(ctx)
 
@@ -1373,38 +1400,180 @@ func pass2Labels(ctx *CompileContext, tokens []Token, platform Platform) ([]Toke
 	return out, nil
 }
 
-// pass3LineHygiene wraps platform.Parser.Pass3 with the core-level
-// line cleanup pass_3 does (badig.py:1536-1613) before ever falling
-// through to self.clc.pass_3(): consecutive blank lines collapse to
-// none, a `_` immediately followed by NEWLINE merges that line into
-// the next one (both tokens vanish), and the NEWLINE right after a
-// label declaration vanishes too (a label never gets a blank line of
-// its own before the code that follows it). All three only ever look
-// at tokens[index-1], same lookback already used by MSX's own Pass 3.
-func pass3LineHygiene(platform Platform) passFunc {
-	return func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
-		tok := tokens[index]
+// pass3Includes replaces the generic runPass(platform.Parser.Pass3)
+// call in Parse with the core-level work pass_3 does
+// (badig.py:1506-1613) before ever falling through to self.clc.pass_3():
+// the line cleanup this absorbs from the former pass3LineHygiene
+// (consecutive blank lines collapse to none, a `_` immediately
+// followed by NEWLINE merges that line into the next one, the
+// NEWLINE right after a label declaration vanishes too), plus
+// INCLUDE, which badig.py only ever acts on here - Pass 1 lets the
+// INCLUDE/filename tokens through completely unchanged
+// (`d_instr == 'INCLUDE': pass`, badig.py:1399-1400), and Pass 2
+// doesn't recognize them either.
+//
+// Doesn't fit passFunc/runPass as a single call, same reason as
+// DEFINE/FUNC/DECLARE/KEEP before it: INCLUDE consumes a
+// variable-length run of tokens (its own instruction + filename, and
+// however many tokens the included file contributes), not just the
+// one tokens[index] runPass hands a call.
+//
+// No "must be at the start of a line" requirement - confirmed neither
+// badig.py's Pass 1 nor Pass 3 dispatch for INCLUDE checks that
+// (unlike DEFINE/FUNC/RET/DECLARE/KEEP); in practice it only ever
+// works at the start of a line anyway, since the next token must
+// literally be a quoted filename.
+func pass3Includes(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
+	quote := platform.Description.QuoteChar()
+	var out []Token
+	i := 0
 
-		if tok.Kind == KindNewline && index > 0 {
-			switch tokens[index-1].Kind {
-			case KindNewline, KindLabelDeclaration, KindDignifiedSeparator:
-				return Skip, nil, nil
+	for i < len(tokens) {
+		tok := tokens[i]
+
+		if tok.Kind == KindDignifiedInstruction && strings.ToUpper(tok.String()) == "INCLUDE" {
+			included, next, err := resolveInclude(ctx, tokens, i, tok, quote, platform)
+			if err != nil {
+				return nil, err
 			}
-			return Continue, nil, nil
+			out = append(out, included...)
+			i = next
+			continue
+		}
+
+		if tok.Kind == KindNewline && i > 0 {
+			// Two lookbacks, needed for different reasons: tokens[i-1]
+			// is the ORIGINAL input sequence, which a single skipped
+			// token (e.g. a `_` separator right before this NEWLINE)
+			// still shows correctly even though out never got it -
+			// same rule runPass's own doc comment states for passFunc,
+			// which this hand-rolled loop has to honor explicitly now
+			// that it isn't runPass-driven anymore. out[-1] is needed
+			// on top of that for INCLUDE specifically: when an
+			// included file's own content vanishes entirely (e.g. it
+			// was just a DECLARE line), tokens[i-1] is the filename
+			// string, not a NEWLINE - but out's own last entry is
+			// still the PREVIOUS real newline, and this one must
+			// collapse against it all the same.
+			prevKind := tokens[i-1].Kind
+			if len(out) > 0 {
+				switch out[len(out)-1].Kind {
+				case KindNewline, KindLabelDeclaration, KindDignifiedSeparator:
+					i++
+					continue
+				}
+			}
+			switch prevKind {
+			case KindNewline, KindLabelDeclaration, KindDignifiedSeparator:
+				i++
+				continue
+			}
+			out = append(out, tok)
+			i++
+			continue
 		}
 
 		if tok.Kind == KindDignifiedSeparator {
-			if index+1 < len(tokens) && tokens[index+1].Kind == KindNewline {
-				return Skip, nil, nil
+			if i+1 < len(tokens) && tokens[i+1].Kind == KindNewline {
+				i++
+				continue
 			}
 			// Not at the end of a line: MSX's own Pass 1 "_ as a call
 			// separator" territory, not implemented yet (ver
 			// OUTLINE.md) - left unchanged.
-			return Continue, nil, nil
+			out = append(out, tok)
+			i++
+			continue
 		}
 
-		return platform.Parser.Pass3(ctx, tokens, index)
+		action, result, err := platform.Parser.Pass3(ctx, tokens, i)
+		if err != nil {
+			return nil, err
+		}
+		switch action {
+		case Skip:
+			i++
+		case Replace:
+			out = append(out, result...)
+			i++
+		default: // Continue
+			out = append(out, tok)
+			i++
+		}
 	}
+	return out, nil
+}
+
+// resolveInclude reads the quoted filename right after an INCLUDE
+// token at tokens[i], loads+lexes+parses that file as a nested
+// compile, and returns the slice of its own output tokens to splice
+// in, plus the index in tokens to resume from. Mirrors include_file
+// (badig.py:1243-1286).
+func resolveInclude(ctx *CompileContext, tokens []Token, i int, instr Token, quote byte, platform Platform) ([]Token, int, error) {
+	i++
+	if i >= len(tokens) || tokens[i].Kind != KindString {
+		return nil, 0, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("include error: %s", instr.String()), Pos: &instr.Pos}
+	}
+	nameTok := tokens[i]
+	i++
+
+	includePath := strings.TrimSpace(strings.Trim(nameTok.String(), string(quote)))
+	if includePath == "" {
+		return nil, 0, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("include error: %s", nameTok.String()), Pos: &nameTok.Pos}
+	}
+
+	// Relative paths resolve against the MAIN file's own directory,
+	// not the currently-including file's - confirmed reading
+	// support/badig_settings.py:505 (`self.file_path =
+	// os.path.dirname(self.file_load)`, set once, shared by reference
+	// across every nested Parser instance, never updated per include).
+	// IncludeStack[0] is always the main file.
+	if !filepath.IsAbs(includePath) && len(ctx.IncludeStack) > 0 {
+		includePath = filepath.Join(filepath.Dir(ctx.IncludeStack[0]), includePath)
+	}
+
+	if ctx.LoadFile == nil {
+		return nil, 0, Diagnostic{Severity: SeverityError, Message: "include error: no file loader configured", Pos: &instr.Pos}
+	}
+	lines, err := ctx.LoadFile(includePath)
+	if err != nil {
+		return nil, 0, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("include error: %v", err), Pos: &instr.Pos}
+	}
+
+	nestedCtx := &CompileContext{
+		Source:       lines,
+		Settings:     ctx.Settings,
+		Symbols:      ctx.Symbols,
+		Diagnostics:  ctx.Diagnostics,
+		IncludeStack: append(append([]string{}, ctx.IncludeStack...), includePath),
+		LoadFile:     ctx.LoadFile,
+	}
+
+	nestedTokens, err := Lex(nestedCtx, platform)
+	if err != nil {
+		return nil, 0, err
+	}
+	nestedTokens, err = Parse(nestedCtx, nestedTokens, platform)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Mirrors parsed[2:-2] in include_file: badig.py's own token
+	// stream has a synthetic leading NEWLINE right after PROGRAM
+	// (lex(), badig.py:418-419) that core.Lex never inserts, so only
+	// PROGRAM itself is dropped from the front here; EOF and the
+	// included file's own trailing NEWLINE are dropped from the back
+	// either way, so the including file's own NEWLINE (which
+	// terminated its INCLUDE line) becomes the separator instead,
+	// avoiding a doubled blank line.
+	contentEnd := len(nestedTokens) - 2
+	if contentEnd < 1 {
+		contentEnd = 1
+	}
+	if contentEnd > len(nestedTokens) {
+		contentEnd = len(nestedTokens)
+	}
+	return nestedTokens[1:contentEnd], i, nil
 }
 
 // pass4Numbering replaces the generic runPass(platform.Parser.Pass4)
@@ -1564,8 +1733,8 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 // original's own pass_1/pass_2/pass_3/pass_4 do before ever calling
 // self.clc.passN() (pass2Functions is the one exception that never
 // calls it at all - ver its own doc comment for why). INCLUDE
-// expansion (which happens inside pass 3 in the original engine) is
-// not implemented yet (ver OUTLINE.md, Bloco 1, Fase 3).
+// expansion happens inside pass3Includes, same as the original engine
+// (ver its own doc comment).
 func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
 	tokens, functions, err := pass1Dignified(ctx, tokens, platform)
 	if err != nil {
@@ -1579,7 +1748,7 @@ func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, err
 	if err != nil {
 		return nil, err
 	}
-	tokens, err = runPass(ctx, tokens, pass3LineHygiene(platform))
+	tokens, err = pass3Includes(ctx, tokens, platform)
 	if err != nil {
 		return nil, err
 	}

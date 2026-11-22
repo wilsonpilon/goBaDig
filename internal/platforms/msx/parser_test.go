@@ -1,6 +1,8 @@
 package msx
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -386,6 +388,43 @@ func TestEndToEndToggleRemCoexistsWithMSXsOwnHashSymbol(t *testing.T) {
 	for i := range want {
 		if result.Code[i] != want[i] {
 			t.Fatalf("line %d = %q, want %q (full: %v) - the lexer's lookahead for toggle-rem tags must not disturb MSX's own \"#\" file-channel symbol", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
+func TestEndToEndIncludeMergesARealFileFromDiskAndSharesVariableAllocation(t *testing.T) {
+	dir := t.TempDir()
+	includedPath := filepath.Join(dir, "sub.dmx")
+	if err := os.WriteFile(includedPath, []byte("declare longvar:zq\nprint longvar\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	source := []core.Line{
+		{Number: 0, Text: "PROGRAM", File: "test"},
+		{Number: 1, Text: "print 1", File: "test.dmx"},
+		{Number: 2, Text: `include "sub.dmx"`, File: "test.dmx"},
+		{Number: 3, Text: "print othervar", File: "test.dmx"},
+	}
+	ctx := &core.CompileContext{
+		Source:       source,
+		Settings:     &core.CompileSettings{LineStart: 10, LineStep: 10},
+		Symbols:      core.NewSymbolTables(),
+		IncludeStack: []string{filepath.Join(dir, "test.dmx")},
+		LoadFile:     core.LoadLines,
+	}
+	platform := core.Platform{Description: Description, Lexer: Lexer{}, Parser: NewParser()}
+
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 print 1", "20 print zq", "30 print zz"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v) - a real file read from disk via core.LoadLines must splice in, numbered only by the main file, with its own DECLARE visible to the main file's own variable allocation", i, result.Code[i], want[i], result.Code)
 		}
 	}
 }

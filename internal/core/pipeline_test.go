@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -618,6 +619,136 @@ func TestPass1FailsOnADuplicateKeepTag(t *testing.T) {
 	_, err := runFake(t, "keep #a #a")
 	if err == nil {
 		t.Fatal("expected a fatal error for a duplicate keep tag, got none")
+	}
+}
+
+// fakeLoader is a CompileContext.LoadFile double that serves Lines
+// from an in-memory map instead of touching disk - lines map keys are
+// paths exactly as resolveInclude would ask for them; requested
+// records every path actually requested, for tests asserting on
+// resolution itself (Achado 2 - relative paths resolve against the
+// MAIN file's own directory, not the including file's).
+func fakeLoader(lines map[string][]string, requested *[]string) func(string) ([]Line, error) {
+	return func(path string) ([]Line, error) {
+		if requested != nil {
+			*requested = append(*requested, path)
+		}
+		content, ok := lines[path]
+		if !ok {
+			return nil, fmt.Errorf("fakeLoader: no file registered for %q", path)
+		}
+		source := make([]Line, 0, len(content)+1)
+		source = append(source, Line{Number: 0, Text: "PROGRAM", File: path})
+		for i, text := range content {
+			source = append(source, Line{Number: i + 1, Text: text, File: path})
+		}
+		return source, nil
+	}
+}
+
+func runFakeWithInclude(t *testing.T, mainLines []string, included map[string][]string, requested *[]string) (*CompileContext, GenerateResult, error) {
+	t.Helper()
+	ctx := newFakeMultilineContext(mainLines, []string{"fake.dmx"})
+	ctx.LoadFile = fakeLoader(included, requested)
+	platform := Platform{
+		Description: fakeDescription{},
+		Lexer:       fakeLexer{},
+		Parser:      fakeParser{},
+		Settings:    fakeSettings{},
+	}
+	result, err := Run(ctx, platform)
+	return ctx, result, err
+}
+
+func TestPass3IncludeSplicesContentBetweenSurroundingLines(t *testing.T) {
+	_, result, err := runFakeWithInclude(t,
+		[]string{"PRINT 1", `include "sub.fake"`, "PRINT 3"},
+		map[string][]string{"sub.fake": {"PRINT 2"}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 PRINT 2", "30 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (included content must splice in with no doubled blank line)", result.Code, want)
+	}
+}
+
+func TestPass3IncludeSharesSymbolTablesByPointer(t *testing.T) {
+	ctx, result, err := runFakeWithInclude(t,
+		[]string{"PRINT 0", `include "vars.fake"`, "PRINT 1"},
+		map[string][]string{"vars.fake": {"declare longname:zz"}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 0", "20 PRINT 1"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (DECLARE's own line vanishes same as always)", result.Code, want)
+	}
+	if got := ctx.Symbols.Declares["longname@vars.fake"]; got != "zz" {
+		t.Fatalf("ctx.Symbols.Declares[%q] = %q, want %q (an included file's DECLARE must be visible on the including file's own Symbols - shared pointer, Achado 3)", "longname@vars.fake", got, "zz")
+	}
+}
+
+func TestPass3IncludeResolvesRelativePathsAgainstTheMainFileNotTheIncludingFile(t *testing.T) {
+	var requested []string
+	_, result, err := runFakeWithInclude(t,
+		[]string{`include "mid.fake"`, "PRINT 9"},
+		map[string][]string{
+			"mid.fake":  {`include "leaf.fake"`},
+			"leaf.fake": {"PRINT 1"},
+		},
+		&requested,
+	)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 PRINT 9"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v", result.Code, want)
+	}
+	wantRequested := []string{"mid.fake", "leaf.fake"}
+	if strings.Join(requested, "|") != strings.Join(wantRequested, "|") {
+		t.Fatalf("requested paths = %v, want %v (bare \"leaf.fake\" inside mid.fake must resolve against the MAIN file's own directory, Achado 2 - not against mid.fake's)", requested, wantRequested)
+	}
+}
+
+func TestPass3IncludeFailsWhenTheFilenameIsNotAQuotedString(t *testing.T) {
+	_, _, err := runFakeWithInclude(t,
+		[]string{"include 5"},
+		nil,
+		nil,
+	)
+	if err == nil {
+		t.Fatal("expected a fatal error for INCLUDE without a quoted filename, got none")
+	}
+}
+
+func TestPass3IncludeFailsWithNoLoaderConfigured(t *testing.T) {
+	ctx := newFakeMultilineContext([]string{`include "sub.fake"`}, []string{"fake.dmx"})
+	platform := Platform{
+		Description: fakeDescription{},
+		Lexer:       fakeLexer{},
+		Parser:      fakeParser{},
+		Settings:    fakeSettings{},
+	}
+	_, err := Run(ctx, platform)
+	if err == nil {
+		t.Fatal("expected a fatal error for INCLUDE with no LoadFile configured, got none")
+	}
+}
+
+func TestPass3IncludeFailsWhenTheLoaderErrors(t *testing.T) {
+	_, _, err := runFakeWithInclude(t,
+		[]string{`include "missing.fake"`},
+		map[string][]string{},
+		nil,
+	)
+	if err == nil {
+		t.Fatal("expected a fatal error when the loader can't find the file, got none")
 	}
 }
 
