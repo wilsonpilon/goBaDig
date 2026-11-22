@@ -1053,18 +1053,22 @@ label + renomeação de variável convivendo (replicando o padrão real
 do `CGK173.dmx`, onde `pauseKEY`/`pauseANY` têm `{@}` dentro do
 próprio conteúdo).
 
-**Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
-que prova que o desenho funciona):
+**Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
+funciona) — **estado em 2026-11-22, superando a descrição original de
+2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
+de verdade (`DEFINE` via `pass1Defines`, labels/loop labels via
+`pass2Labels`, numeração via `pass4Numbering` — ver Bloco 1 acima,
+seções "labels e numeração" e "`DEFINE` implementado") — não é mais
+"todo pass só chama o hook da plataforma por token" como descrito
+quando essa fase foi aberta. `INCLUDE` (que precisaria disso pra
+mesclar arquivos) ainda não existe.
 - [x] Driver do pipeline no core (`internal/core/pipeline.go`:
-  `Lex`/`Parse`/`Generate`/`Run`) — **A**, **1**. Simplificação
-  deliberada em relação ao Python: o scanner só reconhece espaço em
-  branco e fim de linha; qualquer sequência de caracteres não-espaço é
-  empacotada como `KindWord` e delegada pro `Lexer.Lex` da plataforma
-  classificar — nenhum processamento Dignified de núcleo
-  (DEFINE/INCLUDE/etc.) existe ainda, então todo pass hoje só chama o
-  hook da plataforma por token, sem nenhuma lógica própria do core.
-  Scanner "de verdade" por tabela/trie, com vocabulário real, continua
-  sendo trabalho do Bloco 2.
+  `Lex`/`Parse`/`Generate`/`Run`) — **A**, **1**. Descrição original
+  (2026-11-21, já superada pelo texto acima): o scanner só reconhecia
+  espaço em branco e fim de linha; qualquer sequência de caracteres
+  não-espaço era empacotada como `KindWord` (removido desde então, ver
+  "Segundo desvio" no Bloco 1) e delegada pro `Lexer.Lex` da
+  plataforma classificar.
 - [x] Plataforma fake de validação (`internal/core/pipeline_test.go`,
   reconhece `PRINT`/inteiros/`IGNORE`) — **M**, **1**
 - [x] Teste de ponta a ponta (`TestPipelineEndToEnd`, exercitando as 3
