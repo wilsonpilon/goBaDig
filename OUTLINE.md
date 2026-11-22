@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.13.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.14.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -23,40 +23,47 @@ labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX),
 **`DEFINE`** (macro de texto com placeholder/valor padrão/chamadas
 aninhadas, também core-level), **`FUNC`/`RET`** (função Dignified →
 `GOSUB` + troca de variáveis, idem core-level), **`DECLARE`**
-(reserva manual de alias de variável, idem core-level), e **`KEEP`**
-(compilação condicional via tags `#tag`, idem core-level) — a
-**primeira conversão Dignified→Classic de verdade já produzindo
-texto correto, incluindo `GOTO`/label, laço fechado, macro, função,
-alias manual e tag condicional reais** (`counter=0` → `zz = 0`,
-`goto {dest}` → `goto 20`, `keys{ }` → `GOTO` implícito de volta,
-`[nome](arg)` → texto expandido, `.func(5)` → `param = 5 : gosub
-<linha>`, `declare x:ab` → `x` sempre vira `ab`, bloco `#a...#a` some
-por padrão a menos que `keep #a`/`keep #all` seja declarado),
-confirmada em testes de ponta a ponta completos
-(`Lex`→`Parse`→`Generate`), e cruzada contra um exemplo real completo
-apontado pelo usuário (`badig/examples/msx/CGK173.dmx`). Nove desvios
-reais nas interfaces "v0" do Bloco 1 descobertos implementando contra
-o MSX de verdade, todos documentados no Bloco 1 abaixo — a resolução
-de labels foi também a primeira vez que o `core` passou a fazer
-trabalho Dignified de verdade antes de delegar pra plataforma, não só
-documentar a intenção; `DEFINE` foi a primeira vez que isso precisou
-de um cursor explícito em vez do modelo `passFunc`/`runPass`;
-`FUNC`/`RET` foi a primeira vez que uma pass inteira nova
-(`pass2Functions`) precisou existir fora do molde de "envolve o hook
-da plataforma"; `DECLARE` foi a primeira vez que um recurso novo não
-precisou tocar em `msx/parser.go` NENHUM pouco (escreve direto nas
-tabelas que o Pass 3/4 já consulta); `KEEP` foi a primeira vez que um
-recurso novo precisou de uma mudança FORA do `core`, no `Lexer` da
-própria plataforma (conflito lexical real: `#` já é símbolo do MSX).
-Também corrigido nesta janela: `identifierPattern` (compartilhado)
-era restrito a ASCII minúsculo — bug real, latente desde as rodadas
-de variável/label, que cortava nomes camelCase/mixedCase (`v1.9.1`).
-**Ainda falta**: Pass 1 do `Parser` (separador de chamada Dignified
-`_` fora do fim de linha, rendering ainda não entendido), `INCLUDE`,
-`generate()` de verdade (espaçamento por palavra reservada, limite de
-linha), e ligar tudo isso ao tokenizer
-já pronto pra fechar o caminho completo até o binário. Ver Blocos 1-4
-na seção 7 para o detalhamento.
+(reserva manual de alias de variável, idem core-level), **`KEEP`**
+(compilação condicional via tags `#tag`, idem core-level), e
+**`INCLUDE`** (mesclagem de outro arquivo Dignified, idem
+core-level) — a **primeira conversão Dignified→Classic de verdade já
+produzindo texto correto, incluindo `GOTO`/label, laço fechado,
+macro, função, alias manual, tag condicional e mesclagem de arquivo
+reais** (`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`, `keys{ }`
+→ `GOTO` implícito de volta, `[nome](arg)` → texto expandido,
+`.func(5)` → `param = 5 : gosub <linha>`, `declare x:ab` → `x` sempre
+vira `ab`, bloco `#a...#a` some por padrão a menos que `keep
+#a`/`keep #all` seja declarado, `include "sub.dmx"` mescla o conteúdo
+de outro arquivo do disco no meio do stream, variável alocada nele
+sem colidir com o arquivo principal), confirmada em testes de ponta a
+ponta completos (`Lex`→`Parse`→`Generate`), e cruzada contra um
+exemplo real completo apontado pelo usuário
+(`badig/examples/msx/CGK173.dmx`). Dez desvios reais nas interfaces
+"v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
+todos documentados no Bloco 1 abaixo — a resolução de labels foi
+também a primeira vez que o `core` passou a fazer trabalho Dignified
+de verdade antes de delegar pra plataforma, não só documentar a
+intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
+explícito em vez do modelo `passFunc`/`runPass`; `FUNC`/`RET` foi a
+primeira vez que uma pass inteira nova (`pass2Functions`) precisou
+existir fora do molde de "envolve o hook da plataforma"; `DECLARE`
+foi a primeira vez que um recurso novo não precisou tocar em
+`msx/parser.go` NENHUM pouco (escreve direto nas tabelas que o Pass
+3/4 já consulta); `KEEP` foi a primeira vez que um recurso novo
+precisou de uma mudança FORA do `core`, no `Lexer` da própria
+plataforma (conflito lexical real: `#` já é símbolo do MSX);
+`INCLUDE` foi a primeira vez que o core precisou tocar disco de
+verdade (I/O injetável, `CompileContext.LoadFile`) e a primeira vez
+que uma pass chama `core.Lex`/`core.Parse` recursivamente sobre um
+`CompileContext` novo. Também corrigido nesta janela: `identifierPattern`
+(compartilhado) era restrito a ASCII minúsculo — bug real, latente
+desde as rodadas de variável/label, que cortava nomes
+camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1 do `Parser`
+(separador de chamada Dignified `_` fora do fim de linha, rendering
+ainda não entendido) e `generate()` de verdade (espaçamento por
+palavra reservada, limite de linha) — depois disso, falta só ligar
+tudo isso ao tokenizer já pronto pra fechar o caminho completo até o
+binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -1231,6 +1238,97 @@ inválida/tag duplicada) + 1 de ponta a ponta no MSX confirmando que
 `#` convive normal como símbolo de canal de arquivo ao lado de um
 bloco `#a...#a`.
 
+**`INCLUDE` implementado** (2026-11-22, `internal/core/pipeline.go` +
+`internal/core/context.go`): fiel a `include_file`
+(`badig.py:1243-1286`), lido linha a linha, junto com o dispatch de
+`pass_1`/`pass_3` e `is_main_file`/`par()` (`badig.py:1344-1366`) e
+`support/badig_settings.py:505`.
+
+**Achado — processado só no Pass 3, não no Pass 1**: diferente de
+`DEFINE`/`FUNC`/`RET`/`DECLARE`/`KEEP` (todos resolvidos no Pass 1),
+`INCLUDE` só é agido no Pass 3 (`badig.py:1522-1526`) — o Pass 1
+deixa os tokens `INCLUDE`/`"arquivo"` atravessarem sem nenhuma
+mudança (`d_instr == 'INCLUDE': pass`), e o Pass 2 também não faz
+nada especial com eles. Meu `pass3LineHygiene` (até então puramente
+genérico, `passFunc`/`runPass`) virou bespoke (cursor explícito,
+renomeado `pass3Includes`) — mesmo padrão evolutivo de Pass 1/2
+chegando no Pass 3. Sem checagem de "deve estar no início de linha"
+(nem o original exige isso pro `INCLUDE` — na prática só funciona
+assim mesmo, porque o próximo token tem que ser literalmente uma
+string entre aspas).
+
+**Achado — resolução de caminho relativo usa o diretório do arquivo
+PRINCIPAL, não do arquivo que inclui**: `self.stg.file_path` é
+setado UMA VEZ (`os.path.dirname(file_load)`, confirmado em
+`support/badig_settings.py:505`) e nunca muda, mesmo em includes
+aninhados (o mesmo objeto `Settings` é compartilhado por referência
+entre todas as instâncias de `Parser` recursivas) — um include
+relativo DENTRO de um arquivo já incluído ainda resolve contra o
+diretório do arquivo principal, não do arquivo atual. Replicado
+resolvendo caminhos relativos contra `filepath.Dir(ctx.
+IncludeStack[0])` (sempre o arquivo principal), confirmado com um
+teste de 2 níveis de profundidade que SÓ passa se a resolução usar o
+diretório certo.
+
+**Achado — Go com ponteiro dispensa a dança de tupla do original**:
+`include_file()` passa `(c_hard_short_vars, c_hard_long_vars,
+d_declares)` como tupla pro `Parser` aninhado e copia de volta depois
+— meu `core.SymbolTables` já é um PONTEIRO
+(`CompileContext.Symbols`), então o `CompileContext` aninhado só
+reusa o MESMO ponteiro: qualquer `DECLARE`/alocação que o include
+escrever já fica visível pro arquivo que incluiu, sem merge
+explícito. Pelo mesmo motivo, o alocador de variável do MSX
+(`*msx.Parser.allocator`, campo da própria instância de `Parser`, não
+do `CompileContext`) também já é compartilhado automaticamente,
+contanto que o `Platform` passado pro `core.Parse`/`core.Lex`
+aninhados seja o MESMO valor recebido de fora — zero mudança
+precisou em `msx/parser.go`.
+
+**Achado — limites exatos da mesclagem**: o original usa
+`parsed[2:-2]` porque seu próprio `lex()` insere um `NEWLINE`
+sintético logo depois de `PROGRAM` (`badig.py:418-419); meu
+`core.Lex()` NÃO insere esse `NEWLINE` sintético — minha estrutura é
+`[PROGRAM, ...conteúdo..., NEWLINE da última linha, EOF]`.
+Equivalente exato: `nestedTokens[1:len-2]` (só derruba `PROGRAM` na
+frente, `NEWLINE`+`EOF` atrás) — o `NEWLINE` que terminava a própria
+linha do `INCLUDE` no arquivo que inclui sobrevive normal e assume o
+papel de separador entre o conteúdo mesclado e o que vem depois.
+
+Novo campo `CompileContext.LoadFile func(string) ([]Line, error)` —
+primeira vez que o `core` precisa de I/O de disco de verdade (nada
+usava isso antes, zero wiring de CLI); injetável, mesmo princípio já
+usado pra `Description`/`Lexer`/`Parser` (valores explícitos, não
+globais), mantendo testável sem arquivo real. Nova função real
+`core.LoadLines` (implementação de verdade, reaproveitável quando a
+futura integração de CLI carregar o arquivo principal também).
+
+Reescrever `pass3LineHygiene` pra bespoke também corrigiu, sem
+querer, uma pegadinha que só apareceu testando: o colapso de linha em
+branco original olhava só `tokens[index-1]` (índice ORIGINAL de
+entrada, mesma regra que `runPass` documenta) — mas `INCLUDE` pode
+fazer um TRECHO INTEIRO desaparecer (não só 1 token por vez, como
+`_`/label), deixando duas `NEWLINE` reais adjacentes na SAÍDA sem que
+o token ORIGINAL imediatamente anterior seja `NEWLINE`. Corrigido
+olhando os DOIS lookbacks (`tokens[i-1]` E `out[-1]`) — qualquer um
+dos dois sendo `NEWLINE`/`LabelDeclaration`/`DignifiedSeparator`
+colapsa.
+
+**Fora de escopo, documentado**: normalização de encoding/tamanho de
+tab (`load_format`/`tab_lenght` do original); proteção contra include
+circular (o original não tem, não é questão de fidelidade — fico
+igual, sem adicionar validação nova).
+
+7 testes novos em `internal/core` (mescla sem linha em branco
+duplicada; `DECLARE` dentro de um include fica visível em
+`ctx.Symbols` do arquivo principal via ponteiro compartilhado;
+caminho relativo resolve contra o arquivo principal mesmo num include
+aninhado 2 níveis; erro fatal token depois de `INCLUDE` não é string;
+erro fatal `LoadFile` não configurado; erro fatal `LoadFile`
+retornando erro) + 1 de ponta a ponta no MSX usando `t.TempDir()` +
+`core.LoadLines` de verdade, confirmando que Pass 4/5 do arquivo
+incluído são pulados e que uma variável declarada nele não colide com
+a alocação automática do arquivo principal.
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1238,8 +1336,9 @@ de verdade (`DEFINE` via `pass1Defines`, labels/loop labels via
 `pass2Labels`, numeração via `pass4Numbering` — ver Bloco 1 acima,
 seções "labels e numeração" e "`DEFINE` implementado") — não é mais
 "todo pass só chama o hook da plataforma por token" como descrito
-quando essa fase foi aberta. `INCLUDE` (que precisaria disso pra
-mesclar arquivos) ainda não existe.
+quando essa fase foi aberta. `INCLUDE` (que precisava exatamente
+disso pra mesclar arquivos) já está implementado desde 2026-11-22 —
+ver Bloco 1 acima.
 - [x] Driver do pipeline no core (`internal/core/pipeline.go`:
   `Lex`/`Parse`/`Generate`/`Run`) — **A**, **1**. Descrição original
   (2026-11-21, já superada pelo texto acima): o scanner só reconhecia
@@ -1452,8 +1551,15 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   conflito real de léxico com `#` já ser símbolo do MSX, e a correção
   do bug de comparação de duplicata). 8 testes novos em `core` + 1 de
   ponta a ponta no MSX. — **A**, **1**
-- [ ] `INCLUDE` — fatia própria, confirmada existir e ser usada de
-  verdade no `CGK173.dmx`. — **A**, **1**
+- [x] **`INCLUDE` implementado** (2026-11-22, `internal/core/pipeline.go`
+  + `internal/core/context.go`) — mesclagem de outro arquivo Dignified
+  (não usado no `CGK173.dmx` de verdade, apesar do item anterior
+  supor que sim - confirmado não ter nenhuma ocorrência nesse
+  exemplo). Ver Bloco 1 acima pro detalhamento (inclusive o achado de
+  que é processado só no Pass 3, não no Pass 1, e a resolução de
+  caminho relativo contra o arquivo PRINCIPAL, não o que inclui). 7
+  testes novos em `core` + 1 de ponta a ponta no MSX lendo um arquivo
+  real do disco. — **A**, **1**
 - [ ] Inserção de header (2 linhas REM sintéticas,
   `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
   cosméticos, pequenos. — **B**, **2**

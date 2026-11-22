@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.14.0] — 2026-11-22 — bloco **NEW**, feature **include** (build 0)
+
+**`INCLUDE`** — mesclagem de outro arquivo Dignified.
+
+### Adicionado
+
+- `INCLUDE "arquivo"` carrega, lexa e processa outro arquivo (Pass
+  1-3) e mescla seu conteúdo no lugar do próprio `INCLUDE`; caminhos
+  relativos resolvem contra o diretório do arquivo PRINCIPAL, não do
+  arquivo que inclui (mesmo em includes aninhados) — fiel ao
+  original.
+- Tabelas de variável (`Declares`/`HardShortVars`/`HardLongVars`) e o
+  alocador de alias do MSX são automaticamente compartilhados entre
+  o arquivo principal e qualquer include — zero mudança em
+  `internal/platforms/msx/parser.go`.
+- Novo `CompileContext.LoadFile` (I/O de disco injetável) e
+  `core.LoadLines` (implementação real) — primeira vez que o `core`
+  precisa ler um arquivo de verdade.
+- 7 testes novos no mecanismo core-level + 1 de ponta a ponta no MSX
+  lendo um arquivo real do disco.
+
+### Não mudou / ainda falta
+
+- Pass 1 do separador `_` fora do fim de linha, `generate()` de
+  verdade (espaçamento por palavra reservada, limite de 256
+  caracteres).
+
+---
+
 ## [1.13.0] — 2026-11-22 — bloco **NEW**, feature **keep** (build 0)
 
 **`KEEP`** — compilação condicional via tags `#tag`, usada no
