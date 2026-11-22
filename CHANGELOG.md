@@ -35,6 +35,33 @@ exata do pacote.
 
 ---
 
+## [1.9.0] — 2026-11-22 — bloco **NEW**, feature **loop-labels** (build 0)
+
+**Loop labels** (`nome{ ... }` como laço fechado + `exit`) — usado de
+verdade em `CGK173.dmx` (`keys{ }`, `read_keyboard_main{ }` etc.).
+
+### Adicionado
+
+- `nome{` abre um laço fechado (mesma declaração de label simples,
+  só a detecção difere); `}` solto fecha, emitindo um `GOTO`
+  implícito de volta pro início (com separador `:` só quando não está
+  sozinho na linha); `exit` dentro do laço salta pra depois do
+  fechamento.
+- `core.Description` ganhou `StatementSeparator()`/
+  `LoopBackInstruction()`.
+- Erro fatal pra `}` sem abertura, laço não fechado, `exit` fora de
+  qualquer laço, ou `exit` sem linha real pra pousar.
+- 11 testes novos no mecanismo core-level + 1 de ponta a ponta
+  confirmando que convive com a renomeação de variável do MSX.
+
+### Observações
+
+- `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`, Pass 1 (`_` fora
+  do fim de linha) e um `generate()` de verdade ainda faltam — ver
+  `OUTLINE.md`, Bloco 2.
+
+---
+
 ## [1.8.0] — 2026-11-21 — bloco **NEW**, feature **label-numbering** (build 0)
 
 **Resolução de labels e numeração de linha** — a peça que faltava

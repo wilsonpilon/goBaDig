@@ -27,6 +27,10 @@ func (fakeDescription) SysInfo() SystemInfo {
 
 func (fakeDescription) QuoteChar() byte { return '"' }
 
+func (fakeDescription) StatementSeparator() string { return ":" }
+
+func (fakeDescription) LoopBackInstruction() string { return "goto" }
+
 type fakeLexer struct{}
 
 func (fakeLexer) Init(*CompileContext) {}
@@ -185,6 +189,78 @@ func TestPass4FailsOnAJumpToAnUndeclaredLabel(t *testing.T) {
 	_, err := runFake(t, "goto {missing}")
 	if err == nil {
 		t.Fatal("expected a fatal error jumping to an undeclared label, got none")
+	}
+}
+
+func TestPass2ClosesALoopLabelWithAnImplicitGoto(t *testing.T) {
+	result, err := runFake(t, "keys{", "PRINT 1", "}")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 goto 10"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (opener attaches to the next real line; closer jumps back to it)", result.Code, want)
+	}
+}
+
+func TestPass2InsertsASeparatorWhenTheCloserSharesItsLine(t *testing.T) {
+	result, err := runFake(t, "keys{", "PRINT 1}")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1 : goto 10"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (\"}\" not alone on its line needs a separator before the goto)", result.Code, want)
+	}
+}
+
+func TestPass2ClosesNestedLoopLabelsInnermostFirst(t *testing.T) {
+	result, err := runFake(t, "outer{", "inner{", "PRINT 1", "}", "}")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 goto 10", "30 goto 10"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (both closers must resolve to the same shared opener line)", result.Code, want)
+	}
+}
+
+func TestPass4ResolvesExitToTheLineAfterTheLoopCloses(t *testing.T) {
+	result, err := runFake(t, "keys{", "exit", "PRINT 1", "}", "PRINT 2", "PRINT 3")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 goto 40", "20 PRINT 1", "30 goto 10", "40 PRINT 2", "50 PRINT 3"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (exit jumps past the loop's closing goto)", result.Code, want)
+	}
+}
+
+func TestPass4FailsWhenExitHasNowhereRealToLand(t *testing.T) {
+	_, err := runFake(t, "keys{", "exit", "PRINT 1", "}", "PRINT 2")
+	if err == nil {
+		t.Fatal("expected a fatal error - the loop is the last thing before end of program, exit has nowhere to land")
+	}
+}
+
+func TestPass2FailsOnACloserWithoutAMatchingOpener(t *testing.T) {
+	_, err := runFake(t, "}")
+	if err == nil {
+		t.Fatal("expected a fatal error closing a loop label that was never opened, got none")
+	}
+}
+
+func TestPass2FailsOnAnUnclosedLoopLabel(t *testing.T) {
+	_, err := runFake(t, "keys{", "PRINT 1")
+	if err == nil {
+		t.Fatal("expected a fatal error for a loop label never closed, got none")
+	}
+}
+
+func TestPass2FailsOnExitOutsideAnyLoopLabel(t *testing.T) {
+	_, err := runFake(t, "exit")
+	if err == nil {
+		t.Fatal("expected a fatal error for exit outside of any loop label, got none")
 	}
 }
 

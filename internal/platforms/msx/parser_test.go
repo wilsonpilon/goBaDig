@@ -262,6 +262,28 @@ func TestEndToEndLabelAndVariableRenamingCoexist(t *testing.T) {
 	}
 }
 
+// TestEndToEndLoopLabelAndVariableRenamingCoexist is
+// TestEndToEndLabelAndVariableRenamingCoexist but for a loop label
+// (core's own mechanism tests are in internal/core/pipeline_test.go)
+// - confirms the implicit goto a loop's closing `}` emits doesn't
+// interfere with MSX's variable renaming either.
+func TestEndToEndLoopLabelAndVariableRenamingCoexist(t *testing.T) {
+	ctx, platform := contextPlatform(t, "keys{", "print longvar", "}")
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 print zz", "20 goto 10"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
 func TestParseFailsUsingTildeOnAnAlreadyShortName(t *testing.T) {
 	_, err := core.Run(contextPlatform(t, "print ~ab"))
 	if err == nil {

@@ -5,8 +5,8 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-21.
-Estado: **v1.8.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
+Estado: **v1.9.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -18,20 +18,21 @@ e nos Blocos correspondentes abaixo, não repetido aqui.
 13 vetores de ouro do Bloco 0 byte-exato), **`Description`/`Lexer` MSX**
 (`description.go`/`lexer.go`), **`Parser` MSX Pass 3/4/5** (`parser.go`
 — alocação de variáveis de 2 letras + as 5 conversões finais do
-Classic), e **resolução de labels/numeração de linha** (core-level,
-não específico de MSX) — a **primeira conversão Dignified→Classic de
-verdade já produzindo texto correto, incluindo `GOTO`/label real**
-(`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`), confirmada em
-testes de ponta a ponta completos (`Lex`→`Parse`→`Generate`), e
-cruzada contra um exemplo real completo apontado pelo usuário
-(`badig/examples/msx/CGK173.dmx`). Cinco desvios reais nas interfaces
-"v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
-todos documentados no Bloco 1 abaixo — a resolução de labels foi
-também a primeira vez que o `core` passou a fazer trabalho Dignified
-de verdade antes de delegar pra plataforma, não só documentar a
-intenção. **Ainda falta**: Pass 1 do `Parser` (separador de chamada
-Dignified `_` fora do fim de linha, rendering ainda não entendido),
-loop labels, `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`,
+Classic), e **resolução de labels/numeração de linha, incluindo loop
+labels** (`nome{ ... }`/`exit`, core-level, não específico de MSX) —
+a **primeira conversão Dignified→Classic de verdade já produzindo
+texto correto, incluindo `GOTO`/label e laço fechado reais**
+(`counter=0` → `zz = 0`, `goto {dest}` → `goto 20`, `keys{ }` → `GOTO`
+implícito de volta), confirmada em testes de ponta a ponta completos
+(`Lex`→`Parse`→`Generate`), e cruzada contra um exemplo real completo
+apontado pelo usuário (`badig/examples/msx/CGK173.dmx`). Seis desvios
+reais nas interfaces "v0" do Bloco 1 descobertos implementando contra
+o MSX de verdade, todos documentados no Bloco 1 abaixo — a resolução
+de labels foi também a primeira vez que o `core` passou a fazer
+trabalho Dignified de verdade antes de delegar pra plataforma, não só
+documentar a intenção. **Ainda falta**: Pass 1 do `Parser` (separador
+de chamada Dignified `_` fora do fim de linha, rendering ainda não
+entendido), `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`,
 `generate()` de verdade (espaçamento por palavra reservada, limite de
 linha), e ligar tudo isso ao tokenizer já pronto pra fechar o caminho
 completo até o binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
@@ -906,9 +907,79 @@ insere depois de cada `NEWLINE` que abre uma linha nova — e depois do
 próprio `PROGRAM`, já que a primeira linha real não tem nenhum
 `NEWLINE` antes dela pra disparar a numeração: achado real, pego pelo
 primeiro teste escrito, corrigido tratando `KindProgram` como gatilho
-também). **Fora de escopo, documentado**: loop labels (`nome{ }`/
-`exit`), inserção de header (2 linhas REM sintéticas), relatório de
-labels (`-lbr`), `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`.
+também). **Fora de escopo, documentado** (nessa rodada): loop labels
+(`nome{ }`/`exit`), inserção de header (2 linhas REM sintéticas),
+relatório de labels (`-lbr`), `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/
+`DECLARE`.
+
+**Loop labels implementados** (2026-11-22, `nome{ ... }` + `exit`):
+fiel a `get_label_lines`/`get_jump_labels`/`get_loop_label_return`/
+`get_labels_exit` (`badig.py:849-921`) e ao dispatch de `pass_2`
+(1468-1481), confirmados lendo `last_tok`/`peek_ahead`/`next_tok`/
+`prev_tok` (`badig.py:556-594`) pra distinguir com precisão lookback
+de SAÍDA (`last_tok`, lê `tok_list_out`) de lookahead de ENTRADA
+(`peek_ahead`, lê `tok_list_in`). Achado chave: um loop-opener
+(`nome{`) produz o MESMO `D_LBLLIN` que uma declaração simples — não
+precisei de Kind novo pra isso, só de detecção diferente. A detecção
+original usa `last_tok(-2)` (SAÍDA) pra ver se o identificador antes
+do `{` estava no início de linha — isso não cabe no meu modelo de
+lookback por ENTRADA sem estado (o identificador já teria sido
+emitido numa chamada anterior e eu não posso "despublicá-lo"
+retroativamente). Resolvido sem estado: a detecção acontece no PRÓPRIO
+identificador (olhando pra frente: está no início de linha E seguido
+de `{`?) em vez de no `{` (que teria que olhar pra trás pra algo já
+decidido) — e os dois lados (identificador decide se se esconde,
+`{` decide se declara) usam EXATAMENTE a mesma checagem auxiliar
+(`isPlainLabelAt`) pra nunca discordar sobre se um dado `{` é um
+`{nome}` comum ou o abridor de um loop — confirmado que isso bate a
+MESMA prioridade de dispatch do Python (`get_jump_labels` checado
+antes de `get_label_lines` em `pass_2`): `nome{x}` sem espaço e com
+corpo de 1 só token vira `nome` (literal, sobrando) + `{x}` (referência
+comum), nunca um loop-opener — replicado de propósito, não é bug.
+
+`c_instsp_str`/`c_loop_back` (separador `:` e palavra "goto" que o
+fechamento do laço insere) são da `Description` de PLATAFORMA, não
+existe default compartilhado — `core.Description` ganhou
+`StatementSeparator()`/`LoopBackInstruction()` (mesmo padrão de
+`QuoteChar()`). Os tokens sintéticos que isso gera usam um Kind novo
+genérico, `core.KindSynthetic` (nada ainda precisa diferenciá-los por
+Kind — isso é trabalho do `generate()` de verdade, ainda não feito).
+
+`pass2Labels` deixou de ser um `passFunc` simples e passou a ser
+bespoke (mesmo molde de `pass4Numbering`): fecha sobre uma pilha local
+de labels de laço abertos, e checa no final se ela ficou vazia (erro
+fatal "loop label not closed" se não — mesma checagem de pós-passada
+que o `pass_2` original tem). `D_LBLRET` (fechamento do laço, novo
+`KindLoopReturn`) resolve EXATAMENTE como uma referência de salto
+comum (mesmo mapa `label_lines`, mesma passada de resolução já
+existente — só ampliei o `case` pra aceitar os dois Kinds) e, como
+efeito colateral na varredura de ida, grava onde o `exit`
+correspondente deve pousar. `D_LBLEXT` (`exit`, novo `KindLoopExit`)
+resolve numa passada SEPARADA (contra esse mapa de retorno, só
+completo depois que a varredura inteira termina, já que `exit` sempre
+aparece ANTES do `}` que fecha o laço no fluxo de tokens) — com o erro
+fatal fiel ("loop exit past end of program") se o alvo for além do fim
+do programa.
+
+**Desvio deliberado, documentado**: `get_labels_exit` no Python não
+tem proteção se `exit` aparece fora de qualquer laço aberto (quebraria
+com `IndexError` não tratado); no Go isso é um erro fatal `Diagnostic`
+de verdade — mesmo espírito de "error como `error` Go subindo a pilha"
+já decidido (seção 6, item 6). **Simplificações aceitas, documentadas**:
+não porto a deduplicação de separador (`last_tok() != 'C_INSTSP'` —
+pior caso raríssimo gera um `::` inofensivo) nem a limpeza de
+`C_INSTSP` repetido que o Pass 3 original tem em outro lugar
+(`badig.py:1557-1575`).
+
+`EXIT` é vocabulário Dignified COMPARTILHADO (`d_instrc` em
+`badig_dignified.py`, junto com `DEFINE`/`DECLARE`/`INCLUDE`/`KEEP`/
+`ENDIF`/`FUNC`/`RET` — ainda fora de escopo, mas reconhecidas de uma
+vez por custo zero) — não vocabulário MSX. Novo `core.KindDignifiedInstruction`,
+mesma técnica de `TRUE`/`FALSE`.
+
+11 testes novos em `internal/core` (mecanismo puro) + 1 de ponta a
+ponta em `internal/platforms/msx` confirmando que convive com a
+renomeação de variável.
 
 **Fase 3 — Motor do pipeline + validação — PARCIAL (2026-11-21)** (o
 que prova que o desenho funciona):
@@ -1080,12 +1151,23 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   texto Classic final (`.tok` muda, `.val` não; não encontrei nenhuma
   conversão de "_" pra texto "CALL" em nenhum lugar do Python);
   precisa de mais pesquisa antes de portar. — **M**, **1**
+- [x] **Loop labels implementados** (2026-11-22, `nome{ ... }` como
+  laço fechado + `exit`) — fiel a `get_label_lines`/`get_jump_labels`/
+  `get_loop_label_return`/`get_labels_exit` (`badig.py:849-921`), um
+  loop-opener usa o MESMO `KindLabelDeclaration` de uma declaração
+  simples (só a detecção difere); fechamento `}` emite um `GOTO`
+  implícito de volta pro início (com separador `:` só quando não está
+  sozinho na linha); `exit` salta pra depois do fechamento do laço
+  mais interno. `core.Description` ganhou `StatementSeparator()`/
+  `LoopBackInstruction()`; `pass2Labels` (ver Bloco 1 acima) passou a
+  ser bespoke (pilha de labels abertos). Usado de verdade no
+  `CGK173.dmx` (`keys{ }`, `read_keyboard_main{ }` etc.). **Fora de
+  escopo, documentado**: deduplicação de separador (`::` raro),
+  limpeza de `C_INSTSP` repetido do Pass 3 original. 11 testes novos
+  em `internal/core` + 1 de ponta a ponta no MSX. — **A**, **1**
 - [ ] `DEFINE`/`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE` — cada um uma
   fatia própria, confirmados existirem e serem usados de verdade no
   `CGK173.dmx`. — **A**, **1**
-- [ ] Loop labels (`nome{ ... }` como laço fechado + `exit`) — pilha de
-  labels abertos, mecanismo separado da resolução simples de labels já
-  implementada. — **M**, **1**
 - [ ] Inserção de header (2 linhas REM sintéticas,
   `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
   cosméticos, pequenos. — **B**, **2**

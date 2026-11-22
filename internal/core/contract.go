@@ -17,6 +17,17 @@ type Description interface {
 	// one) - core.Lex's generic string-literal fallback uses this
 	// instead of each platform reimplementing string scanning itself.
 	QuoteChar() byte
+	// StatementSeparator is the classic statement separator (`:` for
+	// MSX, c_instsp_str in badig_msx.py) - core Pass 2's loop-label
+	// closing `}` (badig.py's get_loop_label_return) uses this to
+	// splice an implicit jump onto whatever statement already shares
+	// its line, since different dialects could use a different
+	// character.
+	StatementSeparator() string
+	// LoopBackInstruction is the instruction word a loop label's
+	// closing `}` (and a matching `exit`) use to jump ("goto" for MSX,
+	// c_loop_back in badig_msx.py).
+	LoopBackInstruction() string
 }
 
 // SystemInfo is a dialect's name and on-disk file extensions -

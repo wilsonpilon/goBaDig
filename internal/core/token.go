@@ -80,13 +80,38 @@ const (
 	// same 3-token collapse as KindLabelDeclaration. Core Pass 4
 	// replaces its Value with the resolved line number (int); a
 	// reference to a name that's never declared is a fatal error.
-	// Loop-label returns/exits (D_LBLRET/D_LBLEXT) are a separate,
-	// not-yet-implemented mechanism (ver OUTLINE.md).
 	KindLabelJump TokenKind = "LABEL_JUMP"
 	// KindLineNumber is a synthetic token (C_LINENB in badig.py) core
 	// Pass 4 inserts right after every KindNewline that starts a new
 	// classic line, carrying that line's number (int) as Value.
 	KindLineNumber TokenKind = "LINE_NUMBER"
+	// KindDignifiedInstruction is one of the 8 shared Dignified
+	// instruction words (d_instrc in badig_dignified.py: DEFINE,
+	// DECLARE, INCLUDE, KEEP, ENDIF, FUNC, RET, EXIT), case-insensitive,
+	// matched as a whole word - same reasoning as KindDignifiedOperator.
+	// Only EXIT (loop-label exit, core Pass 2) is acted on so far; the
+	// other 7 are recognized but unused until DEFINE/FUNC/etc. exist.
+	KindDignifiedInstruction TokenKind = "DIGNIFIED_INSTRUCTION"
+	// KindLoopReturn is a loop label's closing `}` (D_LBLRET in
+	// badig.py), resolved exactly like KindLabelJump (against the
+	// loop-opener's own line) but also recording, as a side effect,
+	// the line right after it - what a KindLoopExit inside the same
+	// loop resolves to.
+	KindLoopReturn TokenKind = "LOOP_RETURN"
+	// KindLoopExit is an `exit` inside a loop label (D_LBLEXT in
+	// badig.py) - resolves to the line right after the innermost open
+	// loop's closing `}` (recorded by that KindLoopReturn), not to a
+	// declared label's own line.
+	KindLoopExit TokenKind = "LOOP_EXIT"
+	// KindSynthetic is literal text core itself inserts (not scanned
+	// from source) - e.g. the statement separator and "loop back"
+	// instruction a loop label's closing `}` emits (core Pass 2,
+	// sourced from Description.StatementSeparator/LoopBackInstruction,
+	// since those vary by platform). Deliberately generic: nothing
+	// downstream needs to tell these apart by Kind yet (today's
+	// minimal core.Generate doesn't distinguish any Kind for spacing -
+	// that's real generate() work, not done yet, ver OUTLINE.md).
+	KindSynthetic TokenKind = "SYNTHETIC"
 	// KindUnknown is a single raw character core.Lex could not
 	// classify by any means (not the platform's, not an identifier,
 	// not a quoted string) - mirrors the original engine's "character

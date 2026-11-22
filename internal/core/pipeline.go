@@ -32,6 +32,16 @@ var dignifiedOperatorWord = regexp.MustCompile(`^[A-Za-z]+`)
 // "truest" never matches "TRUE"), same reasoning as dignifiedSymbols.
 var dignifiedOperators = map[string]bool{"TRUE": true, "FALSE": true}
 
+// dignifiedInstructions are badig_dignified.py's d_instrc: 8 shared
+// Dignified instruction words, matched the same way as
+// dignifiedOperators. Only EXIT has a Parser acting on it so far
+// (core Pass 2, loop labels); the rest are recognized but unused
+// until DEFINE/DECLARE/INCLUDE/KEEP/FUNC/RET exist.
+var dignifiedInstructions = map[string]bool{
+	"DEFINE": true, "DECLARE": true, "INCLUDE": true, "KEEP": true,
+	"ENDIF": true, "FUNC": true, "RET": true, "EXIT": true,
+}
+
 // Lex scans ctx.Source into a flat token stream: a synthetic PROGRAM
 // token first, then one token per recognized item plus a NEWLINE per
 // source line, ending in EOF.
@@ -108,6 +118,14 @@ func Lex(ctx *CompileContext, platform Platform) ([]Token, error) {
 			// identifierPattern below and never reach here.
 			if word := dignifiedOperatorWord.FindString(remaining); word != "" && dignifiedOperators[strings.ToUpper(word)] {
 				tokens = append(tokens, pin(Token{Kind: KindDignifiedOperator, Value: word}))
+				pos += len(word)
+				col += len(word)
+				continue
+			}
+
+			// Same priority as the TRUE/FALSE fallback just above.
+			if word := dignifiedOperatorWord.FindString(remaining); word != "" && dignifiedInstructions[strings.ToUpper(word)] {
+				tokens = append(tokens, pin(Token{Kind: KindDignifiedInstruction, Value: word}))
 				pos += len(word)
 				col += len(word)
 				continue
@@ -221,38 +239,63 @@ func runPass(ctx *CompileContext, tokens []Token, pass passFunc) ([]Token, error
 
 // pass2Labels wraps platform.Parser.Pass2 with the core-level
 // Dignified label handling pass_2 does before ever calling
-// self.clc.pass_2() (badig.py:1447-1504): turns every `{name}` (or
-// `{@}`) - always 3 adjacent tokens, `{`/name-or-`@`/`}`, since
-// whitespace never produces a token - into exactly one
-// KindLabelDeclaration (at the start of a line) or KindLabelJump
-// (anywhere else) token, mirroring D_LBLLIN/D_LBLJMP. Loop labels
-// (`name{ ... }`/`exit`, D_LBLRET/D_LBLEXT) are not implemented yet
-// (ver OUTLINE.md) - a bare `{`/`}` that doesn't fit the 3-token
-// pattern just falls through unchanged.
-func pass2Labels(platform Platform) passFunc {
+// self.clc.pass_2() (badig.py:1447-1504, loop-label helpers
+// get_label_lines/get_jump_labels/get_loop_label_return/
+// get_labels_exit, lines 849-921): turns every `{name}`/`{@}` -
+// always 3 adjacent tokens, `{`/name-or-`@`/`}`, since whitespace
+// never produces a token - into one KindLabelDeclaration (at the
+// start of a line) or KindLabelJump (anywhere else) token, mirroring
+// D_LBLLIN/D_LBLJMP; and handles loop labels (`name{ ... }` + `exit`):
+// a loop-opener produces the SAME KindLabelDeclaration a plain
+// `{name}` does (badig.py's get_label_lines ends in the same
+// D_LBLLIN token either way) - only the detection differs, since a
+// bare identifier immediately followed by `{` is never wrapped in
+// its own braces. A loop's closing `}` (KindLoopReturn) and `exit`
+// inside it (KindLoopExit) both emit a synthetic jump-back
+// instruction, resolved in core Pass 4 (pass4Numbering below).
+//
+// Bespoke, not a passFunc, for the same reason pass4Numbering below
+// isn't: it needs a local stack of open loop labels across the whole
+// pass, plus a post-pass check that the stack is empty at the end
+// ("loop label not closed") - badig.py's own pass_2 does the same
+// check after its own traversal loop.
+func pass2Labels(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
 	isOpenBrace := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "{" }
 	isCloseBrace := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "}" }
+	// isPlainLabelAt reports whether the `{` at bracePos starts a
+	// plain `{name}`/`{@}` pattern (closed within 2 tokens) - the
+	// same condition CASE A below checks, factored out so the
+	// loop-opener identifier check (which looks at the `{` one slot
+	// AHEAD of itself) can avoid skipping an identifier that a plain
+	// label pattern will claim instead (ver badig.py's own dispatch
+	// priority: a jump-label match always wins over a loop-opener
+	// one, confirmed reading pass_2's D_SYMBOL branch order).
+	isPlainLabelAt := func(bracePos int) bool {
+		return bracePos+2 < len(tokens) && isCloseBrace(tokens[bracePos+2])
+	}
+	atLineStart := func(i int) bool {
+		return i == 0 || tokens[i-1].Kind == KindNewline || tokens[i-1].Kind == KindProgram
+	}
 
-	return func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
+	var loopLabels []Token // stack of open loop labels: Value=name, Pos=opener's position
+
+	pass := func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
 		tok := tokens[index]
 
-		if isOpenBrace(tok) && index+2 < len(tokens) && isCloseBrace(tokens[index+2]) {
+		// Plain `{name}`/`{@}` (declaration or jump reference).
+		if isOpenBrace(tok) && isPlainLabelAt(index) {
 			name, ok := tokens[index+1].Value.(string)
 			if !ok {
 				return Continue, nil, nil
 			}
-			atLineStart := index == 0 ||
-				tokens[index-1].Kind == KindNewline ||
-				tokens[index-1].Kind == KindProgram
 			kind := KindLabelJump
-			if atLineStart {
+			if atLineStart(index) {
 				kind = KindLabelDeclaration
 			}
 			return Replace, []Token{{Kind: kind, Value: name, Pos: tok.Pos}}, nil
 		}
-
-		// The name/`@` and closing `}` of a 3-token label just handled
-		// above, reached on their own turn - already consumed.
+		// The name/`@` and closing `}` of the pattern just handled,
+		// reached on their own turn - already consumed.
 		if index >= 1 && isOpenBrace(tokens[index-1]) && index+1 < len(tokens) && isCloseBrace(tokens[index+1]) {
 			return Skip, nil, nil
 		}
@@ -260,8 +303,76 @@ func pass2Labels(platform Platform) passFunc {
 			return Skip, nil, nil
 		}
 
+		// Loop-opener name: an identifier at the start of a line,
+		// immediately followed by `{` - unless that `{` is itself
+		// about to be claimed as a plain label pattern above.
+		if tok.Kind == KindIdentifier && atLineStart(index) &&
+			index+1 < len(tokens) && isOpenBrace(tokens[index+1]) && !isPlainLabelAt(index+1) {
+			return Skip, nil, nil
+		}
+		// Loop-opener `{`: the identifier just skipped above.
+		if isOpenBrace(tok) && index >= 1 && tokens[index-1].Kind == KindIdentifier &&
+			atLineStart(index-1) && !isPlainLabelAt(index) {
+			name, _ := tokens[index-1].Value.(string)
+			loopLabels = append(loopLabels, Token{Value: name, Pos: tokens[index-1].Pos})
+			return Replace, []Token{{Kind: KindLabelDeclaration, Value: name, Pos: tokens[index-1].Pos}}, nil
+		}
+
+		// Loop-closer: any `}` not already consumed above.
+		if isCloseBrace(tok) {
+			if len(loopLabels) == 0 {
+				return Continue, nil, Diagnostic{
+					Severity: SeverityError,
+					Message:  "loop label close without open",
+					Pos:      &tok.Pos,
+				}
+			}
+			label := loopLabels[len(loopLabels)-1]
+			loopLabels = loopLabels[:len(loopLabels)-1]
+
+			var out []Token
+			if index == 0 || tokens[index-1].Kind != KindNewline {
+				out = append(out, Token{Kind: KindSynthetic, Value: platform.Description.StatementSeparator(), Pos: tok.Pos})
+			}
+			out = append(out,
+				Token{Kind: KindSynthetic, Value: platform.Description.LoopBackInstruction(), Pos: tok.Pos},
+				Token{Kind: KindLoopReturn, Value: label.Value, Pos: tok.Pos},
+			)
+			return Replace, out, nil
+		}
+
+		// `exit`: jump to right after the innermost open loop's close.
+		if tok.Kind == KindDignifiedInstruction && strings.EqualFold(tok.String(), "EXIT") {
+			if len(loopLabels) == 0 {
+				return Continue, nil, Diagnostic{
+					Severity: SeverityError,
+					Message:  "exit outside of any loop label",
+					Pos:      &tok.Pos,
+				}
+			}
+			label := loopLabels[len(loopLabels)-1]
+			return Replace, []Token{
+				{Kind: KindSynthetic, Value: platform.Description.LoopBackInstruction(), Pos: tok.Pos},
+				{Kind: KindLoopExit, Value: label.Value, Pos: tok.Pos},
+			}, nil
+		}
+
 		return platform.Parser.Pass2(ctx, tokens, index)
 	}
+
+	out, err := runPass(ctx, tokens, pass)
+	if err != nil {
+		return nil, err
+	}
+	if len(loopLabels) > 0 {
+		last := loopLabels[len(loopLabels)-1]
+		return nil, Diagnostic{
+			Severity: SeverityError,
+			Message:  fmt.Sprintf("loop label not closed from: %s", last.String()),
+			Pos:      &last.Pos,
+		}
+	}
+	return out, nil
 }
 
 // pass3LineHygiene wraps platform.Parser.Pass3 with the core-level
@@ -320,6 +431,7 @@ func pass3LineHygiene(platform Platform) passFunc {
 // just found by a second linear scan instead of a tracked index.
 func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
 	labelLines := map[string]int{}
+	loopReturnLines := map[string]int{} // D_LBLRET's name+file -> line right after it, for a matching KindLoopExit
 	var lineNumber int
 
 	forward := func(ctx *CompileContext, tokens []Token, index int) (HookAction, []Token, error) {
@@ -347,6 +459,17 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 			}
 			return Continue, nil, nil
 
+		case KindLoopReturn:
+			// Resolves against labelLines exactly like KindLabelJump
+			// (ver a passada de resolução abaixo) - this additionally
+			// records where a matching KindLoopExit (the `exit`
+			// command, always encountered BEFORE this closing `}` in
+			// token order, since it sits inside the loop body) should
+			// land: the line right after this one.
+			name, _ := tok.Value.(string)
+			loopReturnLines[name+tok.Pos.File()] = lineNumber + ctx.Settings.LineStep
+			return Continue, nil, nil
+
 		case KindNewline:
 			if index+1 < len(tokens) && tokens[index+1].Kind != KindEOF {
 				lineNumber += ctx.Settings.LineStep
@@ -365,25 +488,42 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 	}
 
 	for i := range tokens {
-		if tokens[i].Kind != KindLabelJump {
-			continue
-		}
-		// A `{@}` self-reference is already resolved to an int line
-		// number inline, during the forward scan above - its Value is
-		// no longer a name to look up.
-		name, ok := tokens[i].Value.(string)
-		if !ok {
-			continue
-		}
-		line, ok := labelLines[name+tokens[i].Pos.File()]
-		if !ok {
-			return nil, Diagnostic{
-				Severity: SeverityError,
-				Message:  fmt.Sprintf("label does not exist: %s", name),
-				Pos:      &tokens[i].Pos,
+		switch tokens[i].Kind {
+		case KindLabelJump, KindLoopReturn:
+			// A `{@}` self-reference is already resolved to an int
+			// line number inline, during the forward scan above - its
+			// Value is no longer a name to look up.
+			name, ok := tokens[i].Value.(string)
+			if !ok {
+				continue
 			}
+			line, ok := labelLines[name+tokens[i].Pos.File()]
+			if !ok {
+				return nil, Diagnostic{
+					Severity: SeverityError,
+					Message:  fmt.Sprintf("label does not exist: %s", name),
+					Pos:      &tokens[i].Pos,
+				}
+			}
+			tokens[i].Value = line
+
+		case KindLoopExit:
+			// loopReturnLines is only fully populated once the whole
+			// forward scan above has finished - an `exit` always
+			// appears, in token order, before the loop's closing `}`
+			// that records its target, so this can't resolve inline
+			// during the forward scan the way `{@}` does.
+			name, _ := tokens[i].Value.(string)
+			line := loopReturnLines[name+tokens[i].Pos.File()]
+			if line > lineNumber-ctx.Settings.LineStep {
+				return nil, Diagnostic{
+					Severity: SeverityError,
+					Message:  "loop exit past end of program",
+					Pos:      &tokens[i].Pos,
+				}
+			}
+			tokens[i].Value = line
 		}
-		tokens[i].Value = line
 	}
 
 	return tokens, nil
@@ -400,12 +540,17 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 // the original engine) is not implemented yet (ver OUTLINE.md, Bloco
 // 1, Fase 3).
 func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
-	var err error
-	for _, pass := range []passFunc{platform.Parser.Pass1, pass2Labels(platform), pass3LineHygiene(platform)} {
-		tokens, err = runPass(ctx, tokens, pass)
-		if err != nil {
-			return nil, err
-		}
+	tokens, err := runPass(ctx, tokens, platform.Parser.Pass1)
+	if err != nil {
+		return nil, err
+	}
+	tokens, err = pass2Labels(ctx, tokens, platform)
+	if err != nil {
+		return nil, err
+	}
+	tokens, err = runPass(ctx, tokens, pass3LineHygiene(platform))
+	if err != nil {
+		return nil, err
 	}
 	if !ctx.IsMainFile() {
 		return tokens, nil

@@ -100,6 +100,12 @@ func (description) SysInfo() core.SystemInfo {
 
 func (description) QuoteChar() byte { return '"' }
 
+// StatementSeparator mirrors c_instsp_str (badig_msx.py:156).
+func (description) StatementSeparator() string { return ":" }
+
+// LoopBackInstruction mirrors c_loop_back (badig_msx.py:162).
+func (description) LoopBackInstruction() string { return "goto" }
+
 // Variable allocation constants, confirmed reading process_variable
 // (badig_msx.py:516-558) in a previous session and process_variable's
 // surrounding Description fields (badig_msx.py:133-150) directly this
