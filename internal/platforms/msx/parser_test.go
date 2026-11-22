@@ -284,6 +284,34 @@ func TestEndToEndLoopLabelAndVariableRenamingCoexist(t *testing.T) {
 	}
 }
 
+// TestEndToEndDefineLabelAndVariableRenamingCoexist confirms a
+// DEFINE's content can itself hold a label reference (real example:
+// badig/examples/msx/CGK173.dmx's `pauseKEY`/`pauseANY` defines do
+// exactly this with `{@}`) and that core's DEFINE expansion (Pass 1)
+// runs early enough for the spliced-in `{here}` to still be resolved
+// correctly by Pass 2/4, together with MSX's own variable renaming.
+func TestEndToEndDefineLabelAndVariableRenamingCoexist(t *testing.T) {
+	ctx, platform := contextPlatform(t,
+		"define [chk][if a=0 then{here}]",
+		"[chk]",
+		"{here}",
+		"print longvar",
+	)
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 if a = 0 then 20", "20 print zz"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
 func TestParseFailsUsingTildeOnAnAlreadyShortName(t *testing.T) {
 	_, err := core.Run(contextPlatform(t, "print ~ab"))
 	if err == nil {

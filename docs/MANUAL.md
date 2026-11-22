@@ -84,10 +84,11 @@ Unicode); **`v1.8.0`** resolve labels (`{nome}`) e numera linhas —
 primeiro programa com `GOTO`/label real compilando de ponta a ponta,
 validado contra um exemplo real completo
 (`badig/examples/msx/CGK173.dmx`); **`v1.9.0`** resolve loop labels
-(`nome{ ... }` + `exit`) — ainda sem nenhum comando de conversão real
-disponível pro usuário: falta `DEFINE`/`FUNC`/`RET`, Pass 1 e um
-`generate()` de verdade pra fechar o caminho Dignified→Classic (ver
-seção 6).
+(`nome{ ... }` + `exit`); **`v1.10.0`** implementa `DEFINE` (macro de
+texto com placeholder/valor padrão/chamadas aninhadas) — ainda sem
+nenhum comando de conversão real disponível pro usuário: falta
+`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`, Pass 1 e um `generate()` de
+verdade pra fechar o caminho Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -176,11 +177,13 @@ variáveis de 2 letras e gera texto Classic de verdade pra isso
 do Pass 5 também funcionam (`x+=5` → `x = x + 5`,
 `TRUE`/`FALSE` → `-1`/`0`, etc.), a partir da `v1.8.0` labels
 (`{nome}`) resolvem pra números de linha de verdade (`goto {dest}` →
-`goto 20`), e a partir da `v1.9.0` loop labels também (`nome{ ... }`
-vira um `GOTO` implícito de volta, `exit` salta pra fora) — mas ainda
-falta `DEFINE`/`FUNC`/`RET`, o Pass 1 do `Parser` e um `generate()`
-de verdade, e ligar tudo isso ao tokenizer. Nada disso é utilizável
-pelo usuário final ainda.
+`goto 20`), a partir da `v1.9.0` loop labels também (`nome{ ... }`
+vira um `GOTO` implícito de volta, `exit` salta pra fora), e a partir
+da `v1.10.0` `DEFINE` expande macros de texto (`[nome](arg)` →
+conteúdo registrado, com placeholder/valor padrão) — mas ainda falta
+`FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`, o Pass 1 do `Parser` e um
+`generate()` de verdade, e ligar tudo isso ao tokenizer. Nada disso é
+utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

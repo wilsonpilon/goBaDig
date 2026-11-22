@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.10.0] — 2026-11-22 — bloco **NEW**, feature **define** (build 0)
+
+**`DEFINE`** — macro de texto Dignified, usada de verdade em
+`CGK173.dmx` (`[up]`, `[var0](&h20)`, `[pauseKEY]`, etc.).
+
+### Adicionado
+
+- `DEFINE [nome][conteúdo], [nome2][conteúdo2], ...` no início de
+  linha; chamada `[nome]`/`[nome](arg)` em qualquer outro lugar,
+  expandindo pro conteúdo registrado.
+- Placeholder opcional (`[0]` dentro do conteúdo) com valor padrão
+  quando a chamada não dá argumento explícito.
+- Chamadas aninhadas recursivas (`[a]([b])`).
+- A linha inteira do `DEFINE` desaparece sem deixar rastro (nem uma
+  linha em branco).
+- Primeira pass do `core` com cursor explícito em vez do modelo
+  `passFunc`/`runPass` (necessário porque conteúdo/argumento têm
+  comprimento variável e recursivo).
+- 7 testes novos no mecanismo core-level + 1 de ponta a ponta
+  confirmando que convive com label e renomeação de variável.
+
+### Observações
+
+- `FUNC`/`RET`/`INCLUDE`/`KEEP`/`DECLARE`, Pass 1 (`_` fora do fim de
+  linha) e um `generate()` de verdade ainda faltam — ver
+  `OUTLINE.md`, Bloco 2.
+
+---
+
 ## [1.9.1] — 2026-11-22 — bloco **NEW**, feature **loop-labels** (build 1)
 
 **Correção de bug**: o padrão de identificador Dignified compartilhado

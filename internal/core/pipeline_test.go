@@ -283,6 +283,71 @@ func TestLexIdentifierPatternIsCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestPass1ExpandsASimpleDefineWithNoPlaceholder(t *testing.T) {
+	result, err := runFake(t, "define [a][PRINT 1]", "[a]")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (the define's own line must vanish entirely)", result.Code, want)
+	}
+}
+
+func TestPass1ExpandsADefineWithPlaceholderUsingExplicitArgOrDefault(t *testing.T) {
+	result, err := runFake(t, "define [v][PRINT [0]]", "[v](5)", "[v]")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 5", "20 PRINT 0"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v ([v](5) substitutes 5; bare [v] falls back to the [0] default)", result.Code, want)
+	}
+}
+
+func TestPass1ReadsSeveralDefinesOnOneLine(t *testing.T) {
+	result, err := runFake(t, "define [a][PRINT 1], [b][PRINT 2]", "[a]", "[b]")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1", "20 PRINT 2"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (comma-separated defines on one DEFINE line)", result.Code, want)
+	}
+}
+
+func TestPass1ExpandsANestedDefineCallAsAnArgument(t *testing.T) {
+	result, err := runFake(t, "define [a][PRINT [0]]", "define [b][9]", "[a]([b])")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 9"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v ([b] expands first, its result becomes [a]'s argument)", result.Code, want)
+	}
+}
+
+func TestPass1FailsCallingAnUndefinedName(t *testing.T) {
+	_, err := runFake(t, "[missing]")
+	if err == nil {
+		t.Fatal("expected a fatal error calling an undefined name, got none")
+	}
+}
+
+func TestPass1FailsOnADuplicateDefineName(t *testing.T) {
+	_, err := runFake(t, "define [a][PRINT 1], [a][PRINT 2]")
+	if err == nil {
+		t.Fatal("expected a fatal error for a duplicate define name, got none")
+	}
+}
+
+func TestPass1FailsWhenDefineIsNotAtTheStartOfALine(t *testing.T) {
+	_, err := runFake(t, "PRINT 1 define [a][PRINT 2]")
+	if err == nil {
+		t.Fatal("expected a fatal error for DEFINE not at the start of a line, got none")
+	}
+}
+
 func TestPipelineEndToEnd(t *testing.T) {
 	ctx := newFakeContext("PRINT 1 IGNORE foo", []string{"fake.dmx"})
 	platform := Platform{

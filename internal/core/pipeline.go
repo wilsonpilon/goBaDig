@@ -245,6 +245,300 @@ func runPass(ctx *CompileContext, tokens []Token, pass passFunc) ([]Token, error
 	return out, nil
 }
 
+// defineEntry is one DEFINE's stored content (badig.py's def_grp
+// namedtuple: repl/varv) - content may contain a KindDefinePlaceholder
+// marker (at most one DISTINCT value, though the marker can repeat;
+// badig_msx.py's get_defined_content, called with recur=2, allows
+// exactly one level of `[...]` nesting inside a define's content, no
+// deeper). defaultVar is the placeholder's own inner content (e.g.
+// the `0` in `[0]`), used when a call gives no explicit argument;
+// nil if the content has no placeholder at all.
+type defineEntry struct {
+	content    []Token
+	defaultVar []Token
+}
+
+// pass1Defines replaces the generic runPass(platform.Parser.Pass1)
+// call in Parse with DEFINE declarations/calls (badig.py:596-745:
+// get_defines/get_defined_content/replace_define) before ever falling
+// through to platform.Parser.Pass1 for every other token - DEFINE is
+// shared Dignified vocabulary (badig_dignified.py), not MSX-specific.
+//
+// Unlike every other pass (even the bespoke pass2Labels/
+// pass4Numbering, which still delegate their per-token work to
+// runPass), this can't be expressed as "classify the token at index
+// i, maybe peeking at a few fixed neighbors" at all: a DEFINE's
+// content and a call's argument are arbitrary-length, recursively
+// bracket-balanced constructs (a call's argument can itself be
+// ANOTHER call, nested arbitrarily - confirmed in
+// badig/examples/msx/CGK173.dmx, e.g. nested [name](args) chains).
+// So this walks the input with its own explicit cursor instead,
+// mirroring the original's own recursive-descent helpers
+// (next_tok/prev_tok et al, badig.py:566-594) directly - and because
+// it builds its output slice by hand, it has TRUE output-lookback
+// (unlike the runPass-driven passes' input-based approximation): "is
+// DEFINE at the start of a line" is answered by checking out's own
+// last entry, exactly like the original's last_tok().
+func pass1Defines(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
+	defines := map[string]defineEntry{}
+	var out []Token
+	i := 0
+
+	isOpenBracket := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "[" }
+	isCloseBracket := func(tok Token) bool { return tok.Kind == KindDignifiedSymbol && tok.Value == "]" }
+	atOutputLineStart := func() bool {
+		return len(out) == 0 || out[len(out)-1].Kind == KindNewline || out[len(out)-1].Kind == KindProgram
+	}
+
+	// readBracketName reads `[name]` at i (mirrors get_in_bracket,
+	// badig.py:821-838, but accepting any single token as the name,
+	// not just an identifier - the original validates alnum shape
+	// only loosely, and a define name never collides with platform
+	// keywords in practice). Advances i past the closing `]`.
+	readBracketName := func() (Token, error) {
+		open := tokens[i]
+		i++
+		if i >= len(tokens) || isCloseBracket(tokens[i]) {
+			if i < len(tokens) {
+				i++
+			}
+			return Token{}, Diagnostic{Severity: SeverityError, Message: "define blank", Pos: &open.Pos}
+		}
+		name := tokens[i]
+		i++
+		if i >= len(tokens) || !isCloseBracket(tokens[i]) {
+			return Token{}, Diagnostic{Severity: SeverityError, Message: `closing "]" not found`, Pos: &name.Pos}
+		}
+		i++
+		return name, nil
+	}
+
+	// readNestedBracketOnce reads a `[...]` placeholder's own content
+	// at i (i is at the inner `[`) - no further `[` nesting allowed
+	// inside it (recur=1 in the original: the placeholder is already
+	// one level deep). Advances i past the closing `]`.
+	var readNestedBracketOnce func() ([]Token, error)
+	readNestedBracketOnce = func() ([]Token, error) {
+		open := tokens[i]
+		i++
+		var inner []Token
+		for {
+			if i >= len(tokens) || tokens[i].Kind == KindNewline {
+				return nil, Diagnostic{Severity: SeverityError, Message: `unbalanced "["`, Pos: &open.Pos}
+			}
+			if isOpenBracket(tokens[i]) {
+				return nil, Diagnostic{Severity: SeverityError, Message: `too many opened "["`, Pos: &tokens[i].Pos}
+			}
+			if isCloseBracket(tokens[i]) {
+				i++
+				return inner, nil
+			}
+			inner = append(inner, tokens[i])
+			i++
+		}
+	}
+
+	// readDefineContent reads a DEFINE's content at i (i is at the
+	// content's own opening `[`) - mirrors get_defined_content
+	// (badig.py:633-680) called with recur=2. Every nested `[...]`
+	// found becomes one KindDefinePlaceholder marker in content; only
+	// the FIRST one's own inner tokens are kept as the default value
+	// (badig.py itself only ever reads def_rep[1][0][0] - the first -
+	// even though it recurses generally), but every marker still gets
+	// substituted identically at call time. Advances i past the
+	// closing `]`.
+	readDefineContent := func() ([]Token, []Token, error) {
+		open := tokens[i]
+		i++
+		var content []Token
+		var defaultVar []Token
+		haveDefault := false
+		for {
+			if i >= len(tokens) || tokens[i].Kind == KindNewline {
+				return nil, nil, Diagnostic{Severity: SeverityError, Message: `unbalanced "["`, Pos: &open.Pos}
+			}
+			if isOpenBracket(tokens[i]) {
+				pos := tokens[i].Pos
+				inner, err := readNestedBracketOnce()
+				if err != nil {
+					return nil, nil, err
+				}
+				if !haveDefault {
+					haveDefault = true
+					defaultVar = inner
+				}
+				content = append(content, Token{Kind: KindDefinePlaceholder, Pos: pos})
+				continue
+			}
+			if isCloseBracket(tokens[i]) {
+				i++
+				return content, defaultVar, nil
+			}
+			content = append(content, tokens[i])
+			i++
+		}
+	}
+
+	// readDefines reads one whole `DEFINE [name][content], ...` line
+	// (mirrors get_defines, badig.py:597-631), registering each name
+	// (lowercased, matching the original's dict keyed by Token.lval)
+	// into defines. Consumes the terminating NEWLINE too - the
+	// original's own next_tok()/continue interaction (confirmed
+	// tracing it) means a DEFINE line leaves no trace at all, not
+	// even a blank line.
+	readDefines := func() error {
+		for {
+			if i >= len(tokens) || !isOpenBracket(tokens[i]) {
+				pos := Position{}
+				if i < len(tokens) {
+					pos = tokens[i].Pos
+				}
+				return Diagnostic{Severity: SeverityError, Message: `expecting "["`, Pos: &pos}
+			}
+			nameTok, err := readBracketName()
+			if err != nil {
+				return err
+			}
+			content, defaultVar, err := readDefineContent()
+			if err != nil {
+				return err
+			}
+			name := strings.ToLower(nameTok.String())
+			if _, dup := defines[name]; dup {
+				return Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("define name duplicated: %s", nameTok.String()), Pos: &nameTok.Pos}
+			}
+			defines[name] = defineEntry{content: content, defaultVar: defaultVar}
+
+			if i >= len(tokens) {
+				return Diagnostic{Severity: SeverityError, Message: `expecting ","`, Pos: &nameTok.Pos}
+			}
+			if tokens[i].Value == "," {
+				i++
+				continue
+			}
+			if tokens[i].Kind == KindNewline {
+				i++
+				return nil
+			}
+			return Diagnostic{Severity: SeverityError, Message: `expecting ","`, Pos: &tokens[i].Pos}
+		}
+	}
+
+	// expandDefineCall reads one `[name]` or `[name](args)` call at i
+	// (mirrors replace_define, badig.py:682-745) and returns its fully
+	// expanded tokens. Recurses for a nested call appearing inside
+	// another call's argument. Content tokens copied verbatim get the
+	// CALL's position (so a diagnostic about them points at the call
+	// site, matching the original); the substituted argument/default
+	// tokens keep their own original position.
+	var expandDefineCall func() ([]Token, error)
+	expandDefineCall = func() ([]Token, error) {
+		nameTok, err := readBracketName()
+		if err != nil {
+			return nil, err
+		}
+		name := strings.ToLower(nameTok.String())
+		def, ok := defines[name]
+		if !ok {
+			return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("%s define not defined", nameTok.String()), Pos: &nameTok.Pos}
+		}
+
+		var explicitArg []Token
+		haveExplicitArg := false
+		if i < len(tokens) && tokens[i].Value == "(" {
+			haveExplicitArg = true
+			open := tokens[i]
+			i++
+			depth := 1
+			for {
+				if i >= len(tokens) || tokens[i].Kind == KindNewline {
+					return nil, Diagnostic{Severity: SeverityError, Message: `missing ")"`, Pos: &open.Pos}
+				}
+				if isOpenBracket(tokens[i]) {
+					nested, err := expandDefineCall()
+					if err != nil {
+						return nil, err
+					}
+					explicitArg = append(explicitArg, nested...)
+					continue
+				}
+				if tokens[i].Value == "(" {
+					depth++
+					explicitArg = append(explicitArg, tokens[i])
+					i++
+					continue
+				}
+				if tokens[i].Value == ")" {
+					depth--
+					i++
+					if depth == 0 {
+						break
+					}
+					explicitArg = append(explicitArg, tokens[i-1])
+					continue
+				}
+				explicitArg = append(explicitArg, tokens[i])
+				i++
+			}
+		}
+
+		insertVar := def.defaultVar
+		if haveExplicitArg {
+			insertVar = explicitArg
+		}
+
+		var expanded []Token
+		for _, tok := range def.content {
+			if tok.Kind == KindDefinePlaceholder {
+				expanded = append(expanded, insertVar...)
+				continue
+			}
+			tok.Pos = nameTok.Pos
+			expanded = append(expanded, tok)
+		}
+		return expanded, nil
+	}
+
+	for i < len(tokens) {
+		tok := tokens[i]
+
+		if tok.Kind == KindDignifiedInstruction && strings.EqualFold(tok.String(), "DEFINE") {
+			if !atOutputLineStart() {
+				return nil, Diagnostic{Severity: SeverityError, Message: fmt.Sprintf("%s must be at the start of a line", tok.String()), Pos: &tok.Pos}
+			}
+			i++
+			if err := readDefines(); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if isOpenBracket(tok) {
+			expanded, err := expandDefineCall()
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, expanded...)
+			continue
+		}
+
+		action, result, err := platform.Parser.Pass1(ctx, tokens, i)
+		if err != nil {
+			return nil, err
+		}
+		switch action {
+		case Skip:
+		case Replace:
+			out = append(out, result...)
+		default: // Continue
+			out = append(out, tok)
+		}
+		i++
+	}
+
+	return out, nil
+}
+
 // pass2Labels wraps platform.Parser.Pass2 with the core-level
 // Dignified label handling pass_2 does before ever calling
 // self.clc.pass_2() (badig.py:1447-1504, loop-label helpers
@@ -540,15 +834,15 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 // Parse runs the parser's five passes over tokens (the output of
 // Lex), gating passes 4 and 5 to the main file only - mirrors par()'s
 // `pass_1(); pass_2(); pass_3(); if is_main_file(): pass_4(); pass_5()`
-// in the original engine. Pass 2/3/4 wrap the platform's own hook with
-// core-level Dignified work (labels, line hygiene, numbering - ver
-// pass2Labels/pass3LineHygiene/pass4Numbering) exactly the way the
-// original's own pass_2/pass_3/pass_4 do before ever calling
-// self.clc.passN(). INCLUDE expansion (which happens inside pass 3 in
-// the original engine) is not implemented yet (ver OUTLINE.md, Bloco
-// 1, Fase 3).
+// in the original engine. Pass 1/2/3/4 wrap the platform's own hook
+// with core-level Dignified work (DEFINE, labels, line hygiene,
+// numbering - ver pass1Defines/pass2Labels/pass3LineHygiene/
+// pass4Numbering) exactly the way the original's own pass_1/pass_2/
+// pass_3/pass_4 do before ever calling self.clc.passN(). INCLUDE
+// expansion (which happens inside pass 3 in the original engine) is
+// not implemented yet (ver OUTLINE.md, Bloco 1, Fase 3).
 func Parse(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, error) {
-	tokens, err := runPass(ctx, tokens, platform.Parser.Pass1)
+	tokens, err := pass1Defines(ctx, tokens, platform)
 	if err != nil {
 		return nil, err
 	}

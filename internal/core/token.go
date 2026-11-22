@@ -112,6 +112,14 @@ const (
 	// minimal core.Generate doesn't distinguish any Kind for spacing -
 	// that's real generate() work, not done yet, ver OUTLINE.md).
 	KindSynthetic TokenKind = "SYNTHETIC"
+	// KindDefinePlaceholder marks, inside a DEFINE's stored content
+	// (D_DEFVAR in badig.py), the position of its one substitutable
+	// argument - e.g. the `[0]` in `DEFINE [var0][poke MLs+0,[0]]`.
+	// Purely internal to core Pass 1's DEFINE expansion
+	// (pass1Defines, pipeline.go): never reaches core.Parse's output,
+	// since every occurrence is always substituted away when a call
+	// (`[var0]` or `[var0](&h20)`) expands.
+	KindDefinePlaceholder TokenKind = "DEFINE_PLACEHOLDER"
 	// KindUnknown is a single raw character core.Lex could not
 	// classify by any means (not the platform's, not an identifier,
 	// not a quoted string) - mirrors the original engine's "character
