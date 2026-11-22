@@ -92,9 +92,15 @@ alias de variável); **`v1.13.0`** implementa `KEEP` (compilação
 condicional via tags `#tag`); **`v1.14.0`** implementa `INCLUDE`
 (mesclagem de outro arquivo Dignified); **`v1.15.0`** implementa um
 `generate()` de verdade (espaçamento por palavra reservada + limite
-de 256 caracteres por linha) — ainda sem nenhum comando de conversão
-real disponível pro usuário: falta só o Pass 1 do separador `_` pra
-fechar o caminho Dignified→Classic (ver seção 6).
+de 256 caracteres por linha); **`v1.16.0`** implementa os
+comentários exclusivos do Dignified (`##`, bloco de 3 cerquilhas,
+bloco de duas aspas simples) — validada por ponta a ponta contra um
+exemplo real completo e contra a saída do `badig.py` de verdade, o
+que já revelou mais um achado pendente (um `:` clássico no fim de
+linha também deveria fundir com a próxima) — ainda sem nenhum comando
+de conversão real disponível pro usuário: falta esse achado e o
+Pass 1 do separador `_` pra fechar o caminho Dignified→Classic (ver
+seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -194,11 +200,16 @@ compila condicionalmente blocos marcados com `#tag` (sem `keep #a`
 declarado, um bloco `#a...#a` some; com `keep #a`, fica), a partir da
 `v1.14.0` `INCLUDE` mescla outro arquivo Dignified no meio do stream
 (caminho relativo resolve contra o arquivo principal, não o que
-inclui), e a partir da `v1.15.0` o `generate()` já é de verdade
+inclui), a partir da `v1.15.0` o `generate()` já é de verdade
 (espaçamento por palavra reservada — `print #1,1` ganha espaço só
-depois do `print` — e limite de 256 caracteres por linha) — mas ainda
-falta o Pass 1 do separador `_`, e ligar tudo isso ao tokenizer. Nada
-disso é utilizável pelo usuário final ainda.
+depois do `print` — e limite de 256 caracteres por linha), e a
+partir da `v1.16.0` os comentários exclusivos do Dignified
+funcionam (`##` some em qualquer posição; um bloco de 3 cerquilhas
+some inteiro; um bloco de duas aspas simples vira N linhas de
+comentário classic reais) — mas ainda falta um `:` clássico no fim
+de linha fundir com a próxima (achado validando contra o `badig.py`
+de verdade), o Pass 1 do separador `_`, e ligar tudo isso ao
+tokenizer. Nada disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

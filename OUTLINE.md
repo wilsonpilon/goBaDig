@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.15.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.16.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -26,25 +26,35 @@ aninhadas, também core-level), **`FUNC`/`RET`** (função Dignified →
 (reserva manual de alias de variável, idem core-level), **`KEEP`**
 (compilação condicional via tags `#tag`, idem core-level),
 **`INCLUDE`** (mesclagem de outro arquivo Dignified, idem
-core-level), e um **`generate()` de verdade** (espaçamento por
-palavra reservada + limite de 256 caracteres, idem core-level) — a
-**primeira conversão Dignified→Classic de verdade já produzindo
-texto correto E formatado de verdade, incluindo `GOTO`/label, laço
-fechado, macro, função, alias manual, tag condicional, mesclagem de
-arquivo e espaçamento reais** (`counter=0` → `zz=0`, `goto {dest}` →
+core-level), um **`generate()` de verdade** (espaçamento por
+palavra reservada + limite de 256 caracteres, idem core-level), e os
+**comentários exclusivos do Dignified** (`##`/`###`/duas aspas
+simples, idem core-level) — a **primeira conversão Dignified→Classic
+de verdade já produzindo texto correto E formatado de verdade,
+incluindo `GOTO`/label, laço fechado, macro, função, alias manual,
+tag condicional, mesclagem de arquivo, espaçamento e comentários
+reais** (`counter=0` → `zz=0`, `goto {dest}` →
 `goto 20`, `keys{ }` → `GOTO` implícito de volta, `[nome](arg)` →
 texto expandido, `.func(5)` → `param=5:gosub <linha>`, `declare
 x:ab` → `x` sempre vira `ab`, bloco `#a...#a` some por padrão a menos
 que `keep #a`/`keep #all` seja declarado, `include "sub.dmx"` mescla
 o conteúdo de outro arquivo do disco no meio do stream, variável
 alocada nele sem colidir com o arquivo principal, `print #1,1` recebe
-espaço só depois do `print` - não ao redor do `#`/`,`/`=` - igual um
-listing BASIC de verdade), confirmada em testes de ponta a ponta
-completos (`Lex`→`Parse`→`Generate`), e cruzada contra um exemplo
-real completo apontado pelo usuário
-(`badig/examples/msx/CGK173.dmx`). Onze desvios reais nas interfaces
-"v0" do Bloco 1 descobertos implementando contra o MSX de verdade,
-todos documentados no Bloco 1 abaixo — a resolução de labels foi
+espaço só depois do `print`, `##`/`###` somem sem deixar rastro, um
+bloco de duas aspas simples virando N linhas de comentário classic
+reais), confirmada em testes de ponta a ponta completos
+(`Lex`→`Parse`→`Generate`), e **pela primeira vez cruzada de ponta a
+ponta contra o `CGK173.dmx` inteiro (891 linhas) E contra a saída
+REAL do `badig.py` rodando num Python de verdade nesta máquina** (não
+só leitura de código) — revelou e já corrigiu 3 bugs reais de lexer
+MSX além dos comentários: `[?](x,y)` (macro embutida que o Python
+injeta automaticamente, nunca declarada pelo usuário), e identificador
+que começa com uma palavra reservada seguida de `_` (`copy_VRAM`) OU
+DÍGITO (`color1`) cortando errado — essa última reverte uma suposição
+documentada antes sem checar contra o original de verdade ("GOTO10"
+nunca foi um caso real). Catorze desvios reais nas interfaces "v0" do
+Bloco 1 descobertos implementando contra o MSX de verdade, todos
+documentados no Bloco 1 abaixo — a resolução de labels foi
 também a primeira vez que o `core` passou a fazer trabalho Dignified
 de verdade antes de delegar pra plataforma, não só documentar a
 intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
@@ -62,14 +72,26 @@ que uma pass chama `core.Lex`/`core.Parse` recursivamente sobre um
 `CompileContext` novo; o `generate()` de verdade foi a primeira vez
 que uma rodada mudou o TEXTO RENDERIZADO de quase todo teste de ponta
 a ponta já existente (~40 asserções corrigidas pro valor real, não
-regressão - era o próprio objetivo). Também corrigido nesta janela:
-`identifierPattern` (compartilhado) era restrito a ASCII minúsculo —
-bug real, latente desde as rodadas de variável/label, que cortava
-nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1 do
+regressão - era o próprio objetivo); os comentários exclusivos foram
+a primeira vez que `Lexer.Lex` precisou saber sua própria posição
+(novo parâmetro `atLineStart`) e a primeira vez testado contra a saída
+REAL de um Python de verdade rodando nesta máquina, não só leitura de
+código-fonte. Também corrigido nesta janela: `identifierPattern`
+(compartilhado) era restrito a ASCII minúsculo — bug real, latente
+desde as rodadas de variável/label, que cortava nomes
+camelCase/mixedCase (`v1.9.1`). **Ainda falta** (achado cruzando
+contra a saída real do Python, Pass 3, `badig.py:1550-1605`, ainda
+não implementado): um `:` (separador clássico) no fim de linha
+TAMBÉM funde com a próxima linha, igual ao `_` Dignified — e o
+inverso (`:` no início de linha funde com a anterior); dois `:`
+adjacentes colapsam em um só; duas strings literais adjacentes (mesma
+linha ou separadas por uma `NEWLINE`) se concatenam. Ver Bloco 1 pra
+detalhamento e `resume.txt` pro repro exato de cada um. Pass 1 do
 `Parser` (separador de chamada Dignified `_` fora do fim de linha,
-rendering ainda não entendido) — depois disso, falta só ligar tudo
-isso ao tokenizer já pronto pra fechar o caminho completo até o
-binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
+rendering ainda não entendido) também continua pendente. Depois
+disso, falta só ligar tudo isso ao tokenizer já pronto pra fechar o
+caminho completo até o binário. Ver Blocos 1-4 na seção 7 para o
+detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -1397,6 +1419,123 @@ ganha espaço depois de uma reservada; número de linha sempre ganha
 espaço depois, mesmo sem nenhuma palavra reservada na linha; linha
 com mais de 256 caracteres é erro fatal).
 
+**Validação de ponta a ponta contra o `CGK173.dmx` inteiro E contra o
+Python de verdade** (2026-11-22): depois do `generate()`, usuário
+pediu pra tentar compilar o `CGK173.dmx` (891 linhas) de ponta a
+ponta pra ver o que faltava. Primeira vez usando um teste descartável
+(`internal/platforms/msx/zz_scratch_cgk173_test.go`, NUNCA commitado)
+pra rodar o pipeline contra um exemplo real completo, e primeira vez
+usando o Python instalado nesta máquina (`python badig.py` de
+verdade, não só leitura do código-fonte) pra conferir a saída real
+linha a linha quando uma suposição ficava ambígua lendo só o código.
+
+**Achado 1 — `[?](x,y)` é um macro embutido, nunca declarado pelo
+usuário**: `badig_msx.py`'s `Parser.initialization()`
+(`badig_msx.py:448-460`) injeta `[?]` → `locate VAR:?` em TODO
+compile (arquivo principal e cada include), sem o usuário nunca
+escrever `DEFINE [?][...]`. Novo método
+`core.Parser.BuiltinDefines() map[string]core.BuiltinDefine`
+(`contract.go`), consultado no topo de `pass1Dignified`; MSX
+constrói os 4 tokens de "locate VAR:?" na mão (template fixo e
+pequeno, mais simples que relexar uma string em runtime).
+
+**Achado 2 — bug real no lexer MSX: identificador que começa com uma
+palavra reservada seguida de `_` OU DÍGITO cortava errado**:
+`scanKeywordCandidate` só varre letras, parando no primeiro
+caractere que não é letra — então "COPY" batia como instrução em
+`copy_VRAM` (sobrando "_VRAM" solto) e "COLOR" batia como instrução
+em `color1` (sobrando "1" solto, ambos usados de verdade no
+`CGK173.dmx`: `.set_color(color1=color1, ...)`). Corrigido com
+`isIdentifierContinuation` (`internal/platforms/msx/lexer.go`): se o
+que vem IMEDIATAMENTE depois da palavra candidata é letra, `_` OU
+DÍGITO, não é um match de palavra-chave de verdade — cai pro
+fallback de identificador. **Reverte uma suposição documentada antes
+sem checar contra o original**: um comentário anterior dizia que
+dígito ficava de fora "porque GOTO10 precisa continuar funcionando" —
+confirmado AGORA, lendo `join_commands` (`badig.py:134-139`, que
+embrulha TODA palavra reservada em `^...$`, exigindo match EXATO
+contra o candidato pré-segmentado do lexer original) e testando
+"GOTO10" de verdade no Python (`badig.py` lê isso como UM
+identificador, não como `GOTO`+`10`) — "GOTO10" nunca foi um caso
+real que precisasse desse tratamento especial.
+
+**Achado 3 — são TRÊS mecanismos de comentário exclusivos do
+Dignified, não um só** (pesquisado em `get_lit_block`,
+`badig.py:331-380`, o dispatch em `lex()`, `badig.py:442-478`, e
+`badig_dignified.py:86-131`):
+- `##` (linha, `D_LINREM`): funciona em QUALQUER posição da linha
+  (confirmado usado solto E como comentário no fim de uma linha de
+  código real), consome até o fim da linha física, zero tokens.
+- Um bloco de 3 cerquilhas (`D_O_EREM`, exclusivo Dignified): só
+  dispara sozinho no início de uma linha — mas **"sozinho" não
+  significa "nada mais na linha depois do marcador"**: o original
+  permite (e o `CGK173.dmx` usa de verdade) texto colado direto no
+  marcador de abertura E de fechamento, tipo `###\tInsert ML
+  routines` abrindo e `...VRAM=&h1940###` fechando, SEM espaço antes
+  do fechamento. Essa descoberta derrubou minha primeira
+  implementação (que exigia o marcador sozinho via comparação exata
+  após `TrimSpace` — simplificação ERRADA, não confirmada contra
+  exemplo real na hora). A versão certa varre por SUFIXO: qualquer
+  linha (abertura, fechamento, ou intermediária) que TERMINE no
+  marcador fecha o bloco; tudo isso é jogado fora (`rem_block = []`
+  no original).
+- Um bloco de duas aspas simples (`C_O_BREM`, igual ao `'`/REM
+  clássico do MSX dobrado): mesmo mecanismo de abertura/fechamento
+  por sufixo, mas o CONTEÚDO sobrevive — cada trecho entre abertura e
+  fechamento (mesmo uma linha em branco) vira uma linha classic
+  `'texto` de verdade, numerada separadamente (confirmado contra a
+  saída REAL do Python: usado no próprio cabeçalho do `CGK173.dmx`).
+  Simplificação segura: faço a expansão inteira dentro do próprio
+  `core.Lex()` (não precisa do estágio intermediário `C_O_BREM`/
+  `C_LIBREM`/`C_C_BREM` do Pass 3 original, já que o conteúdo nunca é
+  re-tokenizado como código).
+- `##BB:tag=valor`: é só um `##` comum pro lexer/parser — a extração
+  de verdade (`read_remtags_from_code`,
+  `support/badig_settings.py:285-302`) é uma camada SEPARADA,
+  varrendo o arquivo bruto por regex ANTES de lexar, parte do sistema
+  de config em 4 camadas já adiado desde o Bloco 1/Fase 4. **Fora de
+  escopo**: só garanti que não quebra o lexer.
+
+**Achado 4 — regra do "chunk vazio" calibrada contra a saída REAL do
+Python, não só leitura de código**: minha primeira tentativa incluía
+um chunk vazio pro próprio resto da linha de abertura quando o
+marcador vem sozinho (ex. uma linha só com duas aspas simples) —
+rodei um `mini.dmx` mínimo no Python de verdade e confirmei que isso
+produz uma linha de comentário EXTRA, vazia, que o original NÃO
+produz. Regra certa: só o resto da linha de ABERTURA e o resto da
+linha de FECHAMENTO (antes do marcador) são pulados quando vazios;
+uma linha TOTALMENTE em branco no MEIO do bloco ainda gera sua
+própria linha `'` vazia normalmente (confirmado, também contra a
+saída real).
+
+**Achado 5 — `Lexer.Lex` precisa saber se está no início da linha**:
+`#` e `'` já são símbolos/comentário próprios do MSX e sempre
+recebem a primeira chance. Novo parâmetro `atLineStart bool` em
+`Lexer.Lex` (`contract.go`), calculado em `core.Lex()` (mesma lógica
+de `atOutputLineStart()`, um nível abaixo — no lexer, não no Pass 1).
+MSX recusa incondicionalmente `#` seguido de outro `#` (deixando o
+`core` decidir `##` vs bloco de 3 cerquilhas) e `'` seguido de outro
+`'` quando `atLineStart` (deixando o `core` decidir o bloco de
+verdade) — todo resto do comportamento de `#`/`'` continua idêntico.
+
+7 testes novos em `internal/core` + 1 de ponta a ponta no MSX usando
+o cabeçalho real do `CGK173.dmx` (bloco de duas aspas simples com
+texto de várias linhas incluindo uma em branco, bloco de 3
+cerquilhas, linha `##` solta, linha `##BB:...`, `'`/`#` continuando
+normais fora desses casos).
+
+**Resultado da validação**: o `CGK173.dmx` inteiro (891 linhas)
+agora compila de ponta a ponta sem erro, produzindo ~650 linhas de
+MSX BASIC reconhecível (`gosub`/`goto`/`for`/`next`/`data`/variáveis
+renomeadas/`[?]` expandido/etc. tudo presente). Comparado linha a
+linha contra a saída REAL do `badig.py` (rodado de verdade nesta
+máquina, Python 3.15.2, flag `-rh` desligada pra remover o cabeçalho
+REM automático que esse port ainda não gera): o conteúdo bate bem de
+cara, mas a NUMERAÇÃO DE LINHA diverge a partir do primeiro `for...
+next` com corpo em linhas separadas terminando em `:` — achado
+documentado na seção "Ainda falta" abaixo (Pass 3,
+`badig.py:1550-1605`), não implementado ainda nesta rodada.
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1644,6 +1783,25 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   sem mudança. 5 testes novos focados em espaçamento + ~43 asserções
   de `Code` já existentes corrigidas pro valor real (não regressão -
   era o próprio objetivo da rodada). — **M**, **2**
+- [x] **Comentários exclusivos do Dignified implementados**
+  (2026-11-22, `internal/core/pipeline.go` +
+  `internal/platforms/msx/lexer.go`) — `##` (linha, qualquer posição),
+  um bloco de 3 cerquilhas (descartado inteiro) e um bloco de duas
+  aspas simples (conteúdo virando N linhas classic reais). Ver Bloco 1
+  acima pro detalhamento (inclusive o novo parâmetro `atLineStart` em
+  `Lexer.Lex` e os 3 bugs reais de lexer achados testando o
+  `CGK173.dmx` de ponta a ponta). 7 testes novos em `core` + 1 de
+  ponta a ponta no MSX usando o cabeçalho real do `CGK173.dmx`. —
+  **M**, **1**
+- [ ] Pass 3 (`badig.py:1550-1605`, achado testando `CGK173.dmx` de
+  ponta a ponta contra o Python de verdade): `:` clássico no fim de
+  linha funde com a próxima (igual `_`); `:` no início de linha funde
+  com a anterior; dois `:` adjacentes colapsam; strings literais
+  adjacentes (mesma linha ou por uma `NEWLINE`) se concatenam. Nenhum
+  implementado ainda — sem eles, `CGK173.dmx` compila mas com
+  numeração de linha ERRADA a partir de onde algum desses apareça
+  (confirmado: alvos de `goto`/`gosub` já divergem da saída real do
+  Python a partir da primeira ocorrência). — **M**, **1**
 - [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
   `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**

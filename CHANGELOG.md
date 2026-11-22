@@ -35,6 +35,42 @@ exata do pacote.
 
 ---
 
+## [1.16.0] — 2026-11-22 — bloco **NEW**, feature **comments** (build 0)
+
+**Comentários exclusivos do Dignified** (`##`, um bloco de 3
+cerquilhas, um bloco de duas aspas simples) — primeira rodada
+validada de ponta a ponta contra o `CGK173.dmx` inteiro (891 linhas)
+e contra a saída real do `badig.py` rodando em Python de verdade.
+
+### Adicionado
+
+- `##` — comentário de 1 linha, funciona em qualquer posição,
+  desaparece sem deixar rastro.
+- Um bloco de 3 cerquilhas sozinho no início de uma linha — todo o
+  conteúdo entre abertura e fechamento desaparece, mesmo com texto
+  colado direto nos marcadores.
+- Um bloco de duas aspas simples — mesmo mecanismo, mas o conteúdo
+  sobrevive: cada trecho entre abertura e fechamento vira sua própria
+  linha de comentário classic numerada.
+- Novo `Lexer.Lex` ganha um parâmetro `atLineStart`, usado pra
+  desambiguar esses marcadores dos símbolos próprios do MSX (`#`/`'`).
+- 2 bugs reais de lexer corrigidos, achados testando o `CGK173.dmx`
+  de ponta a ponta: `[?](x,y)` (macro embutida que o Python injeta
+  automaticamente, sem o usuário nunca declarar) e um identificador
+  que começa com uma palavra reservada seguida de `_` ou dígito
+  (`copy_VRAM`, `color1`) sendo cortado errado.
+- 7 testes novos no mecanismo core-level + 1 de ponta a ponta no MSX.
+
+### Não mudou / ainda falta
+
+- Um `:` clássico no fim de linha também deveria fundir com a
+  próxima (confirmado comparando contra a saída real do Python) —
+  ainda não implementado, afeta a numeração de linha de programas
+  reais com blocos `for`/`next` escritos em várias linhas.
+- Pass 1 do separador `_` fora do fim de linha.
+
+---
+
 ## [1.15.0] — 2026-11-22 — bloco **NEW**, feature **generate** (build 0)
 
 **`generate()` de verdade** — espaçamento por palavra reservada +
