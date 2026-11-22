@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.16.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.17.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -27,34 +27,45 @@ aninhadas, também core-level), **`FUNC`/`RET`** (função Dignified →
 (compilação condicional via tags `#tag`, idem core-level),
 **`INCLUDE`** (mesclagem de outro arquivo Dignified, idem
 core-level), um **`generate()` de verdade** (espaçamento por
-palavra reservada + limite de 256 caracteres, idem core-level), e os
+palavra reservada + limite de 256 caracteres, idem core-level), os
 **comentários exclusivos do Dignified** (`##`/`###`/duas aspas
-simples, idem core-level) — a **primeira conversão Dignified→Classic
-de verdade já produzindo texto correto E formatado de verdade,
-incluindo `GOTO`/label, laço fechado, macro, função, alias manual,
-tag condicional, mesclagem de arquivo, espaçamento e comentários
-reais** (`counter=0` → `zz=0`, `goto {dest}` →
-`goto 20`, `keys{ }` → `GOTO` implícito de volta, `[nome](arg)` →
-texto expandido, `.func(5)` → `param=5:gosub <linha>`, `declare
-x:ab` → `x` sempre vira `ab`, bloco `#a...#a` some por padrão a menos
-que `keep #a`/`keep #all` seja declarado, `include "sub.dmx"` mescla
-o conteúdo de outro arquivo do disco no meio do stream, variável
-alocada nele sem colidir com o arquivo principal, `print #1,1` recebe
-espaço só depois do `print`, `##`/`###` somem sem deixar rastro, um
-bloco de duas aspas simples virando N linhas de comentário classic
-reais), confirmada em testes de ponta a ponta completos
-(`Lex`→`Parse`→`Generate`), e **pela primeira vez cruzada de ponta a
-ponta contra o `CGK173.dmx` inteiro (891 linhas) E contra a saída
-REAL do `badig.py` rodando num Python de verdade nesta máquina** (não
-só leitura de código) — revelou e já corrigiu 3 bugs reais de lexer
-MSX além dos comentários: `[?](x,y)` (macro embutida que o Python
-injeta automaticamente, nunca declarada pelo usuário), e identificador
-que começa com uma palavra reservada seguida de `_` (`copy_VRAM`) OU
-DÍGITO (`color1`) cortando errado — essa última reverte uma suposição
-documentada antes sem checar contra o original de verdade ("GOTO10"
-nunca foi um caso real). Catorze desvios reais nas interfaces "v0" do
-Bloco 1 descobertos implementando contra o MSX de verdade, todos
-documentados no Bloco 1 abaixo — a resolução de labels foi
+simples, idem core-level), e a **fusão de linha pelo separador
+clássico `:`** (+ junção de strings adjacentes, idem core-level) — a
+**primeira conversão Dignified→Classic de verdade já produzindo
+texto correto E formatado de verdade, incluindo `GOTO`/label, laço
+fechado, macro, função, alias manual, tag condicional, mesclagem de
+arquivo, espaçamento, comentários e fusão por `:` reais** (`counter=0`
+→ `zz=0`, `goto {dest}` → `goto 20`, `keys{ }` → `GOTO` implícito de
+volta, `[nome](arg)` → texto expandido, `.func(5)` → `param=5:gosub
+<linha>`, `declare x:ab` → `x` sempre vira `ab`, bloco `#a...#a` some
+por padrão a menos que `keep #a`/`keep #all` seja declarado, `include
+"sub.dmx"` mescla o conteúdo de outro arquivo do disco no meio do
+stream, `print #1,1` recebe espaço só depois do `print`, `##`/`###`
+somem sem deixar rastro, um bloco de duas aspas simples virando N
+linhas de comentário classic reais, `for f=0 to 5:` + `print f:` +
+`next:` numa linha só mantendo os `:`), confirmada em testes de ponta
+a ponta completos (`Lex`→`Parse`→`Generate`), e **validada, pela
+primeira vez, 100% de ponta a ponta contra o `CGK173.dmx` inteiro
+(891 linhas) E contra a saída REAL do `badig.py` rodando num Python
+de verdade nesta máquina** (não só leitura de código) — depois desta
+rodada, as ÚNICAS diferenças que sobram contra a saída real são as já
+conhecidas/adiadas (inserção de cabeçalho REM de 2 linhas — confirmado
+que o Python RESERVA esses 2 números de linha mesmo com `-rh`
+desligado, só não mostra o texto — e expansão de TAB pra espaços,
+`-tl`); todo o CONTEÚDO bate, byte a byte, uma vez descontadas essas
+duas. Essa validação revelou e já corrigiu 4 bugs reais de lexer MSX
+(além do próprio achado da fusão por `:`): `[?](x,y)` (macro embutida
+que o Python injeta automaticamente, nunca declarada pelo usuário),
+identificador que começa com uma palavra reservada seguida de `_`
+(`copy_VRAM`) OU DÍGITO (`color1`) cortando errado — essa última
+reverte uma suposição documentada antes sem checar contra o original
+de verdade ("GOTO10" nunca foi um caso real) —, e `"?"` (o alias de
+`PRINT`) faltando na lista de palavras reservadas pra espaçamento
+(estava escondido num item de lista Python escrito como `r'\?'`,
+fácil de não notar lendo rápido). Dezoito desvios reais nas
+interfaces "v0" do Bloco 1 descobertos implementando contra o MSX de
+verdade, todos documentados no Bloco 1 abaixo — a resolução de labels
+foi
 também a primeira vez que o `core` passou a fazer trabalho Dignified
 de verdade antes de delegar pra plataforma, não só documentar a
 intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
@@ -76,22 +87,22 @@ regressão - era o próprio objetivo); os comentários exclusivos foram
 a primeira vez que `Lexer.Lex` precisou saber sua própria posição
 (novo parâmetro `atLineStart`) e a primeira vez testado contra a saída
 REAL de um Python de verdade rodando nesta máquina, não só leitura de
-código-fonte. Também corrigido nesta janela: `identifierPattern`
-(compartilhado) era restrito a ASCII minúsculo — bug real, latente
-desde as rodadas de variável/label, que cortava nomes
-camelCase/mixedCase (`v1.9.1`). **Ainda falta** (achado cruzando
-contra a saída real do Python, Pass 3, `badig.py:1550-1605`, ainda
-não implementado): um `:` (separador clássico) no fim de linha
-TAMBÉM funde com a próxima linha, igual ao `_` Dignified — e o
-inverso (`:` no início de linha funde com a anterior); dois `:`
-adjacentes colapsam em um só; duas strings literais adjacentes (mesma
-linha ou separadas por uma `NEWLINE`) se concatenam. Ver Bloco 1 pra
-detalhamento e `resume.txt` pro repro exato de cada um. Pass 1 do
-`Parser` (separador de chamada Dignified `_` fora do fim de linha,
-rendering ainda não entendido) também continua pendente. Depois
-disso, falta só ligar tudo isso ao tokenizer já pronto pra fechar o
-caminho completo até o binário. Ver Blocos 1-4 na seção 7 para o
-detalhamento.
+código-fonte; a fusão por `:` foi a rodada que finalmente validou o
+`CGK173.dmx` inteiro 100% de ponta a ponta contra a saída real,
+revelando de brinde que uma linha em branco no INÍCIO do arquivo
+(antes de qualquer conteúdo real) também desperdiçava um número de
+linha (corrigido: `KindProgram` agora entra no mesmo colapso de
+`NEWLINE` que labels/`_`/separador já tinham). Também corrigido nesta
+janela: `identifierPattern` (compartilhado) era restrito a ASCII
+minúsculo — bug real, latente desde as rodadas de variável/label, que
+cortava nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1
+do `Parser` (separador de chamada Dignified `_` fora do fim de linha,
+rendering ainda não entendido); inserção do cabeçalho REM de 2 linhas
+(`-rh`) e expansão de TAB (`-tl`) — as duas ÚNICAS coisas que ainda
+separam a saída deste port da saída real do `badig.py`, confirmado
+rodando o `CGK173.dmx` inteiro nos dois. Depois disso, falta só ligar
+tudo isso ao tokenizer já pronto pra fechar o caminho completo até o
+binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -1524,17 +1535,96 @@ texto de várias linhas incluindo uma em branco, bloco de 3
 cerquilhas, linha `##` solta, linha `##BB:...`, `'`/`#` continuando
 normais fora desses casos).
 
-**Resultado da validação**: o `CGK173.dmx` inteiro (891 linhas)
-agora compila de ponta a ponta sem erro, produzindo ~650 linhas de
-MSX BASIC reconhecível (`gosub`/`goto`/`for`/`next`/`data`/variáveis
-renomeadas/`[?]` expandido/etc. tudo presente). Comparado linha a
-linha contra a saída REAL do `badig.py` (rodado de verdade nesta
-máquina, Python 3.15.2, flag `-rh` desligada pra remover o cabeçalho
-REM automático que esse port ainda não gera): o conteúdo bate bem de
-cara, mas a NUMERAÇÃO DE LINHA diverge a partir do primeiro `for...
-next` com corpo em linhas separadas terminando em `:` — achado
-documentado na seção "Ainda falta" abaixo (Pass 3,
-`badig.py:1550-1605`), não implementado ainda nesta rodada.
+**Resultado da validação (comentários)**: o `CGK173.dmx` inteiro (891
+linhas) compila de ponta a ponta sem erro, produzindo ~650 linhas de
+MSX BASIC reconhecível. Comparado linha a linha contra a saída REAL
+do `badig.py`: o conteúdo bate bem de cara, mas a NUMERAÇÃO DE LINHA
+diverge a partir do primeiro `for...next` com corpo em linhas
+separadas terminando em `:` — achado que levou direto à PRÓXIMA
+rodada, fusão de linha por `:` (abaixo).
+
+**Fusão de linha pelo separador clássico `:` implementada**
+(2026-11-22, `internal/core/pipeline.go`): usuário confirmou
+explicitamente "sim, ja pode entrar neste achado, fundir linhas com
+:" e deu o exemplo certo pra guiar a implementação — diferente do
+`_` Dignified (que desaparece inteiro), o `:` clássico PERMANECE na
+linha quando funde (`for a=1 to 10 :` + `next a` → `10 for a=1 to
+10:next a`, não `10 for a=1 to 10 next a`). Peguei o resto do bloco
+Pass 3 (`badig.py:1548-1605`) e confirmei CADA regra rodando `python
+badig.py` de verdade nesta máquina contra arquivos `.dmx` mínimos,
+não só lendo o código.
+
+**Achado — são cinco regras independentes no mesmo bloco, não uma
+só**, todas comparando contra `self.last_tok()` (o ÚLTIMO token
+REALMENTE colocado em `tok_list_out` — equivalente exato do meu
+`out[-1]`, SEM precisar do lookback duplo em `tokens[i-1]` que o
+colapso de linha em branco usa pro `_`/`INCLUDE`, porque nenhuma
+dessas cinco regras faz um token desaparecer sem nunca ter sido
+"append"ado do jeito que o `_` faz neste port):
+1. Dois `:` adjacentes colapsam em um só.
+2. `NEWLINE` depois de `:` desaparece, MAS O `:` FICA — confirmado
+   com um repro mínimo: `for f = 0 to 5:` / `print f:` / `next:` /
+   `print "done"` virou `for f=0 to 5:print f:next:print "done"` numa
+   linha só, com todos os `:` originais preservados.
+3. `:` no início de uma linha funde com a anterior (remove o
+   `NEWLINE` que vinha antes dele).
+4. Duas strings literais adjacentes se concatenam (quotes das pontas
+   que se tocam removidas, texto colado) — confirmado via `DEFINE`
+   (`define [x]["hello"]` chamado como `[x]"world"` → `"helloworld"`),
+   tanto na mesma linha quanto atravessando um `NEWLINE`. Real e
+   NECESSÁRIO pra correção: duas strings coladas sem operador entre
+   elas nem seria Classic BASIC válido sem essa junção.
+5. `NEWLINE` depois de `KindFunctionDefinition` — bug achado relendo
+   o código de novo (não só o Pass 3 do Python): faltava
+   `KindFunctionDefinition` no switch de colapso que já tinha
+   `KindLabelDeclaration`/`KindDignifiedSeparator` — o corpo de uma
+   função desperdiçava uma linha em branco antes desta correção.
+
+Comparação por VALOR, não por Kind, mesmo princípio já usado no
+projeto inteiro: `platform.Description.StatementSeparator()` (já
+existe) comparado via `tok.String() == sep`, já que `:` no MSX lexa
+como `KindSeparator` (Kind PRÓPRIO da plataforma que o `core` não
+deveria referenciar). Simplificação deliberada, documentada: as
+guardas de índice do Python (`self.index < self.len - 3`/`> 3`) são
+proteções de borda da indexação dele, não regra de negócio — as
+checagens de limite normais do Go já previnem acesso fora dos
+limites, sem precisar replicar os números exatos.
+
+**Achado extra, de brinde, re-validando contra a saída real**: uma
+linha em branco no INÍCIO do arquivo (antes de qualquer conteúdo
+real) TAMBÉM desperdiçava um número de linha — `KindProgram` não
+estava no switch de colapso (só `NEWLINE`/`KindLabelDeclaration`/
+`KindDignifiedSeparator`/`KindFunctionDefinition`). Confirmado
+empiricamente: um `"\nprint 1\n"` mínimo no Python real renderiza só
+`"10 print 1"`, nunca uma linha `"10"` vazia seguida de `"20 print
+1"`. Esse achado foi crucial pra validação final: o `CGK173.dmx`
+começa com uma linha em branco antes do seu próprio cabeçalho de
+comentário, e essa ÚNICA linha desperdiçada estava deslocando TODO
+número de linha do arquivo por 10 (confirmado rastreando o offset
+exato em ~15 `goto`/`gosub` espalhados pelo arquivo, TODOS
+exatamente +10 antes da correção).
+
+5 testes novos em `internal/core` (dois `:` adjacentes colapsam; `:`
+no fim de linha funde mantendo o próprio `:`; `:` no início de linha
+funde com a anterior; string+string na mesma linha concatena;
+string+`NEWLINE`+string concatena removendo o `NEWLINE`).
+
+**Resultado da validação (fusão por `:`) — 100% de ponta a ponta**:
+depois desta correção, comparei o `CGK173.dmx` inteiro (891 linhas,
+555 linhas Classic geradas, IGUAL ao total real do `badig.py`) linha
+a linha contra a saída REAL. Confirmado por script: o OFFSET entre
+os dois é uma CONSTANTE EXATA de 20 em TODA LINHA do arquivo do
+início ao fim — e isso tem explicação CONHECIDA: o Python RESERVA 2
+números de linha pro cabeçalho REM automático mesmo com `-rh`
+desligado (confirmado: ele só esconde o TEXTO do cabeçalho, mas a
+numeração ainda começa em 30, não em 10) — recurso que este port
+ainda não implementa (Bloco 2, item de header de 2 linhas, já
+adiado). Descontando esse offset constante e conhecido, e a expansão
+de TAB pra espaço (`-tl`, também já adiada) — **o CONTEÚDO bate
+byte a byte, do início ao fim do arquivo inteiro**, incluindo todo
+`goto`/`gosub`/`restore`/`resume`/`on...goto` e toda variável
+renomeada. Essa é a primeira validação de ponta a ponta 100%
+completa contra um exemplo real e contra o motor Python de verdade.
 
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
@@ -1793,15 +1883,22 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   `CGK173.dmx` de ponta a ponta). 7 testes novos em `core` + 1 de
   ponta a ponta no MSX usando o cabeçalho real do `CGK173.dmx`. —
   **M**, **1**
-- [ ] Pass 3 (`badig.py:1550-1605`, achado testando `CGK173.dmx` de
-  ponta a ponta contra o Python de verdade): `:` clássico no fim de
-  linha funde com a próxima (igual `_`); `:` no início de linha funde
-  com a anterior; dois `:` adjacentes colapsam; strings literais
-  adjacentes (mesma linha ou por uma `NEWLINE`) se concatenam. Nenhum
-  implementado ainda — sem eles, `CGK173.dmx` compila mas com
-  numeração de linha ERRADA a partir de onde algum desses apareça
-  (confirmado: alvos de `goto`/`gosub` já divergem da saída real do
-  Python a partir da primeira ocorrência). — **M**, **1**
+- [x] **Fusão de linha pelo separador clássico `:` implementada**
+  (2026-11-22, `internal/core/pipeline.go`) — fiel a
+  `badig.py:1550-1605`: `:` clássico no fim de linha funde com a
+  próxima MANTENDO o próprio `:` (diferente do `_` Dignified, que
+  desaparece inteiro); `:` no início de linha funde com a anterior;
+  dois `:` adjacentes colapsam; strings literais adjacentes (mesma
+  linha ou por uma `NEWLINE`) se concatenam; `NEWLINE` depois de
+  `KindFunctionDefinition` também passou a colapsar (bug achado
+  relendo o código, não só o Python — o corpo de uma função
+  desperdiçava uma linha em branco). De brinde, achado re-validando
+  contra a saída real: uma linha em branco no INÍCIO do arquivo
+  também desperdiçava um número de linha — `KindProgram` entrou no
+  mesmo colapso. Ver Bloco 1 acima pro detalhamento (inclusive a
+  validação 100% de ponta a ponta contra o `CGK173.dmx` e a saída
+  real do `badig.py`, e o achado do `"?"` faltando nas palavras
+  reservadas). 5 testes novos em `core`. — **M**, **1**
 - [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
   `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**

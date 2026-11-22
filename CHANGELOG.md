@@ -35,6 +35,46 @@ exata do pacote.
 
 ---
 
+## [1.17.0] — 2026-11-22 — bloco **NEW**, feature **colonfusion** (build 0)
+
+**Fusão de linha pelo separador clássico `:`** (+ junção de strings
+adjacentes) — validada, pela primeira vez, 100% de ponta a ponta
+contra o `CGK173.dmx` inteiro (891 linhas) e a saída real do
+`badig.py` rodando num Python de verdade.
+
+### Adicionado
+
+- Um `:` clássico no fim de linha funde com a próxima linha,
+  **mantendo o próprio `:`** (diferente do `_` Dignified, que
+  desaparece inteiro): `for f=0 to 5:` + `print f:` vira uma linha
+  só, `for f=0 to 5:print f:...`.
+- Um `:` no início de uma linha funde com a linha anterior.
+- Dois `:` adjacentes colapsam em um só.
+- Duas strings literais adjacentes (mesma linha, ou separadas por uma
+  quebra de linha) se concatenam em uma só.
+- Corrigido: o corpo de uma função (`FUNC`/`RET`) não desperdiça mais
+  uma linha em branco.
+- Corrigido: uma linha em branco no início do arquivo não desperdiça
+  mais um número de linha.
+- Corrigido: `"?"` (o alias de `PRINT`) agora recebe espaçamento
+  correto, como qualquer outra palavra reservada.
+- 5 testes novos no mecanismo core-level.
+
+### Validação
+
+- O conteúdo gerado para o `CGK173.dmx` inteiro agora bate **byte a
+  byte** contra a saída real do `badig.py`, uma vez descontadas as
+  duas únicas diferenças já conhecidas e adiadas (inserção do
+  cabeçalho REM de 2 linhas, expansão de TAB para espaços).
+
+### Não mudou / ainda falta
+
+- Inserção do cabeçalho REM automático de 2 linhas.
+- Expansão de TAB para espaços.
+- Pass 1 do separador `_` fora do fim de linha.
+
+---
+
 ## [1.16.0] — 2026-11-22 — bloco **NEW**, feature **comments** (build 0)
 
 **Comentários exclusivos do Dignified** (`##`, um bloco de 3
