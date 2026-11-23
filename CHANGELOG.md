@@ -35,6 +35,31 @@ exata do pacote.
 
 ---
 
+## [1.26.0] — 2026-11-23 — bloco **NEW**, feature **dsk-library** (build 0)
+
+**Biblioteca `.DSK` (MSX-DOS/FAT12) portada** — Etapa 1 do
+gerenciador de arquivos de dois painéis (estilo Norton Commander/PC
+Tools) pedido pelo usuário, cujo uso principal é criar/editar
+imagens de disquete MSX.
+
+### Adicionado
+
+- Pacote novo `internal/platforms/msx/dsk`: `Create`/`Open`/`Close`/
+  `ListFiles`/`AddFile`/`ExtractFile`/`DeleteFile`, mais
+  `ConvertToFAT11`/`MatchesFAT11` (nome 8.3 + wildcard). Porta direta
+  de `E:\msxdiskutil\MSXDisk.pbi` — a reescrita em PureBasic, do
+  próprio usuário, do utilitário original em C (`rddsk`/`wrdsk`,
+  Arnold Metselaar).
+- Validado byte a byte contra um disco `.DSK` real (extração
+  idêntica aos arquivos de referência soltos).
+- 14 testes novos.
+
+### O que não mudou / ainda falta
+
+Nenhuma navegação/UI de dois painéis ainda (próximas etapas); nenhum
+valor gerado aqui é lido pelo fluxo de conversão/empacotamento real
+ainda.
+
 ## [1.25.0] — 2026-11-23 — bloco **NEW**, feature **tui-menu-colors** (build 0)
 
 **Correção de cor no menu suspenso da TUI** — reportada pelo usuário

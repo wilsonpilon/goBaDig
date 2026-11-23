@@ -162,10 +162,15 @@ Blocos 2-4).
   (FAT12), ordenado por setor→lado→trilha, **sem** cabeçalho de
   geometria — emuladores inferem o tamanho do disco pelo tamanho do
   arquivo (ex. 720KB = duas faces). Não representa proteções de cópia
-  nem disquetes fora do FAT padrão. Gerar um `.DSK` válido exige montar
-  uma imagem MSX-DOS completa (boot sector, FAT, diretório) — tarefa
-  bem mais complexa que TAP/TZX/CAS, provável prioridade mais baixa
-  dentro do Bloco 2.
+  nem disquetes fora do FAT padrão. **Implementado** em
+  `internal/platforms/msx/dsk` (`Create`/`Open`/`ListFiles`/
+  `AddFile`/`ExtractFile`/`DeleteFile`) — porta direta de
+  `E:\msxdiskutil\MSXDisk.pbi`, a reescrita em PureBasic (do próprio
+  usuário) do utilitário original em C (`rddsk`/`wrdsk`, Arnold
+  Metselaar). Validado contra um disco `.DSK` real (byte a byte,
+  extração idêntica aos arquivos soltos de referência). Ver
+  `OUTLINE.md`, Bloco 1/Etapa 1 do gerenciador de arquivos, pro
+  detalhamento.
 
 ### ZX Spectrum — `.DSK` (+3, opcional/tardio)
 

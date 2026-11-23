@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.25.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.26.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), mas o **motor de
 > conversão** (`internal/core` + `internal/platforms/msx`) é a peça

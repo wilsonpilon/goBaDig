@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.25.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.26.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -17,7 +17,11 @@ ver Bloco 1/Fase 4 abaixo — painel de configuração COMPLETO nas três
 interfaces), e um bug de cor no menu suspenso da TUI corrigido (item
 não selecionado invisível, destaque parcial — reportado pelo usuário
 assim que o menu `Setup` passou a ter itens de verdade de sobra pra
-revelar o problema)** — histórico completo de cada um desses itens em
+revelar o problema), e a biblioteca `.DSK` (MSX-DOS/FAT12) portada de
+`E:\msxdiskutil` (referência real do usuário em PureBasic) pro Go —
+`internal/platforms/msx/dsk`, Etapa 1 do futuro gerenciador de
+arquivos de dois painéis (ver Bloco 1 abaixo — navegação/UI ainda não
+começaram)** — histórico completo de cada um desses itens em
 `CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
 aqui.
 
@@ -2061,6 +2065,89 @@ repo (nada mais foi tocado). Falta documentado em cada subitem acima
 pras próximas fases: `Expose`/`Tools.Interface` (Fase 2), `INCLUDE`
 recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
 
+**Gerenciador de arquivos de dois painéis (Norton Commander/PC
+Tools) — Etapa 1: biblioteca `.DSK` portada** (2026-11-23,
+`internal/platforms/msx/dsk`, pacote novo): depois de decidir que o
+goBaDig é o shell principal (não o editor), usuário pediu um
+gerenciador de dois painéis cujo uso principal é criar/editar
+imagens `.DSK` do MSX. Perguntei onde ficava a referência de disco
+que ele já tinha — ele tem um utilitário **completo e funcionando**,
+`E:\msxdiskutil`, reescrito em PureBasic (histórico: v1.6 original em
+C por Arnold Metselaar — `rddsk`/`wrdsk` — depois adaptado,
+reescrito do zero em PureBasic). Confirmado por busca: zero código de
+disco existia antes disso, nem no `badig/` Python nem em
+`internal/` — `docs/RESOURCES.md:161-168` e este arquivo (linha
+2315, agora atualizada) já citavam `.DSK` como pendente, nunca
+começado.
+
+Dado o tamanho (biblioteca + UI de dois painéis + operações de
+arquivo), segui o mesmo padrão do painel de configuração: etapas
+separadas, cada uma lançável sozinha. Esta rodada entrega só a
+**Etapa 1 — portar a biblioteca**, base de tudo o resto.
+
+Lido por completo `E:\msxdiskutil\MSXDisk.pbi` (719 linhas) +
+`MSXDiskDLL.pb` + `msxdisk.pb` (CLI original) antes de desenhar
+qualquer coisa — mesmo princípio já usado o projeto inteiro (portar
+`badig.py`, não reinventar a partir de uma spec externa, mesmo tendo
+pesquisado a especificação técnica do FAT12/MSX-DOS por fora
+primeiro). API portada: `Create`/`Open`/`Close`/`ListFiles`/
+`ExtractFile`/`AddFile`/`DeleteFile`, mais `ConvertToFAT11`/
+`MatchesFAT11` (nome 8.3 + wildcard, exportados pra Etapa 3 usar
+depois).
+
+**Mudança estrutural necessária, não só estilo**: o módulo PureBasic
+usa estado GLOBAL (um disco aberto por vez no processo inteiro) — não
+serve pro gerenciador de dois painéis (cada painel pode ter seu
+próprio `.DSK` aberto ao mesmo tempo). Virou `type Image struct`, sem
+nada de pacote-level, cada `Open`/`Create` devolve seu próprio
+`*Image` independente.
+
+**Melhoria deliberada, documentada**: `Create` no original estica o
+arquivo só escrevendo o ÚLTIMO setor em zero (conta com semântica de
+"sparse file" do SO pro buraco virar zero) — aqui escrevo o arquivo
+INTEIRO de zeros explicitamente (720KB é pequeno, mais robusto que
+depender de comportamento específico de sistema de arquivos).
+
+**Correção deliberada, documentada**: `ExtractFile` do original seta
+uma mensagem de aviso ("File was truncated") quando a cadeia de
+clusters acaba antes do tamanho declarado, mas AINDA retorna sucesso
+— e a própria CLI original nunca checa essa mensagem depois de um
+retorno de sucesso, tornando o aviso código morto na prática. Aqui
+esse caso vira um `error` de verdade.
+
+**Validação contra dados reais** (não só releitura/testes
+sintéticos): copiei `E:\msxdiskutil\msxdos.dsk` (disco de exemplo
+real, 720KB, com `command.com`/`msxdos.sys` dentro) pro scratchpad e
+abri com o port Go — `ListFiles()` achou os dois arquivos com nome e
+tamanho exatos, e `ExtractFile()` dos dois bateu **byte a byte**
+contra as cópias soltas desses mesmos arquivos que já existem em
+`E:\msxdiskutil\` (prova real de que o parsing de boot sector/FAT/
+diretório/dados está correto, não só "os testes sintéticos passam").
+Também criei um disco novo do zero (`Create` + `AddFile` dos dois
+mesmos arquivos) pra exercitar o caminho de ESCRITA — abre sem erro,
+mesma estrutura. Tentei confirmar num emulador real (`openmsx`, já em
+PATH nesta máquina) — rodou sem erro/crash, mas **sem confirmação
+visual possível** (ambiente sem display interativo nesta sessão) -
+deixado como inconclusivo, não um "não funciona"; a validação byte a
+byte contra dado real já é uma evidência forte por si só.
+
+14 testes automatizados novos em `internal/platforms/msx/dsk`
+(formatação/tamanho do `Create`; `AddFile`+`ListFiles`; sobrescrita
+por nome igual; `ExtractFile` ida e volta byte-exato; `DeleteFile`
+libera cluster pra reuso de verdade — confirmado adicionando outro
+arquivo depois e vendo que reusa o mesmo cluster; arquivo de 0 bytes;
+disco cheio retorna erro sem deixar entrada de diretório pela metade;
+`ConvertToFAT11`/`MatchesFAT11` com wildcard; erro em arquivo/nome
+desconhecido; erro depois de `Close`). Scratch de validação contra o
+disco real (`zz_scratch_realdisk_test.go`) deliberadamente NÃO
+comitado, mesmo padrão de `zz_scratch_cgk173_test.go`.
+
+**Fora de escopo nesta etapa, já documentado**: Etapa 2 (navegação
+de dois painéis na TUI, só leitura, local + abrir um `.DSK` num
+painel); Etapa 3 (operações de arquivo pela UI — adicionar/extrair/
+apagar/criar disco, o uso "principal" pedido); Etapa 4 (operações
+local↔local completas, baixa prioridade); GUI equivalente.
+
 ### Bloco 2 — Módulo MSX
 
 - [x] **Portado o tokenizer MSX Batoken** (2026-11-21,
@@ -2312,8 +2399,12 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   melhor que o Python, que só funciona fora do Windows). — **A**, **3**
 - [ ] Integração fMSX como backend alternativo ao openMSX. — **M**, **2**
 - [ ] Empacotamento `.CAS` (MSX, captura de fita nível BIOS). — **M**, **2**
-- [ ] Empacotamento `.DSK` (MSX, imagem MSX-DOS/FAT12 válida — montar
-  boot sector/FAT/diretório, mais caro que `.CAS`/TAP/TZX). — **A**, **2**
+- [ ] Empacotamento `.DSK` automático no fluxo de conversão (MSX) —
+  a biblioteca de baixo nível (`internal/platforms/msx/dsk`:
+  `Create`/`AddFile`) já existe e está validada (ver Bloco 1, "Etapa
+  1" do gerenciador de arquivos, abaixo); falta só ligar isso ao
+  `Tools.Interface`/fluxo de conversão de verdade, quando ele
+  existir. — **B**, **2**
 
 ### Bloco 3 — Módulo ZX81
 
