@@ -420,9 +420,27 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		list := tview.NewList().ShowSecondaryText(false)
 		list.SetBorder(true).SetBorderColor(colors.menuFg)
 		list.SetBackgroundColor(colors.menuBg)
-		list.SetMainTextColor(colors.menuFg)
+		// SetMainTextColor alone only ever touches the FOREGROUND half
+		// of List's own mainTextStyle - tview.NewList() seeds that
+		// style's background to tview's own global
+		// Styles.PrimitiveBackgroundColor (black, unrelated to this
+		// menu's own palette), and List.Draw paints each unselected
+		// row's text with that exact style (foreground+background
+		// together), overwriting the Box's own SetBackgroundColor fill
+		// at those character cells. The net effect: unselected text
+		// rendered black-on-black (menuFg happens to be black too),
+		// with the UNtouched padding past the text's own width still
+		// showing the Box's real menuBg - a visible seam. Fixing this
+		// needs SetMainTextStyle, which sets both halves at once.
+		list.SetMainTextStyle(tcell.StyleDefault.Foreground(colors.menuFg).Background(colors.menuBg))
 		list.SetSelectedBackgroundColor(colors.highlight)
 		list.SetSelectedTextColor(colors.desktopFg)
+		// The selected row's own highlight otherwise only spans its
+		// own text's width too (same underlying List.Draw behavior),
+		// leaving a short highlighted patch instead of a full menu-bar
+		// width band - SetHighlightFullLine(true) is tview's own
+		// knob for exactly this ("Norton/PC Tools"-style solid bars).
+		list.SetHighlightFullLine(true)
 		windowChrome(list.Box, m.icon, m.label, colors.menuFg)
 		for _, it := range m.items {
 			action := it.action
