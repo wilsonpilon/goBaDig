@@ -6,12 +6,15 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.20.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.21.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
-ainda) — histórico completo de cada um desses itens em `CHANGELOG.md`
-e nos Blocos correspondentes abaixo, não repetido aqui.
+ainda), **catálogo de opções de configuração do `badig.py` + schema
+SQLite (Etapa A do painel de config, ver Bloco 1/Fase 4 abaixo — CLI
+`SET`/painéis TUI/GUI ainda pendentes)** — histórico completo de cada
+um desses itens em `CHANGELOG.md` e nos Blocos correspondentes
+abaixo, não repetido aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -1861,10 +1864,50 @@ ver Bloco 1 acima.
   completo, chama `Platform.Tools.Run` direto) — **B**, **3** (próxima
   fase — nada pra testar de verdade até `Tools.Interface` ter corpo real)
 
-**Fase 4 — Config em camadas** (não bloqueia o motor testável das Fases
-1-3):
-- [ ] Estender `internal/config.Store` já existente (tabelas de config
-  global/projeto, keywords/tokens por dialeto) — **M**, **2**
+**Fase 4 — Config em camadas**: desenho real a partir de 2026-11-23
+(usuário pediu um painel de configuração persistido em SQLite,
+editável na UI, com as mesmas 4 opções: Basic Dignified geral, MSX +
+emulador, ZX81 + emulador, ZX Spectrum + emulador, e comandos `SET`
+no CLI — ver `internal/options` e `internal/config/options.go`,
+detalhado logo abaixo). Só a Etapa A está feita; B/C/D ficam pra
+rodadas seguintes:
+- [x] **Etapa A — catálogo + schema SQLite** (2026-11-23,
+  `internal/options/options.go` novo + `internal/config/options.go`
+  novo): pacote `internal/options` é o catálogo embutido (mesmo
+  padrão de `internal/theme`/`CatalogFor`) das 40 opções do
+  `badig.py` original que fazem sentido como config persistida (não
+  flag de uma execução só) — 14 compartilhadas (`CategoryCore`:
+  `INITIAL_LINE`, `LINE_INCREMENT`, `REM_HEADER`, `TAB_SIZE`, etc.,
+  de `support/badig_settings.py`), 14 MSX (`CategoryMSX`:
+  `CONVERT_PRINT`/`STRIP_THEN_GOTO` de `badig_msx.py` + tokenizer +
+  emulador do openMSX), 4 ZX81 (`CategoryZX81`: só tokenizer +
+  emulador, `badig_zx81.py` não tem nenhuma opção própria), 8 ZX
+  Spectrum (`CategoryZXSpectrum`: `SPECTRUM_MODEL` + tokenizer de
+  fita + emulador). Nomes de chave são deliberadamente amigáveis
+  (`INITIAL_LINE`, não `line_start`) — o nome Python original só
+  fica em comentário, nunca aparece pro usuário; mesmo princípio que
+  motivou a escolha: usuário deu o exemplo `SET INITIAL_LINE 1`
+  espontaneamente, confirmando o estilo. `config.Store` ganhou
+  `SetOption`/`GetOption`/`ListOptions`/`EnsureOptionDefaults` (mesmo
+  princípio de `InstallThemes`/`EnsureActiveTheme` — valida via
+  `options.Validate` antes de gravar, só semeia default na PRIMEIRA
+  vez, nunca sobrescreve valor que o usuário já mudou). 18 testes
+  novos (`internal/options` + `internal/config`). **Escopo
+  deliberado desta etapa**: só a camada GLOBAL agora — sem "projeto"
+  nem resolução das 4 camadas (SQLite global < projeto < CLI <
+  remtags), porque "projeto" não tem nenhuma âncora concreta ainda
+  (nenhum comando de compilação real existe no CLI/TUI/GUI); nenhum
+  valor liga ao `core.CompileSettings` de verdade ainda (isso é
+  consumo pelo pipeline, um passo futuro separado — mesmo princípio
+  de como o sistema de tema foi construído antes de qualquer comando
+  de conversão existir). — **M**, **2**
+- [ ] Etapa B — comando `SET <OPÇÃO> <VALOR>` no
+  `internal/cli/console.go` (mesmo padrão de `case "theme":`/
+  `executeTheme`). — **M**, **2**
+- [ ] Etapa C — 4 painéis na TUI (`internal/tui`), um formulário por
+  categoria, mesmo padrão de `showThemePicker`. — **M**, **2**
+- [ ] Etapa D — os mesmos 4 painéis na GUI (`internal/gui`), mesmo
+  padrão de `showThemeInstaller`. — **M**, **2**
 - [ ] Resolução de fato das 4 camadas (SQLite global < projeto < CLI <
   remtags no código) — **A**, **3** (não há CLI real de flags pra
   testar contra ainda)

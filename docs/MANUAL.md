@@ -110,7 +110,12 @@ está fechado**; **`v1.20.0`** liga tudo isso ao tokenizer MSX Batoken
 `.bmx` de ponta a ponta de verdade, validada byte a byte contra o
 `CGK173.dmx` inteiro tokenizado pelo `badig.py` real** — ainda sem
 nenhum comando de conversão disponível pro usuário final (nenhuma das
-três interfaces chama essa função ainda; ver seção 6).
+três interfaces chama essa função ainda; ver seção 6). **`v1.21.0`**
+começa o painel de configuração: `internal/options` cataloga as ~40
+opções que o `badig.py` original expõe (numeração de linha, cabeçalho
+REM, TAB, tokenizer, emulador — por dialeto) e `internal/config`
+ganha o schema SQLite que as persiste — ainda sem comando `SET` no
+CLI nem painel na TUI/GUI (próximas etapas).
 
 ## 4. Compilar a partir do código-fonte
 

@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.21.0] — 2026-11-23 — bloco **NEW**, feature **options-catalog** (build 0)
+
+**Catálogo de opções de configuração + schema SQLite (Etapa A do
+painel de configuração)** — primeira etapa de um recurso maior:
+expor as ~40 opções que o `badig.py` original configura por CLI/
+`.ini`/remtag (numeração de linha, cabeçalho REM, TAB, espaçamento,
+tokenizer, emulador — por dialeto) como configuração persistida,
+editável depois via comandos `SET` no CLI e painéis na TUI/GUI
+(etapas futuras, ainda não implementadas).
+
+### Adicionado
+
+- Pacote novo `internal/options`: catálogo embutido com as 40
+  opções, em 4 categorias (Basic Dignified geral, MSX, ZX81, ZX
+  Spectrum), cada uma com tipo (`bool`/`int`/`string`/`enum`),
+  default e validação.
+- `internal/config.Store` ganha `SetOption`/`GetOption`/
+  `ListOptions`/`EnsureOptionDefaults`, nova tabela SQLite
+  `options` — mesmo padrão já usado pelo sistema de temas
+  (valida antes de gravar, só semeia o default na primeira vez, nunca
+  sobrescreve um valor já alterado pelo usuário).
+- 18 testes novos.
+
+### O que não mudou / ainda falta
+
+Nenhum comando `SET` no CLI, nenhum painel na TUI/GUI ainda (próximas
+etapas) — e nenhum valor configurado aqui é consumido pelo pipeline
+de conversão real ainda (isso é um passo futuro separado).
+
 ## [1.20.0] — 2026-11-23 — bloco **NEW**, feature **tokenizer-wiring** (build 0)
 
 **Ligação ao tokenizer MSX Batoken** — a primeira conversão
