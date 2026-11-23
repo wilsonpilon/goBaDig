@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -306,6 +307,74 @@ func TestLexIdentifierPatternIsCaseInsensitive(t *testing.T) {
 	want := []string{"10 PRINT gameName"}
 	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
 		t.Fatalf("Code = %v, want %v (\"gameName\" must survive as one identifier)", result.Code, want)
+	}
+}
+
+func TestPass4InsertsRemHeaderWhenEnabled(t *testing.T) {
+	ctx := newFakeMultilineContext([]string{"PRINT 1"}, []string{"fake.dmx"})
+	ctx.Settings.RemHeader = true
+	platform := Platform{
+		Description: fakeDescription{},
+		Lexer:       fakeLexer{},
+		Parser:      fakeParser{},
+		Settings:    fakeSettings{},
+	}
+	result, err := Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{
+		"10 'Converted with Basic Dignified",
+		"20 'https://github.com/farique1/basic-dignified",
+		"30 PRINT 1",
+	}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (RemHeader=true must insert the 2-line REM header before any real content, numbered normally)", result.Code, want)
+	}
+}
+
+func TestPass4OmitsRemHeaderByDefault(t *testing.T) {
+	result, err := runFake(t, "PRINT 1")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"10 PRINT 1"}
+	if strings.Join(result.Code, "|") != strings.Join(want, "|") {
+		t.Fatalf("Code = %v, want %v (RemHeader's Go zero-value is false - no header unless explicitly opted in)", result.Code, want)
+	}
+}
+
+func TestExpandTabsAdvancesToTheNextTabStop(t *testing.T) {
+	cases := []struct {
+		in   string
+		size int
+		want string
+	}{
+		{"a\tb", 4, "a   b"},          // 1 char then tab -> 3 spaces to reach column 4
+		{"\tb", 4, "    b"},           // tab at column 0 -> 4 spaces
+		{"ab\tcd\te", 4, "ab  cd  e"}, // two tabs, each to the next 4-column stop
+		{"no tabs here", 4, "no tabs here"},
+		{"a\tb", 0, "a\tb"}, // tabSize<=0: left unexpanded, documented simplification
+	}
+	for _, c := range cases {
+		if got := expandTabs(c.in, c.size); got != c.want {
+			t.Errorf("expandTabs(%q, %d) = %q, want %q", c.in, c.size, got, c.want)
+		}
+	}
+}
+
+func TestLoadLinesExpandsTabsInARealFile(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/tabs.dmx"
+	if err := os.WriteFile(path, []byte("print 1\n\tprint 2\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	lines, err := LoadLines(path, 4)
+	if err != nil {
+		t.Fatalf("LoadLines: %v", err)
+	}
+	if len(lines) < 3 || lines[2].Text != "    print 2" {
+		t.Fatalf("lines = %#v, want line 2's text to be \"    print 2\" (tab expanded to 4 spaces)", lines)
 	}
 }
 

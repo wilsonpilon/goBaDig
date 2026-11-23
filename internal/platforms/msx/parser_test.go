@@ -416,7 +416,7 @@ func TestEndToEndIncludeMergesARealFileFromDiskAndSharesVariableAllocation(t *te
 		Settings:     &core.CompileSettings{LineStart: 10, LineStep: 10},
 		Symbols:      core.NewSymbolTables(),
 		IncludeStack: []string{filepath.Join(dir, "test.dmx")},
-		LoadFile:     core.LoadLines,
+		LoadFile:     func(p string) ([]core.Line, error) { return core.LoadLines(p, 4) },
 	}
 	platform := core.Platform{Description: Description, Lexer: Lexer{}, Parser: NewParser()}
 

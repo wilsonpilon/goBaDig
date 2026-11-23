@@ -163,10 +163,42 @@ func scanCommentBlock(ctx *CompileContext, lineIndex int, openRest, marker strin
 // every test helper in pipeline_test.go already uses: a dummy
 // Line{Number: 0} placeholder first (core.Lex starts scanning real
 // content at index 1), then one Line per real line, 1-indexed.
-// Deliberately out of scope, same as the original engine's own
-// IO.load_file options this doesn't need yet: encoding/tab-width
-// normalization (CompileSettings doesn't model those).
-func LoadLines(path string) ([]Line, error) {
+// tabSize expands every TAB the same way support/helper.py's
+// IO.load_file does (`line.expandtabs(tab_lenght)`, badig.py:88) -
+// ver expandTabs' own doc comment. Deliberately out of scope, same
+// as the original engine's own IO.load_file options this doesn't
+// need yet: file encoding normalization (CompileSettings doesn't
+// model that).
+//
+// expandTabs mirrors Python's str.expandtabs(tabsize) exactly as
+// support/helper.py's IO.load_file uses it
+// (`line.expandtabs(tab_lenght)`, badig.py:88): replaces each TAB
+// with just enough spaces to reach the next tabSize-column boundary,
+// tracking column position as it scans so a TAB coming after other
+// TABs/text still lands on the right stop. tabSize<=0 is a
+// degenerate case Python itself doesn't sanely support either
+// (division-by-zero territory for its own algorithm) - left
+// unexpanded here rather than guessing a replacement behavior.
+func expandTabs(s string, tabSize int) string {
+	if tabSize <= 0 || !strings.ContainsRune(s, '\t') {
+		return s
+	}
+	var b strings.Builder
+	col := 0
+	for _, r := range s {
+		if r == '\t' {
+			n := tabSize - (col % tabSize)
+			b.WriteString(strings.Repeat(" ", n))
+			col += n
+			continue
+		}
+		b.WriteRune(r)
+		col++
+	}
+	return b.String()
+}
+
+func LoadLines(path string, tabSize int) ([]Line, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -175,7 +207,8 @@ func LoadLines(path string) ([]Line, error) {
 	lines := make([]Line, 0, len(rawLines)+1)
 	lines = append(lines, Line{Number: 0, Text: "PROGRAM", File: path})
 	for i, text := range rawLines {
-		lines = append(lines, Line{Number: i + 1, Text: strings.TrimRight(text, "\r"), File: path})
+		text = expandTabs(strings.TrimRight(text, "\r"), tabSize)
+		lines = append(lines, Line{Number: i + 1, Text: text, File: path})
 	}
 	return lines, nil
 }
@@ -1823,6 +1856,15 @@ func resolveInclude(ctx *CompileContext, tokens []Token, i int, instr Token, quo
 	return nestedTokens[1:contentEnd], i, nil
 }
 
+// remHeaderLine1/2 are support/badig_settings.py's own header1/header2
+// (lines 68-69) - fixed, shared across every dialect (not
+// platform-specific), used by pass4Numbering's own KindProgram case
+// when CompileSettings.RemHeader is set.
+const (
+	remHeaderLine1 = "Converted with Basic Dignified"
+	remHeaderLine2 = "https://github.com/farique1/basic-dignified"
+)
+
 // pass4Numbering replaces the generic runPass(platform.Parser.Pass4)
 // call in Parse with the core-level label-resolution + line-numbering
 // pass_4 does (badig.py:1615-1757) before ever falling through to
@@ -1860,7 +1902,33 @@ func pass4Numbering(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 			// renders in Generate, so this becomes that line's first
 			// rendered token).
 			lineNumber = ctx.Settings.LineStart
-			return Replace, []Token{tok, {Kind: KindLineNumber, Value: lineNumber, Pos: tok.Pos}}, nil
+			out := []Token{tok, {Kind: KindLineNumber, Value: lineNumber, Pos: tok.Pos}}
+
+			// Optional 2-line REM header (insert_rem_header,
+			// badig.py:1289-1303, called twice right at the start of
+			// pass_4, badig.py:1643-1645, BEFORE its own numbering
+			// loop runs). Built by hand here instead of relying on
+			// the generic KindNewline-triggered numbering below
+			// (ver its own case) - a token this function Replaces
+			// never gets individually re-visited by this same
+			// forward pass (runPass just appends Replace's result
+			// verbatim), so each header line's own LineNumber has to
+			// be advanced and inserted explicitly, right here, same
+			// as the original's own two back-to-back
+			// insert_rem_header calls.
+			if ctx.Settings.RemHeader {
+				com := platform.Description.CommentChar()
+				for _, text := range []string{remHeaderLine1, remHeaderLine2} {
+					lineNumber += ctx.Settings.LineStep
+					out = append(out,
+						Token{Kind: KindSynthetic, Value: com, Pos: tok.Pos},
+						Token{Kind: KindSynthetic, Value: text, Pos: tok.Pos},
+						Token{Kind: KindNewline, Value: "\n", Pos: tok.Pos},
+						Token{Kind: KindLineNumber, Value: lineNumber, Pos: tok.Pos},
+					)
+				}
+			}
+			return Replace, out, nil
 
 		case KindLabelDeclaration:
 			name, _ := tok.Value.(string)
