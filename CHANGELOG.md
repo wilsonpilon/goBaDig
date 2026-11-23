@@ -35,6 +35,28 @@ exata do pacote.
 
 ---
 
+## [1.18.0] — 2026-11-23 — bloco **NEW**, feature **remheader** (build 0)
+
+**Cabeçalho REM de 2 linhas + expansão de TAB** — fecha os dois
+últimos gaps conhecidos contra a saída real do `badig.py`: o
+`CGK173.dmx` inteiro (891 linhas) agora bate **byte a byte**, sem
+nenhuma diferença restante.
+
+### Adicionado
+
+- Cabeçalho REM automático de 2 linhas (`"Converted with Basic
+  Dignified"` / `"https://github.com/farique1/basic-dignified"`),
+  controlado por `CompileSettings.RemHeader` (default `false` — sem
+  wiring de CLI ainda pra expor o default real do Python, `true`).
+- Expansão de TAB pra espaços em `core.LoadLines`, controlada por
+  `CompileSettings.TabLength`, mirror exato de `str.expandtabs`.
+- Corrigida uma suposição documentada na release anterior: o offset
+  de +20 encontrado ali não era "o Python reserva 2 números de linha
+  mesmo com `-rh` desligado" — era simplesmente o cabeçalho real que
+  este port ainda não gerava. `-rh` desliga o cabeçalho por completo,
+  sem reserva nenhuma.
+- 4 testes novos no mecanismo core-level.
+
 ## [1.17.0] — 2026-11-22 — bloco **NEW**, feature **colonfusion** (build 0)
 
 **Fusão de linha pelo separador clássico `:`** (+ junção de strings

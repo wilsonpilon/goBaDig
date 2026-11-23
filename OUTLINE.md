@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.17.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.18.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -43,29 +43,34 @@ por padrão a menos que `keep #a`/`keep #all` seja declarado, `include
 stream, `print #1,1` recebe espaço só depois do `print`, `##`/`###`
 somem sem deixar rastro, um bloco de duas aspas simples virando N
 linhas de comentário classic reais, `for f=0 to 5:` + `print f:` +
-`next:` numa linha só mantendo os `:`), confirmada em testes de ponta
-a ponta completos (`Lex`→`Parse`→`Generate`), e **validada, pela
-primeira vez, 100% de ponta a ponta contra o `CGK173.dmx` inteiro
-(891 linhas) E contra a saída REAL do `badig.py` rodando num Python
-de verdade nesta máquina** (não só leitura de código) — depois desta
-rodada, as ÚNICAS diferenças que sobram contra a saída real são as já
-conhecidas/adiadas (inserção de cabeçalho REM de 2 linhas — confirmado
-que o Python RESERVA esses 2 números de linha mesmo com `-rh`
-desligado, só não mostra o texto — e expansão de TAB pra espaços,
-`-tl`); todo o CONTEÚDO bate, byte a byte, uma vez descontadas essas
-duas. Essa validação revelou e já corrigiu 4 bugs reais de lexer MSX
-(além do próprio achado da fusão por `:`): `[?](x,y)` (macro embutida
-que o Python injeta automaticamente, nunca declarada pelo usuário),
-identificador que começa com uma palavra reservada seguida de `_`
-(`copy_VRAM`) OU DÍGITO (`color1`) cortando errado — essa última
-reverte uma suposição documentada antes sem checar contra o original
-de verdade ("GOTO10" nunca foi um caso real) —, e `"?"` (o alias de
-`PRINT`) faltando na lista de palavras reservadas pra espaçamento
-(estava escondido num item de lista Python escrito como `r'\?'`,
-fácil de não notar lendo rápido). Dezoito desvios reais nas
-interfaces "v0" do Bloco 1 descobertos implementando contra o MSX de
-verdade, todos documentados no Bloco 1 abaixo — a resolução de labels
-foi
+`next:` numa linha só mantendo os `:`, cabeçalho REM de 2 linhas
+quando pedido, TAB expandido pra espaço), confirmada em testes de
+ponta a ponta completos (`Lex`→`Parse`→`Generate`), e **validada
+100% de ponta a ponta contra o `CGK173.dmx` inteiro (891 linhas) E
+contra a saída REAL do `badig.py` rodando num Python de verdade
+nesta máquina, com ZERO diferença restante** (`diff` vazio, byte a
+byte — não só leitura de código). **Correção de uma suposição
+anterior**: numa rodada passada eu tinha documentado que "o Python
+reserva 2 números de linha pro cabeçalho mesmo com `-rh` desligado" —
+isso estava ERRADO (achado rodando de novo um teste mínimo): `-rh`
+de verdade desliga o cabeçalho por completo (`insert_rem_header`
+nunca é chamado), e o arquivo de referência que eu venho usando pra
+comparar tinha sido gerado SEM passar `-rh` da primeira vez — ou
+seja, ele JÁ tinha o cabeçalho de verdade; o offset de +20 que eu via
+era exatamente essas 2 linhas REM reais que meu port ainda não
+gerava, não um mecanismo escondido de reserva. Essa validação
+revelou e já corrigiu 4 bugs reais de lexer MSX (além do próprio
+achado da fusão por `:`): `[?](x,y)` (macro embutida que o Python
+injeta automaticamente, nunca declarada pelo usuário), identificador
+que começa com uma palavra reservada seguida de `_` (`copy_VRAM`) OU
+DÍGITO (`color1`) cortando errado — essa última reverte uma
+suposição documentada antes sem checar contra o original de verdade
+("GOTO10" nunca foi um caso real) —, e `"?"` (o alias de `PRINT`)
+faltando na lista de palavras reservadas pra espaçamento (estava
+escondido num item de lista Python escrito como `r'\?'`, fácil de
+não notar lendo rápido). Dezoito desvios reais nas interfaces "v0" do
+Bloco 1 descobertos implementando contra o MSX de verdade, todos
+documentados no Bloco 1 abaixo — a resolução de labels foi
 também a primeira vez que o `core` passou a fazer trabalho Dignified
 de verdade antes de delegar pra plataforma, não só documentar a
 intenção; `DEFINE` foi a primeira vez que isso precisou de um cursor
@@ -97,11 +102,8 @@ janela: `identifierPattern` (compartilhado) era restrito a ASCII
 minúsculo — bug real, latente desde as rodadas de variável/label, que
 cortava nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1
 do `Parser` (separador de chamada Dignified `_` fora do fim de linha,
-rendering ainda não entendido); inserção do cabeçalho REM de 2 linhas
-(`-rh`) e expansão de TAB (`-tl`) — as duas ÚNICAS coisas que ainda
-separam a saída deste port da saída real do `badig.py`, confirmado
-rodando o `CGK173.dmx` inteiro nos dois. Depois disso, falta só ligar
-tudo isso ao tokenizer já pronto pra fechar o caminho completo até o
+rendering ainda não entendido) — depois disso, falta só ligar tudo
+isso ao tokenizer já pronto pra fechar o caminho completo até o
 binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
@@ -1614,17 +1616,79 @@ depois desta correção, comparei o `CGK173.dmx` inteiro (891 linhas,
 555 linhas Classic geradas, IGUAL ao total real do `badig.py`) linha
 a linha contra a saída REAL. Confirmado por script: o OFFSET entre
 os dois é uma CONSTANTE EXATA de 20 em TODA LINHA do arquivo do
-início ao fim — e isso tem explicação CONHECIDA: o Python RESERVA 2
-números de linha pro cabeçalho REM automático mesmo com `-rh`
-desligado (confirmado: ele só esconde o TEXTO do cabeçalho, mas a
-numeração ainda começa em 30, não em 10) — recurso que este port
-ainda não implementa (Bloco 2, item de header de 2 linhas, já
-adiado). Descontando esse offset constante e conhecido, e a expansão
-de TAB pra espaço (`-tl`, também já adiada) — **o CONTEÚDO bate
-byte a byte, do início ao fim do arquivo inteiro**, incluindo todo
-`goto`/`gosub`/`restore`/`resume`/`on...goto` e toda variável
-renomeada. Essa é a primeira validação de ponta a ponta 100%
-completa contra um exemplo real e contra o motor Python de verdade.
+início ao fim — explicado na hora (achado incorretamente, ver
+correção abaixo) como "o Python reserva 2 números de linha pro
+cabeçalho mesmo com `-rh` desligado". Descontando esse offset
+constante, e a expansão de TAB pra espaço (`-tl`, também já adiada
+nessa rodada) — **o CONTEÚDO bate byte a byte, do início ao fim do
+arquivo inteiro**, incluindo todo `goto`/`gosub`/`restore`/`resume`/
+`on...goto` e toda variável renomeada.
+
+**Cabeçalho REM de 2 linhas + expansão de TAB implementados**
+(2026-11-23, `internal/core/pipeline.go`/`settings.go`): usuário
+pediu sugestão de próximo passo; sugeri fechar os dois gaps
+conhecidos antes de ligar ao tokenizer; usuário confirmou "ok feche
+os dois gaps".
+
+**Correção da suposição anterior**: rodando de novo um teste mínimo
+(`python badig.py minif.dmx out.amx -rh`), confirmei que `-rh`
+(`action='store_false'`, `support/badig_settings.py:432`) desliga o
+cabeçalho DE VERDADE — `insert_rem_header` (`badig.py:1289-1303`,
+chamado 2x no início do Pass 4, `badig.py:1643-1645`) simplesmente
+NUNCA é chamado nesse caso, sem reserva escondida nenhuma. O arquivo
+de referência que eu vinha usando pra comparar
+(`/tmp/badig_test/CGK173.amx`) tinha sido gerado SEM a flag `-rh` da
+primeira vez — ou seja, ele JÁ tinha o cabeçalho de verdade
+(`"10 'Converted with Basic Dignified"` / `"20 'https://github.com/
+farique1/basic-dignified"`, strings fixas e compartilhadas,
+`support/badig_settings.py:68-69`). O offset de +20 era exatamente
+essas 2 linhas REM reais que meu port ainda não gerava — mais simples
+do que eu tinha documentado antes.
+
+Implementado construindo o bloco inteiro NA MÃO dentro do `case
+KindProgram` de `pass4Numbering` (que já insere o PRIMEIRO
+`KindLineNumber` ali mesmo): monta `[PROGRAM, LineNumber(10),
+Synthetic(aspa), Synthetic(header1), NEWLINE, LineNumber(20),
+Synthetic(aspa), Synthetic(header2), NEWLINE, LineNumber(30)]` como
+um `Replace` só — simples porque um token que esse pass `Replace`
+NUNCA é revisitado pelo próprio forward scan (`runPass` só anexa o
+resultado), então cada linha do cabeçalho precisa avançar
+`lineNumber` manualmente, direto aqui, igual as duas chamadas
+seguidas de `insert_rem_header` do original.
+
+Expansão de TAB: `line.expandtabs(tab_lenght)` (`support/helper.py:88`,
+dentro de `IO.load_file`) roda LINHA POR LINHA no CARREGAMENTO do
+arquivo, antes de qualquer lexing — nova função `expandTabs(s string,
+tabSize int) string` replicando o algoritmo exato do `str.expandtabs`
+(substitui cada TAB por espaços suficientes pra alcançar o próximo
+múltiplo de `tabSize` colunas, rastreando a posição conforme
+processa). `core.LoadLines` muda de assinatura pra receber o tamanho
+do TAB.
+
+Dois campos novos em `CompileSettings`: `RemHeader bool` e
+`TabLength int`, mesmo padrão de `LineStart`/`LineStep`. **Decisão
+deliberada sobre o default**: o zero-value do Go pra `RemHeader` é
+`false` ("sem cabeçalho") — INVERTIDO do default real do Python
+(`True`) — não corrigido agora, já que não existe NENHUM wiring de
+CLI ainda que exponha essas flags pro usuário; mudar o zero-value
+quebraria silenciosamente todo teste existente. Quando a FUTURA
+integração de CLI existir, ela decide o default real, não o
+zero-value da struct.
+
+4 testes novos em `internal/core` (cabeçalho aparece quando
+`RemHeader=true`, numerado corretamente; nada aparece por padrão;
+`expandTabs` avança pro próximo múltiplo de colunas certo, inclusive
+com múltiplos TABs/texto misturado; `LoadLines` expande TAB de
+verdade num arquivo real no disco).
+
+**Resultado da validação final — ZERO diferenças**: com os dois gaps
+fechados, roder o `CGK173.dmx` inteiro de novo e comparar
+(`diff <(sed 's/\r$//' go_output.txt) <(sed 's/\r$//'
+py_output_raw.txt)`, o arquivo de referência ORIGINAL, COM o
+cabeçalho de verdade) retorna **vazio** — nenhuma diferença, nem de
+conteúdo nem de número de linha, do início ao fim do arquivo inteiro.
+Essa é a primeira validação de ponta a ponta 100% completa, byte a
+byte, contra um exemplo real e contra o motor Python de verdade.
 
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
@@ -1857,9 +1921,7 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   caminho relativo contra o arquivo PRINCIPAL, não o que inclui). 7
   testes novos em `core` + 1 de ponta a ponta no MSX lendo um arquivo
   real do disco. — **A**, **1**
-- [ ] Inserção de header (2 linhas REM sintéticas,
-  `rem_header`/`header1`/`header2`) e relatório de labels (`-lbr`) —
-  cosméticos, pequenos. — **B**, **2**
+- [ ] Relatório de labels (`-lbr`) — cosmético, pequeno. — **B**, **2**
 - [x] **`generate()` de verdade implementado** (2026-11-22,
   `internal/core/pipeline.go`) — regras de espaçamento por palavra
   reservada + limite de 256 chars/linha, fiel a `generate()`
@@ -1899,6 +1961,15 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   validação 100% de ponta a ponta contra o `CGK173.dmx` e a saída
   real do `badig.py`, e o achado do `"?"` faltando nas palavras
   reservadas). 5 testes novos em `core`. — **M**, **1**
+- [x] **Cabeçalho REM de 2 linhas + expansão de TAB implementados**
+  (2026-11-23, `internal/core/pipeline.go`/`settings.go`) — fiel a
+  `insert_rem_header` (`badig.py:1289-1303`/`1643-1645`) e
+  `line.expandtabs` (`support/helper.py:88`). Novos
+  `CompileSettings.RemHeader`/`TabLength` (zero-value `false`/`0` —
+  decisão deliberada, ver Bloco 1 acima, sem CLI ainda pra expor o
+  default real do Python). **Fechou os dois últimos gaps conhecidos**
+  contra a saída real do `badig.py`: `CGK173.dmx` inteiro agora bate
+  byte a byte, ZERO diferenças. 4 testes novos em `core`. — **B**, **1**
 - [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
   `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**

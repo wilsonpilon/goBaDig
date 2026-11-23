@@ -96,14 +96,14 @@ de 256 caracteres por linha); **`v1.16.0`** implementa os
 comentários exclusivos do Dignified (`##`, bloco de 3 cerquilhas,
 bloco de duas aspas simples); **`v1.17.0`** implementa a fusão de
 linha pelo separador clássico `:` (mantendo o próprio `:`, diferente
-do `_` Dignified) + junção de strings adjacentes — **validada 100%
-de ponta a ponta contra o `CGK173.dmx` inteiro (891 linhas) e contra
-a saída real do `badig.py` rodando em Python de verdade: o conteúdo
-gerado bate byte a byte, descontadas só duas diferenças já conhecidas
-e adiadas** (cabeçalho REM automático de 2 linhas, expansão de TAB) —
-ainda sem nenhum comando de conversão real disponível pro usuário:
-falta o Pass 1 do separador `_` pra fechar o caminho
-Dignified→Classic (ver seção 6).
+do `_` Dignified) + junção de strings adjacentes; **`v1.18.0`**
+implementa o cabeçalho REM automático de 2 linhas e a expansão de
+TAB pra espaços — fechando os dois últimos gaps conhecidos — **o
+`CGK173.dmx` inteiro (891 linhas) agora bate byte a byte contra a
+saída real do `badig.py` rodando em Python de verdade, sem nenhuma
+diferença restante** — ainda sem nenhum comando de conversão real
+disponível pro usuário: falta o Pass 1 do separador `_` pra fechar o
+caminho Dignified→Classic (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -211,10 +211,12 @@ funcionam (`##` some em qualquer posição; um bloco de 3 cerquilhas
 some inteiro; um bloco de duas aspas simples vira N linhas de
 comentário classic reais), e a partir da `v1.17.0` um `:` clássico no
 fim de linha também funde com a próxima (mantendo o próprio `:`,
-diferente do `_`) — validado 100% de ponta a ponta contra o
-`CGK173.dmx` inteiro e a saída real do `badig.py` — mas ainda falta
-o Pass 1 do separador `_`, e ligar tudo isso ao tokenizer. Nada disso
-é utilizável pelo usuário final ainda.
+diferente do `_`), e a partir da `v1.18.0` um cabeçalho REM
+automático de 2 linhas é inserido e TAB é expandido pra espaço —
+validado 100% de ponta a ponta, byte a byte, contra o `CGK173.dmx`
+inteiro e a saída real do `badig.py`, sem nenhuma diferença restante
+— mas ainda falta o Pass 1 do separador `_`, e ligar tudo isso ao
+tokenizer. Nada disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

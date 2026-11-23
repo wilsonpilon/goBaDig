@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.17.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.18.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), mas o **motor de
 > conversão** (`internal/core` + `internal/platforms/msx`) é a peça
@@ -12,11 +12,11 @@ para VSCode cobrindo os três dialetos.
 > Dignified real (macros `DEFINE`, funções `FUNC`/`RET`, alias manual
 > de variável `DECLARE`, compilação condicional `KEEP`, `INCLUDE`,
 > comentários `##`/bloco de 3 cerquilhas/duas aspas simples, fusão de
-> linha pelos separadores `_` e `:`) e gera a listagem Classic
-> numerada e formatada — **validado 100% de ponta a ponta contra um
-> programa MSX real completo (891 linhas) e a saída do `badig.py`
-> original rodando em Python**, descontadas duas diferenças ainda não
-> portadas (cabeçalho REM automático, expansão de TAB). Ainda não
+> linha pelos separadores `_` e `:`, cabeçalho REM automático,
+> expansão de TAB) e gera a listagem Classic numerada e formatada —
+> **validado 100% de ponta a ponta, byte a byte, contra um programa
+> MSX real completo (891 linhas) e a saída do `badig.py` original
+> rodando em Python, sem nenhuma diferença restante**. Ainda não
 > está ligado a nenhuma interface (CLI/TUI/GUI) nem ao tokenizer
 > binário. Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
