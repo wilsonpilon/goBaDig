@@ -5,6 +5,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/editor"
+	"github.com/wilsonpilon/goBaDig/internal/options"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
@@ -96,7 +98,13 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	menus := []menuDef{
 		{icon: iconFile, label: "File", items: []menuItem{{iconExit, "Exit", func() { app.Stop() }}}},
 		{icon: iconEdit, label: "Editor", items: []menuItem{{iconEdit, "Open", nil}}},
-		{icon: iconSetup, label: "Setup", items: []menuItem{{iconInstall, "Install", nil}}},
+		{icon: iconSetup, label: "Setup", items: []menuItem{
+			{iconInstall, "Install", nil},
+			{iconSetup, "Basic Dignified", nil},
+			{iconSetup, "MSX", nil},
+			{iconSetup, "ZX81", nil},
+			{iconSetup, "ZX Spectrum", nil},
+		}},
 		{icon: iconHelp, label: "Help", items: []menuItem{{iconAbout, "About", nil}}},
 	}
 	activeMenu := 0
@@ -186,7 +194,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		pages.AddPage("about", modal, true, true)
 		app.SetFocus(modal)
 	}
-	var showError func(error)
+	var showError func(context string, err error)
 	showThemePicker := func() {
 		options := make([]string, len(themes))
 		selected := 0
@@ -227,7 +235,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		form.AddButton("Apply", func() {
 			item := themes[selected]
 			if err := store.SetActiveTheme(theme.ModeTUI, item.ID); err != nil {
-				showError(err)
+				showError("Nao foi possivel ativar o tema", err)
 				return
 			}
 			activeTheme = item
@@ -259,12 +267,12 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		pages.AddPage("theme-picker", window, true, true)
 		app.SetFocus(form)
 	}
-	showError = func(err error) {
+	showError = func(context string, err error) {
 		parentFocus := dialogFocus
-		modal := tview.NewModal().SetText(fmt.Sprintf("Nao foi possivel ativar o tema:\n%v", err)).
+		modal := tview.NewModal().SetText(fmt.Sprintf("%s:\n%v", context, err)).
 			AddButtons([]string{"OK"}).
 			SetDoneFunc(func(int, string) {
-				pages.RemovePage("theme-error")
+				pages.RemovePage("dialog-error")
 				dialogFocus = parentFocus
 				app.SetFocus(parentFocus)
 			})
@@ -274,11 +282,125 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		modal.SetButtonTextColor(colors.desktopFg)
 		attachShadow(modal.Box)
 		dialogFocus = modal
-		pages.AddPage("theme-error", modal, true, true)
+		pages.AddPage("dialog-error", modal, true, true)
 		app.SetFocus(modal)
+	}
+	// showOptionsPanel builds one category's configuration form (Basic
+	// Dignified / MSX / ZX81 / ZX Spectrum) - same shape as
+	// showThemePicker above (tview.Form in a centered tview.Grid,
+	// Apply/Cancel), but one widget per options.Field instead of a
+	// single theme dropdown: options.TypeBool -> Checkbox,
+	// options.TypeEnum -> DropDown, options.TypeInt -> InputField
+	// restricted to tview.InputFieldInteger (shape-only; range is
+	// still enforced by options.Validate, inside Store.SetOption, at
+	// Apply time), options.TypeString -> plain InputField.
+	//
+	// Deliberate simplification: Apply calls Store.SetOption once per
+	// field and stops at the first rejected one, reporting which -
+	// fields applied before that point keep their new value (not
+	// rolled back). In practice this can only happen on an
+	// options.TypeInt field outside its Min/Max (every other widget
+	// only ever offers an already-legal shape/choice), and the error
+	// names the field, so re-opening Apply after fixing it is enough -
+	// not worth a transactional multi-field rollback for that.
+	showOptionsPanel := func(category, title string) func() {
+		return func() {
+			if err := store.EnsureOptionDefaults(category, options.Catalog()); err != nil {
+				showError(fmt.Sprintf("Nao foi possivel carregar %s", title), err)
+				return
+			}
+			fields := options.ForCategory(category)
+			values, err := store.ListOptions(category)
+			if err != nil {
+				showError(fmt.Sprintf("Nao foi possivel carregar %s", title), err)
+				return
+			}
+
+			form := tview.NewForm()
+			form.SetBorder(true).SetBorderColor(colors.border)
+			windowChrome(form.Box, iconSetup, title, colors.dialogFg)
+			form.SetBackgroundColor(colors.dialogBg)
+			form.SetFieldBackgroundColor(tcell.ColorWhite)
+			form.SetFieldTextColor(tcell.ColorBlack)
+			form.SetLabelColor(colors.dialogFg)
+			form.SetButtonBackgroundColor(colors.highlight)
+			form.SetButtonTextColor(colors.desktopFg)
+
+			for _, field := range fields {
+				current, ok := values[field.Key]
+				if !ok {
+					current = field.Default
+				}
+				switch field.Type {
+				case options.TypeBool:
+					form.AddCheckbox(field.Key, current == "true", nil)
+				case options.TypeEnum:
+					selected := 0
+					for i, choice := range field.Enum {
+						if strings.EqualFold(choice, current) {
+							selected = i
+						}
+					}
+					form.AddDropDown(field.Key, field.Enum, selected, nil)
+				case options.TypeInt:
+					form.AddInputField(field.Key, current, 20, tview.InputFieldInteger, nil)
+				default: // options.TypeString
+					form.AddInputField(field.Key, current, 30, nil, nil)
+				}
+			}
+
+			closeDialog := func() {
+				pages.RemovePage("options-panel")
+				dialogOpen = false
+				dialogFocus = nil
+				app.SetFocus(pages)
+			}
+			form.AddButton("Apply", func() {
+				for _, field := range fields {
+					var raw string
+					switch widget := form.GetFormItemByLabel(field.Key).(type) {
+					case *tview.Checkbox:
+						raw = strconv.FormatBool(widget.IsChecked())
+					case *tview.DropDown:
+						_, raw = widget.GetCurrentOption()
+					case *tview.InputField:
+						raw = widget.GetText()
+					}
+					if err := store.SetOption(category, field.Key, raw); err != nil {
+						showError(fmt.Sprintf("Opcao invalida: %s", field.Key), err)
+						return
+					}
+				}
+				closeDialog()
+			})
+			form.AddButton("Cancel", closeDialog)
+			form.SetCancelFunc(closeDialog)
+			form.SetButtonsAlign(tview.AlignRight)
+
+			// Tall enough to fit every field without scrolling for the
+			// smaller panels (ZX81 has 4), capped for the larger ones
+			// (MSX/Basic Dignified have 14) - tview.Form scrolls its own
+			// focused item into view automatically past that cap (ver
+			// form.go's Draw, "Determine vertical offset").
+			rows := max(min(len(fields)+5, 22), 10)
+			// See the IMPORTANT comment on showThemePicker's own
+			// identical window construction above - SetBackgroundColor
+			// must stay on its own statement here too.
+			window := tview.NewGrid().SetRows(0, rows, 0).SetColumns(0, 64, 0).
+				AddItem(form, 1, 1, 1, 1, 0, 0, true)
+			window.SetBackgroundColor(colors.desktopBg)
+			dialogOpen = true
+			dialogFocus = form
+			pages.AddPage("options-panel", window, true, true)
+			app.SetFocus(form)
+		}
 	}
 	menus[1].items[0].action = openEditor
 	menus[2].items[0].action = showThemePicker
+	menus[2].items[1].action = showOptionsPanel(options.CategoryCore, "Basic Dignified")
+	menus[2].items[2].action = showOptionsPanel(options.CategoryMSX, "MSX")
+	menus[2].items[3].action = showOptionsPanel(options.CategoryZX81, "ZX81")
+	menus[2].items[4].action = showOptionsPanel(options.CategoryZXSpectrum, "ZX Spectrum")
 	menus[3].items[0].action = showAbout
 
 	var openMenu func(i int)
