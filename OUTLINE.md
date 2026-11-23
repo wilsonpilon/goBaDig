@@ -6,15 +6,16 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.21.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.22.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
 ainda), **catálogo de opções de configuração do `badig.py` + schema
-SQLite (Etapa A do painel de config, ver Bloco 1/Fase 4 abaixo — CLI
-`SET`/painéis TUI/GUI ainda pendentes)** — histórico completo de cada
-um desses itens em `CHANGELOG.md` e nos Blocos correspondentes
-abaixo, não repetido aqui.
+SQLite + comandos `SET`/`SETTINGS`/`DIALECT` no CLI (Etapas A e B do
+painel de config, ver Bloco 1/Fase 4 abaixo — painéis TUI/GUI ainda
+pendentes)** — histórico completo de cada um desses itens em
+`CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
+aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -1901,9 +1902,25 @@ rodadas seguintes:
   consumo pelo pipeline, um passo futuro separado — mesmo princípio
   de como o sistema de tema foi construído antes de qualquer comando
   de conversão existir). — **M**, **2**
-- [ ] Etapa B — comando `SET <OPÇÃO> <VALOR>` no
-  `internal/cli/console.go` (mesmo padrão de `case "theme":`/
-  `executeTheme`). — **M**, **2**
+- [x] **Etapa B — comando `SET <OPÇÃO> <VALOR>` implementado**
+  (2026-11-23, `internal/cli/console.go`): `set`/`settings`/
+  `dialect` novos, mesmo padrão de `case "theme":`/`executeTheme`.
+  `SET <OPÇÃO>` (sem valor) mostra o valor atual; `SET <OPÇÃO>
+  <VALOR>` valida (via `config.Store.SetOption`, que já valida contra
+  o catálogo) e grava; `SETTINGS` lista tudo (Basic Dignified +
+  dialeto atual); `DIALECT <nome>` troca qual dialeto `SET` usa pra
+  resolver uma chave que não é do core (`CategoryCore` é sempre
+  tentado primeiro, já que suas chaves nunca colidem com nenhum
+  dialeto; o dialeto da sessão, só em memória, começa em MSX, nunca
+  persistido - "lembrar o último dialeto" fica pra quando a camada de
+  projeto existir). Comandos agora casam case-insensitive (`"SET
+  INITIAL_LINE 1"` funciona igual ao exemplo original do usuário;
+  mudança aplicada a TODOS os comandos existentes também, não só
+  `set`, pra manter o console consistente). Completar com Tab
+  funciona pra `dialect <nome>` (lista fixa, 3 valores); completar as
+  chaves de `set <opção>` fica de fora por enquanto (depende do
+  dialeto da sessão, que a função de completar hoje não enxerga).
+  13 testes novos. — **M**, **2**
 - [ ] Etapa C — 4 painéis na TUI (`internal/tui`), um formulário por
   categoria, mesmo padrão de `showThemePicker`. — **M**, **2**
 - [ ] Etapa D — os mesmos 4 painéis na GUI (`internal/gui`), mesmo

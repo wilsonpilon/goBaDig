@@ -158,13 +158,28 @@ goBaDig --cli                  # abre o console interativo (prompt "goBaDig>")
 ```
 
 No modo `--cli`, o prompt aceita `help`, `man`, `about`, `version`,
-`theme [nome]` e `exit`/`quit` (ou `Ctrl-D` para sair). `theme` sem
+`theme [nome]`, `set <opção> [valor]`, `settings`, `dialect [nome]`
+e `exit`/`quit` (ou `Ctrl-D` para sair) — os comandos não diferenciam
+maiúsculas de minúsculas (`SET` funciona igual a `set`). `theme` sem
 argumento mostra o tema ativo e a lista; por exemplo, `theme dracula`
 ou `theme Solarized Light` troca o tema persistido para o console. Em um
-terminal interativo, `Tab` completa comandos e temas; pressione `Tab`
-novamente para listar as alternativas (por exemplo, depois de `theme `).
-A cor do prompt acompanha o tema selecionado. Comandos reais de conversão
-chegam junto com o motor (Blocos 1-4 do `OUTLINE.md`).
+terminal interativo, `Tab` completa comandos, temas e dialetos;
+pressione `Tab` novamente para listar as alternativas (por exemplo,
+depois de `theme `). A cor do prompt acompanha o tema selecionado.
+
+`set <opção>` mostra o valor atual de uma das opções de configuração
+do catálogo (lista completa em `OUTLINE.md`, Bloco 1/Fase 4);
+`set <opção> <valor>` muda e grava
+no SQLite local (ex.: `set INITIAL_LINE 1`). `settings` lista todas
+as opções de Basic Dignified mais as do dialeto atual da sessão
+(`dialect` sozinho mostra o dialeto atual e os disponíveis;
+`dialect zx81` troca pra ZX81 — o padrão é MSX). Opções de Basic
+Dignified (compartilhadas, ex. `INITIAL_LINE`/`REM_HEADER`) são
+resolvidas sem precisar trocar de dialeto; uma opção específica de
+dialeto (ex. `TOKENIZE`, que existe em MSX/ZX81/ZX Spectrum com
+defaults diferentes) usa o dialeto atual da sessão. Nenhum valor
+configurado aqui ainda é lido por um comando de conversão real — isso
+chega junto com o motor (Blocos 1-4 do `OUTLINE.md`).
 
 Na TUI, o menu **`Editor > Open`** abre o editor de texto/código
 **WibEdit** (estilo WordStar/Norton Editor 2, portado do projeto

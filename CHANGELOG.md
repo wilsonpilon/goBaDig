@@ -35,6 +35,31 @@ exata do pacote.
 
 ---
 
+## [1.22.0] — 2026-11-23 — bloco **NEW**, feature **set-command** (build 0)
+
+**Comandos `SET`/`SETTINGS`/`DIALECT` no console CLI** — Etapa B do
+painel de configuração (Etapa A, o catálogo + SQLite, foi a
+v1.21.0).
+
+### Adicionado
+
+- `set <opção>` mostra o valor atual; `set <opção> <valor>` valida
+  (contra o catálogo de `internal/options`) e grava.
+- `settings` lista Basic Dignified + o dialeto atual da sessão.
+- `dialect <nome>` troca qual dialeto (`msx`/`zx81`/`zxspectrum`) o
+  `set` usa pra resolver uma chave que não é compartilhada.
+- Todo comando do console agora casa case-insensitive (`SET
+  INITIAL_LINE 1` funciona, igual ao exemplo original pedido).
+- Tab-completion pra `dialect <nome>`.
+- 13 testes novos.
+
+### O que não mudou / ainda falta
+
+Nenhum painel de configuração na TUI/GUI ainda (próximas etapas); o
+dialeto da sessão não é persistido (só em memória, reseta a cada
+console novo); nenhum valor configurado aqui é lido pelo pipeline de
+conversão real ainda.
+
 ## [1.21.0] — 2026-11-23 — bloco **NEW**, feature **options-catalog** (build 0)
 
 **Catálogo de opções de configuração + schema SQLite (Etapa A do
