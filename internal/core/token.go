@@ -64,9 +64,10 @@ const (
 	// shared by every platform, same reasoning as KindDignifiedSymbol.
 	// At the end of a line (immediately followed by KindNewline) it
 	// merges that line into the next one (core Pass 3, Bloco 1/2 -
-	// "labels e numeração"); anywhere else it is MSX's own "_ as a
-	// call separator" concern (Pass 1, still not implemented - see
-	// OUTLINE.md).
+	// "labels e numeração"); anywhere else it is a platform's own "_
+	// as a call separator" concern (Pass 1) - MSX's own CALL shorthand
+	// (`_CLS` == `CALL CLS`), retagged to msx.KindCallSeparator/
+	// msx.KindCallIdentifier by msx.Parser.Pass1.
 	KindDignifiedSeparator TokenKind = "DIGNIFIED_SEPARATOR"
 	// KindLabelDeclaration is a resolved `{name}` (or loop-label, not
 	// implemented yet) appearing at the start of a line (D_LBLLIN in

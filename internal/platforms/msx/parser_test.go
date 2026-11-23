@@ -160,6 +160,50 @@ func TestEndToEndLexParseGenerateRenamesVariables(t *testing.T) {
 	}
 }
 
+// TestEndToEndCallShorthandExcludesIdentifierFromRenaming confirms
+// badig_msx.py's own pass_1 (570-587): a Dignified `_` not at the end
+// of a line is MSX's CALL shorthand ("_myroutine" == "CALL
+// myroutine"), and the identifier right after it must NOT be renamed
+// to its 2-letter alias - even though the SAME name, used again
+// elsewhere WITHOUT a preceding `_`, still gets renamed normally.
+// Confirmed empirically against a real python badig.py run
+// (/tmp/badig_test/mini_call2.dmx): "_myroutine" / "myroutine=5" /
+// "print myroutine" -> "10 _myroutine" / "20 zz=5" / "30 print zz".
+func TestEndToEndCallShorthandExcludesIdentifierFromRenaming(t *testing.T) {
+	ctx, platform := contextPlatform(t, "_myroutine", "myroutine=5", "print myroutine")
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{"10 _myroutine", "20 zz=5", "30 print zz"}
+	if len(result.Code) != len(want) {
+		t.Fatalf("got %d lines %v, want %d lines %v", len(result.Code), result.Code, len(want), want)
+	}
+	for i := range want {
+		if result.Code[i] != want[i] {
+			t.Fatalf("line %d = %q, want %q (full: %v)", i, result.Code[i], want[i], result.Code)
+		}
+	}
+}
+
+// TestEndToEndCallShorthandAtEndOfLineStillFusesLines confirms the
+// OTHER use of the same `_` token (immediately followed by a NEWLINE)
+// is left completely alone by Pass1 - it must still be the Dignified
+// line-continuation separator, fused away by core's own
+// pass3Includes, never mistaken for CALL shorthand just because it's
+// also a lone `_`.
+func TestEndToEndCallShorthandAtEndOfLineStillFusesLines(t *testing.T) {
+	ctx, platform := contextPlatform(t, `print "a" _`, `print "b"`)
+	result, err := core.Run(ctx, platform)
+	if err != nil {
+		t.Fatalf("core.Run: %v", err)
+	}
+	want := []string{`10 print "a" print "b"`}
+	if len(result.Code) != len(want) || result.Code[0] != want[0] {
+		t.Fatalf("got %v, want %v", result.Code, want)
+	}
+}
+
 func TestPass5ExpandsCompoundAssignment(t *testing.T) {
 	tokens := parseLinesWithParser(t, NewParser(), "ab+=5")
 	got := renamedValues(tokens)

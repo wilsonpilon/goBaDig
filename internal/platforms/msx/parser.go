@@ -7,13 +7,12 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/core"
 )
 
-// Parser implements core.Parser for MSX. Pass 3/4 (variable
-// allocation, confirmed line by line against badig_msx.py's
+// Parser implements core.Parser for MSX. Pass 1 (the Dignified `_`
+// call-instruction separator, badig_msx.py:570-587), Pass 3/4
+// (variable allocation, confirmed line by line against badig_msx.py's
 // get_hard_variable/process_variable) and Pass 5 (the final
-// Classic-specific conversions, badig_msx.py:617-682) do real work.
-// Pass 1 (the Dignified call-instruction separator) and a real
-// generate() (reserved-keyword spacing, the 256-char line limit) are a
-// later round - see OUTLINE.md, Bloco 2.
+// Classic-specific conversions, badig_msx.py:617-682) all do real
+// work.
 //
 // Deliberately not ported from get_hard_variable: the non-fatal
 // (Info.log level 2) prefix-collision WARNING loops. The two FATAL
@@ -53,7 +52,58 @@ func NewParser() *Parser {
 	return &Parser{allocator: core.NewDescendingAllocator()}
 }
 
+// KindCallSeparator is C_CALINS (badig_msx.py:576): a Dignified `_`
+// separator NOT immediately followed by a NEWLINE - MSX's own CALL
+// shorthand (`_CLS` == `CALL CLS`), retagged from
+// core.KindDignifiedSeparator by Pass1. Renders as plain "_" text
+// (generate()'s spacing is value-based, not Kind-based, and "_" is
+// already in CompoundSymbols - description.go - so it sits flush
+// against the routine name that follows, same as the original).
+const KindCallSeparator core.TokenKind = "MSX_CALL_SEPARATOR"
+
+// KindCallIdentifier is C_CALIDF (badig_msx.py:583): the identifier
+// immediately after a KindCallSeparator - a machine/BASIC routine
+// name (e.g. "CLS" in "_CLS"), not a user variable. Retagged from
+// core.KindIdentifier by the same Pass1 hook so Pass3/Pass4's
+// `tok.Kind != core.KindIdentifier` guards (variable registration/
+// renaming) skip it automatically, with no change needed there -
+// exactly mirrors the original never matching 'D_IDNTTP' against it.
+const KindCallIdentifier core.TokenKind = "MSX_CALL_IDENTIFIER"
+
+// Pass1 mirrors badig_msx.py's own pass_1 (badig_msx.py:570-587):
+// "Convert _ separator to call if not at end of line". A Dignified
+// `_` (core.KindDignifiedSeparator) immediately followed by a
+// NEWLINE is the OTHER use of the same token - the Dignified
+// line-continuation separator, left completely untouched here so
+// core's own pass3Includes still fuses that line into the next one
+// exactly as before (ver its own doc comment). Any other `_` is
+// MSX's CALL shorthand: retag it, and retag the identifier right
+// after it too (checked via tokens[index-1], the same slice this
+// whole function scans - still untouched at this point, since Pass1
+// hook results are never written back into it, only collected into
+// pass1Dignified's own `out`).
+//
+// Deliberately not special-cased: an identifier retagged this way
+// immediately followed by `{` (pass2Labels' loop-opener pattern) -
+// no real Dignified program combines CALL shorthand with a loop
+// label on the same identifier, and the original has no such
+// ambiguity to begin with (it detects loop labels from the `{`/`}`
+// symbols themselves, never from the preceding identifier's token
+// type - badig.py:1469-1478).
 func (*Parser) Pass1(_ *core.CompileContext, tokens []core.Token, index int) (core.HookAction, []core.Token, error) {
+	tok := tokens[index]
+
+	if tok.Kind == core.KindDignifiedSeparator {
+		if index+1 >= len(tokens) || tokens[index+1].Kind != core.KindNewline {
+			return core.Replace, []core.Token{{Kind: KindCallSeparator, Value: tok.Value, Pos: tok.Pos}}, nil
+		}
+		return core.Continue, nil, nil
+	}
+
+	if tok.Kind == core.KindIdentifier && index > 0 && tokens[index-1].Kind == core.KindDignifiedSeparator {
+		return core.Replace, []core.Token{{Kind: KindCallIdentifier, Value: tok.Value, Pos: tok.Pos}}, nil
+	}
+
 	return core.Continue, nil, nil
 }
 
