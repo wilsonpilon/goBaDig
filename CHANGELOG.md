@@ -35,6 +35,21 @@ exata do pacote.
 
 ---
 
+## [1.25.0] — 2026-11-23 — bloco **NEW**, feature **tui-menu-colors** (build 0)
+
+**Correção de cor no menu suspenso da TUI** — reportada pelo usuário
+assim que o menu `Setup` passou a ter itens de verdade de sobra (4
+painéis novos da Etapa C) pra revelar o problema.
+
+### Corrigido
+
+- Item não selecionado de um menu suspenso aberto renderizava com
+  texto preto em fundo preto, invisível em todos os temas.
+- O destaque do item selecionado parava no fim do próprio texto, em
+  vez de preencher a largura inteira do menu.
+- 2 testes novos de ponta a ponta (tela de terminal simulada),
+  confirmados contra o bug real antes da correção.
+
 ## [1.24.0] — 2026-11-23 — bloco **NEW**, feature **gui-options-panels** (build 0)
 
 **4 painéis de configuração na GUI** — Etapa D, a última do painel de

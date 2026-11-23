@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.24.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.25.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -14,7 +14,10 @@ ainda), **catálogo de opções de configuração do `badig.py` + schema
 SQLite + comandos `SET`/`SETTINGS`/`DIALECT` no CLI + 4 painéis de
 configuração na TUI e na GUI (Etapas A, B, C e D do painel de config,
 ver Bloco 1/Fase 4 abaixo — painel de configuração COMPLETO nas três
-interfaces)** — histórico completo de cada um desses itens em
+interfaces), e um bug de cor no menu suspenso da TUI corrigido (item
+não selecionado invisível, destaque parcial — reportado pelo usuário
+assim que o menu `Setup` passou a ter itens de verdade de sobra pra
+revelar o problema)** — histórico completo de cada um desses itens em
 `CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
 aqui.
 
@@ -1990,6 +1993,53 @@ rodadas seguintes:
   teste, `Entry.SetText` mede texto pra layout e precisa de um app
   Fyne "atual" configurado, coisa que `theme_test.go` nunca precisou
   (só mexe com cor/paleta, nunca constrói widget). — **M**, **2**
+- [x] **Bug de cor no menu suspenso da TUI corrigido** (2026-11-23,
+  `internal/tui/tui.go`) — reportado pelo usuário direto depois de
+  ver o menu `Setup` com 5 itens de verdade pela primeira vez (antes
+  da Etapa C só tinha 1, "Install", então o problema nunca tinha
+  ficado visível): item NÃO selecionado de um dropdown aberto
+  renderizava com texto preto em fundo preto (invisível, "em todos
+  os temas"), e o destaque do item SELECIONADO não preenchia a
+  largura inteira do menu, parando exatamente no fim do próprio
+  texto — exatamente o efeito contrário do visual "PC Tools 9/Norton
+  Utilities 9" que o usuário queria.
+
+  Causa raiz (achada lendo `tview@v0.42.0/list.go`): `List.
+  SetMainTextColor` só toca a metade FOREGROUND do `mainTextStyle`
+  interno da lista — a metade BACKGROUND fica no que `tview.NewList()`
+  semeia por padrão (`Styles.PrimitiveBackgroundColor`, preto,
+  global do tview, sem nenhuma relação com a paleta deste menu), e
+  `List.Draw` pinta cada linha NÃO selecionada com esse estilo
+  inteiro (frente+fundo juntos), sobrescrevendo o próprio fundo da
+  `Box` (já pintado certo via `SetBackgroundColor`) exatamente nas
+  células onde o texto é desenhado — texto preto em frente a um
+  fundo preto que não tem nada a ver com o tema, só não sobrando
+  nenhum "preto" na sobra de espaço além do texto (aí sim mostrando o
+  fundo certo da `Box`) — daí a aparência de "cor que não vai até o
+  fim". Corrigido trocando pra `List.SetMainTextStyle` (seta as duas
+  metades de uma vez). O destaque parcial do item selecionado tem a
+  MESMA causa de fundo (`List.Draw` só estende o destaque até o fim
+  da linha `if selected && l.highlightFullLine`, que é `false` por
+  padrão) — corrigido com `List.SetHighlightFullLine(true)`, a opção
+  que o próprio `tview` já tem pronta pra esse exato efeito "barra
+  sólida" de menu.
+
+  2 testes novos de ponta a ponta (tela simulada): um varre a área
+  INTERNA do dropdown (descontando a moldura, pra não confundir com
+  o padrão `▒` de fundo do desktop, que deliberadamente pinta frente
+  igual a fundo — não é o mesmo bug) procurando qualquer caractere
+  não-espaço com frente==fundo; outro confere que o fundo do item
+  selecionado continua igual um pouco depois do fim do próprio texto.
+  Confirmei os dois PEGAM o bug de verdade revertendo o fix
+  temporariamente (`git stash`) antes de escrever a versão final —
+  os dois falham sem a correção, do jeito certo. Acerto de rota no
+  meio do caminho: a primeira versão desses testes comparava posição
+  de coluna usando `strings.Index`/`strings.LastIndex` (índice de
+  BYTE) contra uma tela com caracteres de desenho de caixa
+  multi-byte (`║`, `▒`, `◐`) antes do texto procurado — todo índice
+  de coluna saía errado; corrigido convertendo a linha pra `[]rune`
+  primeiro e contando posição em RUNAS (= colunas de tela), não
+  bytes. — **M**, **2**
 - [ ] Resolução de fato das 4 camadas (SQLite global < projeto < CLI <
   remtags no código) — **A**, **3** (não há CLI real de flags pra
   testar contra ainda)
