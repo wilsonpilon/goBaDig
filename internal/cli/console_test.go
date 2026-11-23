@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/wilsonpilon/goBaDig/internal/config"
+	"github.com/wilsonpilon/goBaDig/internal/options"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
@@ -56,6 +57,8 @@ func TestCompleteLine(t *testing.T) {
 		{input: "theme ", want: "theme ", count: 6},
 		{input: "the", want: "theme ", count: 1},
 		{input: "about x", want: "about x", count: 0},
+		{input: "dia", want: "dialect ", count: 1},
+		{input: "dialect ms", want: "dialect msx ", count: 1},
 	}
 	for _, test := range cases {
 		got, candidates := completeLine(test.input)
@@ -105,5 +108,158 @@ func TestThemeCommandAcceptsDisplayNameAndPersistsSelection(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Solarized Light") {
 		t.Fatalf("theme confirmation missing from output: %s", out.String())
+	}
+}
+
+func TestSetCommandShowsAndUpdatesACoreOption(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+
+	state.executeSet("INITIAL_LINE")
+	if !strings.Contains(out.String(), "INITIAL_LINE = 10") {
+		t.Fatalf("executeSet(INITIAL_LINE) without a value should show the catalog default; got: %s", out.String())
+	}
+
+	out.Reset()
+	state.executeSet("INITIAL_LINE 1")
+	if !strings.Contains(out.String(), "INITIAL_LINE = 1") {
+		t.Fatalf("executeSet(INITIAL_LINE 1) confirmation missing; got: %s", out.String())
+	}
+
+	out.Reset()
+	state.executeSet("initial_line")
+	if !strings.Contains(out.String(), "INITIAL_LINE = 1") {
+		t.Fatalf("executeSet(initial_line) (lowercase key) should still read the value just set; got: %s", out.String())
+	}
+}
+
+func TestSetCommandIsCaseInsensitiveOnTheCommandItself(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+	state.execute("SET INITIAL_LINE 7")
+
+	value, err := store.GetOption(options.CategoryCore, "INITIAL_LINE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "7" {
+		t.Fatalf(`execute("SET INITIAL_LINE 7"): INITIAL_LINE = %q, want "7" (the user's own worked example, in caps)`, value)
+	}
+}
+
+func TestSetCommandResolvesABareKeyAgainstTheCurrentDialect(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store} // dialect unset -> defaults to MSX
+	state.executeSet("TOKENIZE true")
+
+	if _, err := store.GetOption(options.CategoryZX81, "TOKENIZE"); err == nil {
+		t.Fatalf("SET TOKENIZE with the default (MSX) dialect must not touch ZX81's own TOKENIZE")
+	}
+	value, err := store.GetOption(options.CategoryMSX, "TOKENIZE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "true" {
+		t.Fatalf("msx.TOKENIZE = %q, want true", value)
+	}
+}
+
+func TestDialectCommandSwitchesWhichCategorySetResolvesAgainst(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+	state.executeDialect("zx81")
+	if state.dialect != options.CategoryZX81 {
+		t.Fatalf("after executeDialect(zx81), state.dialect = %q, want %q", state.dialect, options.CategoryZX81)
+	}
+
+	out.Reset()
+	// ZX81's own TOKENIZE defaults to true (unlike MSX's false) -
+	// confirms "set" is reading from zx81, not msx, after the switch.
+	state.executeSet("TOKENIZE")
+	if !strings.Contains(out.String(), "TOKENIZE = true") {
+		t.Fatalf("after switching to zx81, executeSet(TOKENIZE) = %q, want it to report zx81's own default (true)", out.String())
+	}
+}
+
+func TestSetCommandRejectsUnknownOption(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+	state.executeSet("NOT_A_REAL_OPTION 1")
+	if !strings.Contains(out.String(), "opção desconhecida") {
+		t.Fatalf("executeSet(NOT_A_REAL_OPTION 1): want an unknown-option error, got: %s", out.String())
+	}
+}
+
+func TestSetCommandRejectsInvalidValueWithoutChangingTheStoredOne(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+	state.executeSet("REM_HEADER maybe")
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeSet(REM_HEADER maybe): want an error, got: %s", out.String())
+	}
+	value, err := store.GetOption(options.CategoryCore, "REM_HEADER")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "true" {
+		t.Fatalf("REM_HEADER after a rejected SET = %q, want the untouched default %q", value, "true")
+	}
+}
+
+func TestSettingsCommandListsCoreAndCurrentDialectOptions(t *testing.T) {
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+	state.executeSettings()
+
+	got := out.String()
+	for _, want := range []string{"Basic Dignified:", "INITIAL_LINE = 10", "msx:", "CONVERT_PRINT = NONE"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("executeSettings() output missing %q; got:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "SPECTRUM_MODEL") {
+		t.Fatalf("executeSettings() with the default (MSX) dialect must not list ZX Spectrum's own options; got:\n%s", got)
 	}
 }

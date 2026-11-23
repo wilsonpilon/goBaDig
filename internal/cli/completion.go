@@ -6,7 +6,7 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 )
 
-var consoleCommands = []string{"about", "exit", "help", "man", "quit", "theme", "version"}
+var consoleCommands = []string{"about", "dialect", "exit", "help", "man", "quit", "set", "settings", "theme", "version"}
 
 type completionState struct {
 	completed string
@@ -36,10 +36,18 @@ func completeLine(input string) (string, []string) {
 	} else {
 		prefix = input[:separator+1]
 		partial = input[separator+1:]
-		if strings.TrimSpace(input[:separator]) != "theme" {
+		switch strings.TrimSpace(input[:separator]) {
+		case "theme":
+			available = cliThemeAliases(theme.CatalogFor(theme.ModeCLI))
+		case "dialect":
+			available = knownDialects
+		default:
+			// "set"'s own argument (an option key, then a value) isn't
+			// completed yet - which keys are valid depends on the
+			// session's current dialect, state completeLine has no
+			// access to today. Deferred, documented: OUTLINE.md.
 			return input, nil
 		}
-		available = cliThemeAliases(theme.CatalogFor(theme.ModeCLI))
 	}
 
 	matches := make([]string, 0, len(available))

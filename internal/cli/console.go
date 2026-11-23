@@ -14,17 +14,39 @@ import (
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
+	"github.com/wilsonpilon/goBaDig/internal/options"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
 const defaultCLIThemeID = "cli-vscode-dark"
 
+// knownDialects lists the options.Category* values "dialect" can
+// switch between - the ones a dialect-specific SET actually resolves
+// against (options.CategoryCore is always searched too, regardless
+// of the current dialect, since it is shared across all three).
+var knownDialects = []string{options.CategoryMSX, options.CategoryZX81, options.CategoryZXSpectrum}
+
 type consoleState struct {
 	out         io.Writer
 	store       *config.Store
 	activeTheme theme.Theme
 	hasTheme    bool
+	// dialect is the SESSION's current dialect (SET falls back to it
+	// when a key isn't one of options.CategoryCore's own) - purely
+	// in-memory for this round, reset every time the console starts;
+	// persisting "last dialect used" is deferred (OUTLINE.md, Fase 4).
+	// Empty means "not chosen yet" - use currentDialect(), never this
+	// field directly, so a consoleState built as a struct literal
+	// (every existing test does this) still gets a sane default.
+	dialect string
+}
+
+func (s *consoleState) currentDialect() string {
+	if s.dialect == "" {
+		return options.CategoryMSX
+	}
+	return s.dialect
 }
 
 // RunConsole implements the interactive prompt. On a real terminal it reads
@@ -73,14 +95,29 @@ func (s *consoleState) writePrompt(color bool) {
 	fmt.Fprint(s.out, "goBaDig> ")
 }
 
+// openStore opens the shared settings database on first use, leaving
+// it in place for every later call this console session makes -
+// loadTheme and loadOptions both call this before doing their own,
+// separate first-use setup (installing the theme catalog / seeding
+// option defaults).
+func (s *consoleState) openStore() error {
+	if s.store != nil {
+		return nil
+	}
+	store, err := config.OpenDefault()
+	if err != nil {
+		return err
+	}
+	s.store = store
+	return nil
+}
+
 func (s *consoleState) loadTheme() error {
-	if s.store == nil {
-		store, err := config.OpenDefault()
-		if err != nil {
-			return err
-		}
-		s.store = store
-		if err := store.InstallThemes(theme.CatalogFor(theme.ModeCLI)); err != nil {
+	if err := s.openStore(); err != nil {
+		return err
+	}
+	if !s.hasTheme {
+		if err := s.store.InstallThemes(theme.CatalogFor(theme.ModeCLI)); err != nil {
 			return fmt.Errorf("install CLI themes: %w", err)
 		}
 	}
@@ -98,6 +135,11 @@ func (s *consoleState) execute(line string) bool {
 		return false
 	}
 	command, argument, _ := strings.Cut(line, " ")
+	// Commands match case-insensitively (not just "set" - every
+	// command does, uniformly) since SET's own natural style, the
+	// user's own worked example ("SET INITIAL_LINE 1"), spells it in
+	// caps the way classic BASIC keywords are conventionally written.
+	command = strings.ToLower(command)
 	argument = strings.TrimSpace(argument)
 	switch command {
 	case "exit", "quit":
@@ -113,6 +155,12 @@ func (s *consoleState) execute(line string) bool {
 			version.Version, version.Block, version.Feature)
 	case "theme":
 		s.executeTheme(argument)
+	case "dialect":
+		s.executeDialect(argument)
+	case "set":
+		s.executeSet(argument)
+	case "settings":
+		s.executeSettings()
 	default:
 		fmt.Fprintf(s.out, "comando desconhecido: %q (digite \"help\")\n", line)
 	}
@@ -169,6 +217,125 @@ func cliThemeAliases(items []theme.Theme) []string {
 		aliases = append(aliases, cliThemeAlias(item))
 	}
 	return aliases
+}
+
+// executeDialect shows or switches the console session's current
+// dialect - SET falls back to this category when a key isn't one of
+// options.CategoryCore's own (every dialect-specific option, e.g.
+// MSX's own TOKENIZE vs ZX81's own TOKENIZE, needs this to pick which
+// one is meant).
+func (s *consoleState) executeDialect(name string) {
+	if name == "" {
+		fmt.Fprintf(s.out, "Dialeto atual: %s\nDisponíveis: %s\n",
+			s.currentDialect(), strings.Join(knownDialects, ", "))
+		return
+	}
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	for _, d := range knownDialects {
+		if d == normalized {
+			s.dialect = d
+			fmt.Fprintf(s.out, "Dialeto atual: %s\n", d)
+			return
+		}
+	}
+	fmt.Fprintf(s.out, "dialeto desconhecido: %q. Disponíveis: %s\n", name, strings.Join(knownDialects, ", "))
+}
+
+// loadOptions opens the shared store (if not already open) and seeds
+// category's own catalog defaults - same lazy "do it on first use"
+// shape as loadTheme, and just as idempotent to call again
+// (EnsureOptionDefaults never reverts a value already changed).
+func (s *consoleState) loadOptions(category string) error {
+	if err := s.openStore(); err != nil {
+		return err
+	}
+	return s.store.EnsureOptionDefaults(category, options.Catalog())
+}
+
+// findOptionCategory resolves which category a bare key (as typed at
+// "SET <key> ...", with no category prefix - matching the user's own
+// example, "SET INITIAL_LINE 1") belongs to: options.CategoryCore is
+// always tried first (its keys never collide with any dialect's
+// own), falling back to the session's current dialect.
+func (s *consoleState) findOptionCategory(key string) (string, error) {
+	if _, ok := options.Find(options.CategoryCore, key); ok {
+		return options.CategoryCore, nil
+	}
+	dialect := s.currentDialect()
+	if _, ok := options.Find(dialect, key); ok {
+		return dialect, nil
+	}
+	return "", fmt.Errorf("opção desconhecida: %q (dialeto atual: %s - troque com \"dialect <nome>\" se a opção for de outro dialeto)", key, dialect)
+}
+
+// executeSet implements "SET <OPCAO> [VALOR]": with no value, shows
+// the option's current stored value; with one, validates and
+// persists it (config.Store.SetOption already validates against the
+// catalog - this only needs to resolve WHICH category the bare key
+// belongs to first).
+func (s *consoleState) executeSet(argument string) {
+	if argument == "" {
+		fmt.Fprintln(s.out, `uso: set <OPCAO> [VALOR] (sem VALOR, mostra o valor atual; "settings" lista tudo)`)
+		return
+	}
+	key, value, hasValue := strings.Cut(argument, " ")
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+
+	category, err := s.findOptionCategory(key)
+	if err != nil {
+		fmt.Fprintln(s.out, err)
+		return
+	}
+	if err := s.loadOptions(category); err != nil {
+		fmt.Fprintf(s.out, "erro ao carregar opções: %v\n", err)
+		return
+	}
+
+	field, _ := options.Find(category, key)
+	if !hasValue || value == "" {
+		current, err := s.store.GetOption(category, field.Key)
+		if err != nil {
+			fmt.Fprintf(s.out, "erro ao ler opção: %v\n", err)
+			return
+		}
+		fmt.Fprintf(s.out, "%s = %s\n", field.Key, current)
+		return
+	}
+	if err := s.store.SetOption(category, field.Key, value); err != nil {
+		fmt.Fprintf(s.out, "erro: %v\n", err)
+		return
+	}
+	fmt.Fprintf(s.out, "%s = %s\n", field.Key, value)
+}
+
+// executeSettings lists every option (and its current value) in
+// options.CategoryCore plus the session's current dialect - the two
+// categories executeSet itself resolves a bare key against.
+func (s *consoleState) executeSettings() {
+	dialect := s.currentDialect()
+	fmt.Fprintln(s.out, "Basic Dignified:")
+	if err := s.printOptions(options.CategoryCore); err != nil {
+		fmt.Fprintf(s.out, "  erro: %v\n", err)
+	}
+	fmt.Fprintf(s.out, "%s:\n", dialect)
+	if err := s.printOptions(dialect); err != nil {
+		fmt.Fprintf(s.out, "  erro: %v\n", err)
+	}
+}
+
+func (s *consoleState) printOptions(category string) error {
+	if err := s.loadOptions(category); err != nil {
+		return err
+	}
+	values, err := s.store.ListOptions(category)
+	if err != nil {
+		return err
+	}
+	for _, field := range options.ForCategory(category) {
+		fmt.Fprintf(s.out, "  %s = %s\n", field.Key, values[field.Key])
+	}
+	return nil
 }
 
 func ansiColor(colorHex string, background bool) string {

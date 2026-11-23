@@ -66,7 +66,8 @@ OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --tui          abre a interface de terminal (TUI)
     --gui          abre a interface grafica (GUI)
     --cli          abre o modo console: um prompt interativo que fica
-                   aguardando comandos, como "theme dracula" e "help"
+                   aguardando comandos, como "theme dracula",
+                   "set INITIAL_LINE 10", "settings" e "help"
 
 Sem opcoes, mostra um banner curto (nao entra no modo console).
 
