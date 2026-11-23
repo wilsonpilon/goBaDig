@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.22.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.23.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), mas o **motor de
 > conversão** (`internal/core` + `internal/platforms/msx`) é a peça
@@ -63,8 +63,10 @@ cada formato de mídia/fita/disco.
   opções disponíveis).
 - **TUI**: interface de terminal (`tview`/`tcell`) com visual retrô
   MS-DOS, menu suspenso estilo Turbo Pascal 7, temas selecionáveis em
-  `Setup > Install`, e um editor de texto completo integrado
-  (`Editor > Open`, portado do WibEdit) como base da futura IDE.
+  `Setup > Install`, painéis de configuração por categoria (`Setup >
+  Basic Dignified`/`MSX`/`ZX81`/`ZX Spectrum`), e um editor de texto
+  completo integrado (`Editor > Open`, portado do WibEdit) como base
+  da futura IDE.
 - **GUI**: interface gráfica (`Fyne`), mesma ideia da TUI, para quem
   prefere mouse.
 - **VSIX único**: uma extensão VSCode só, cobrindo os três dialetos,

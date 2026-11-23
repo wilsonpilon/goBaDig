@@ -196,6 +196,16 @@ central com um campo dropdown para o tema, a descrição correspondente e
 os botões `Apply` e `Cancel`. As setas navegam os menus e campos; Enter
 abre/seleciona e Esc fecha/cancela. Os seis temas são independentes dos
 temas da GUI e a seleção é aplicada na hora e persistida em SQLite.
+
+O menu `Setup` também tem 4 itens de configuração (desde a `v1.23.0`):
+**Basic Dignified**, **MSX**, **ZX81** e **ZX Spectrum** — cada um
+abre um formulário com todas as opções daquela categoria (as mesmas
+do comando `set` do CLI, ver seção 5 acima): checkbox para opção
+verdadeiro/falso, lista suspensa para opção de escolha fixa, campo
+numérico ou de texto livre para o resto, com os valores atuais já
+preenchidos. `Apply` valida e grava no mesmo SQLite do tema; `Cancel`
+ou `Esc` descarta sem gravar nada. Nenhum valor configurado aqui
+ainda é lido por um comando de conversão real.
 Navegação: setas ou `Alt+letra` movem/abrem o menu, `Enter` confirma,
 `Esc` fecha o menu suspenso. A GUI mostra uma janela com o mesmo menu
 `File > Exit` / `Help > About` (nativo Fyne) e `Setup > Install`, onde

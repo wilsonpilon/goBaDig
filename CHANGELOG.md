@@ -35,6 +35,27 @@ exata do pacote.
 
 ---
 
+## [1.23.0] — 2026-11-23 — bloco **NEW**, feature **tui-options-panels** (build 0)
+
+**4 painéis de configuração na TUI** — Etapa C do painel de
+configuração, sobre o catálogo (v1.21.0) e os comandos `SET`/
+`SETTINGS`/`DIALECT` do CLI (v1.22.0).
+
+### Adicionado
+
+- Menu **Setup** ganha 4 itens novos: **Basic Dignified**, **MSX**,
+  **ZX81**, **ZX Spectrum** — cada um abre um formulário com todas as
+  opções daquela categoria (checkbox pra booleano, dropdown pra enum,
+  campo numérico pra inteiro, campo de texto livre pro resto),
+  valores atuais pré-preenchidos, botões Apply/Cancel.
+- 1 teste novo de ponta a ponta (tela de terminal simulada).
+
+### O que não mudou / ainda falta
+
+- O painel equivalente na GUI ainda não existe (Etapa D).
+- Nenhum valor configurado aqui é lido pelo pipeline de conversão
+  real ainda.
+
 ## [1.22.0] — 2026-11-23 — bloco **NEW**, feature **set-command** (build 0)
 
 **Comandos `SET`/`SETTINGS`/`DIALECT` no console CLI** — Etapa B do

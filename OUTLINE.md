@@ -6,16 +6,16 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.22.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.23.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
 ainda), **catálogo de opções de configuração do `badig.py` + schema
-SQLite + comandos `SET`/`SETTINGS`/`DIALECT` no CLI (Etapas A e B do
-painel de config, ver Bloco 1/Fase 4 abaixo — painéis TUI/GUI ainda
-pendentes)** — histórico completo de cada um desses itens em
-`CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
-aqui.
+SQLite + comandos `SET`/`SETTINGS`/`DIALECT` no CLI + 4 painéis de
+configuração na TUI (Etapas A, B e C do painel de config, ver Bloco
+1/Fase 4 abaixo — só o painel da GUI ainda falta, Etapa D)** —
+histórico completo de cada um desses itens em `CHANGELOG.md` e nos
+Blocos correspondentes abaixo, não repetido aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -1921,8 +1921,40 @@ rodadas seguintes:
   chaves de `set <opção>` fica de fora por enquanto (depende do
   dialeto da sessão, que a função de completar hoje não enxerga).
   13 testes novos. — **M**, **2**
-- [ ] Etapa C — 4 painéis na TUI (`internal/tui`), um formulário por
-  categoria, mesmo padrão de `showThemePicker`. — **M**, **2**
+- [x] **Etapa C — 4 painéis na TUI implementados** (2026-11-23,
+  `internal/tui/tui.go`): `Setup` ganha 4 itens novos (`Basic
+  Dignified`/`MSX`/`ZX81`/`ZX Spectrum`), cada um abrindo
+  `showOptionsPanel(category, title)` — mesma estrutura de
+  `showThemePicker` (`tview.Form` numa `tview.Grid` centralizada,
+  Apply/Cancel), um widget por `options.Field` em vez de um dropdown
+  de tema só: `TypeBool`→`Checkbox`, `TypeEnum`→`DropDown`,
+  `TypeInt`→`InputField` com `tview.InputFieldInteger` (só restringe
+  o FORMATO da tecla; o intervalo Min/Max continua sendo validado de
+  verdade só no Apply, por `options.Validate` dentro de
+  `Store.SetOption`), `TypeString`→`InputField` livre. Altura da
+  janela calculada por `len(fields)` (10-22 linhas) — o próprio
+  `tview.Form` rola o item focado pra dentro da área visível sozinho
+  quando o painel tem mais campos do que cabem (MSX/Basic Dignified,
+  14 campos cada). `showError` generalizado (ganhou um parâmetro de
+  contexto, usado tanto pelo erro de tema quanto pelos novos erros de
+  opção). Simplificação deliberada, documentada: Apply grava campo
+  por campo e para no primeiro rejeitado (só pode acontecer com um
+  `TypeInt` fora do Min/Max, já que todo outro widget só oferece
+  valores já válidos) — campos já aplicados antes do erro NÃO
+  revertem; reabrir e corrigir resolve. 1 teste novo de ponta a
+  ponta (tela simulada, confirma que o painel MSX mostra campos MSX e
+  o painel ZX81 mostra campos ZX81, sem vazar um no outro) — achado
+  rodando o `build.ps1` de verdade (não só o teste isolado): a
+  sequência Down/Down/Enter do teste falhou UMA vez sob a carga da
+  suíte inteira rodando em paralelo (outros pacotes também sobem seu
+  próprio `tview.Application`), porque o `sleep` fixo de 30ms entre
+  teclas (mesmo padrão já usado pelos testes de regressão do Install)
+  não é sempre suficiente quando a máquina está ocupada; corrigido
+  com um polling (`waitForText`, até 2s) esperando o texto esperado
+  aparecer na tela simulada em vez de confiar só no tempo fixo —
+  continua pegando uma navegação REALMENTE errada (a tela nunca
+  mostraria o texto certo e o teste estoura o timeout com erro claro),
+  só deixa de ser frágil sob carga. — **M**, **2**
 - [ ] Etapa D — os mesmos 4 painéis na GUI (`internal/gui`), mesmo
   padrão de `showThemeInstaller`. — **M**, **2**
 - [ ] Resolução de fato das 4 camadas (SQLite global < projeto < CLI <
