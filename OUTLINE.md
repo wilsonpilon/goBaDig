@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.19.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.20.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -47,13 +47,17 @@ linhas de comentário classic reais, `for f=0 to 5:` + `print f:` +
 quando pedido, TAB expandido pra espaço, e um `_` fora do fim de
 linha virando o atalho de `CALL` do MSX, excluindo o identificador
 seguinte da renomeação de variável — `MSX_CALL_SEPARATOR`/
-`MSX_CALL_IDENTIFIER`, `internal/platforms/msx/parser.go`),
+`MSX_CALL_IDENTIFIER`, `internal/platforms/msx/parser.go`), **e
+agora já tokenizado em binário `.bmx` de verdade** via
+`msx.CompileToBinary` (`internal/platforms/msx/compile.go`, ligando
+`core.Run` ao tokenizer MSX Batoken pronto desde a v1.4.0),
 confirmada em testes de ponta a ponta completos
-(`Lex`→`Parse`→`Generate`), e **validada 100% de ponta a ponta contra
-o `CGK173.dmx` inteiro (891 linhas) E contra a saída REAL do
-`badig.py` rodando num Python de verdade nesta máquina, com ZERO
-diferença restante** (`diff` vazio, byte a byte — não só leitura de
-código). **Correção de uma suposição
+(`Lex`→`Parse`→`Generate`→`Tokenize`), e **validada 100% de ponta a
+ponta contra o `CGK173.dmx` inteiro (891 linhas) E contra a saída REAL
+do `badig.py` rodando num Python de verdade nesta máquina, com ZERO
+diferença restante, agora inclusive no `.bmx` binário tokenizado**
+(`diff` de texto vazio E 18.815 bytes binários idênticos — não só
+leitura de código). **Correção de uma suposição
 anterior**: numa rodada passada eu tinha documentado que "o Python
 reserva 2 números de linha pro cabeçalho mesmo com `-rh` desligado" —
 isso estava ERRADO (achado rodando de novo um teste mínimo): `-rh`
@@ -107,10 +111,15 @@ minúsculo — bug real, latente desde as rodadas de variável/label, que
 cortava nomes camelCase/mixedCase (`v1.9.1`). O Pass 1 do `Parser`
 (separador de chamada Dignified `_` fora do fim de linha) foi
 implementado em seguida (v1.19.0, ver Bloco 1 abaixo) — era a última
-peça não entendida do caminho textual Dignified→Classic. **Ainda
-falta**: ligar tudo isso ao tokenizer já pronto pra fechar o caminho
-completo até o binário. Ver Blocos 1-4 na seção 7 para o
-detalhamento.
+peça não entendida do caminho textual Dignified→Classic. Logo depois,
+o pipeline foi ligado ao tokenizer MSX Batoken (v1.20.0,
+`msx.CompileToBinary`) — **primeira conversão Dignified→binário
+`.bmx` de ponta a ponta, validada byte a byte contra o `CGK173.dmx`
+tokenizado pelo `badig.py` real**. **Ainda falta**: nenhum wiring de
+CLI real expõe essa conversão pro usuário final ainda, e os outros
+dois dialetos (ZX81/ZX Spectrum) não têm nenhum
+`Description`/`Lexer`/`Parser` próprio. Ver Blocos 1-4 na seção 7
+para o detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -1767,6 +1776,60 @@ Com isso, **todo o caminho textual Dignified→Classic documentado como
 tokenizer MSX Batoken (pronto desde a v1.4.0) pra produzir `.bmx`
 binário de ponta a ponta de verdade.
 
+**Ligação ao tokenizer MSX Batoken implementada** (2026-11-23,
+`internal/platforms/msx/compile.go`): usuário pediu diretamente
+("pode fazer a ligacao") depois que o Pass 1 fechou o último gap
+textual.
+
+Pesquisei o fluxo real do `badig.py` (`badig.py:1909-2043`,
+`dignified()`) pra entender como o original liga texto Classic ao
+tokenizer: ele é um estágio SEPARADO e opcional, gated por uma flag
+(`stg.tokenize`, default `False`, ligada via `--tk_tokenize` ou
+remtag `TK_TOKENIZE`) — `dignified()` roda `generate()`, SALVA o
+texto Classic em disco (`IO.save_file`), e só DEPOIS, se a flag
+estiver ligada, `tools_msx.Interface.run()` → `tokenizer_interface.
+Tokenizer.run()` relê esse MESMO arquivo do disco e chama
+`MSXBatoken.Main().execute()` nele, escrevendo o `.bmx` à parte
+(`msx/tokenizer_interface.py:135-163`). Ou seja: no original, texto e
+binário são duas passagens desacopladas, unidas só por um arquivo
+intermediário em disco — um detalhe de como o CLI dele é
+costurado, não uma exigência de comportamento.
+
+Achado central: `core.GenerateResult.Code []string` (o texto Classic
+já numerado, uma linha física por elemento, sem `\n`) e
+`msx.Tokenize(lines []string) ([]byte, error)` (já portado desde a
+v1.4.0, golden-vector testado) **já tinham exatamente o mesmo
+formato** — zero mudança precisou em qualquer um dos dois lados.
+"Ligar" virou só escrever a função que encadeia os dois em memória,
+sem o round-trip por disco que o original faz só por causa de como
+seu CLI é montado: `msx.CompileToBinary(ctx, platform) ([]byte,
+error)` roda `core.Run` e passa `result.Code` direto pra `Tokenize`.
+
+2 testes novos comitados: a ligação em si (`CompileToBinary` com um
+programa pequeno deve bater, byte a byte, contra uma chamada
+equivalente feita na mão — `Tokenize` recebendo o texto Classic
+esperado digitado à mão) — pensado pra pegar um bug de ligação (linha
+a mais/a menos, formato errado) mesmo que a correção byte a byte do
+`Tokenize` em si já tenha seus próprios vetores de ouro
+(`tokenizer_test.go`); e propagação de erro (um `FUNC` sem `RET`
+correspondente, erro de Pass 1, ainda aparece através de
+`CompileToBinary`).
+
+**Validação final, pela primeira vez até o BINÁRIO**: rodei
+`python badig.py CGK173.dmx CGK173.amx --tk_tokenize` de verdade
+nesta máquina (sem `-rh`, pra manter o cabeçalho real — mesma
+referência já usada desde a rodada do cabeçalho REM), produzindo um
+`CGK173.bmx` real de 18.815 bytes. `msx.CompileToBinary` rodado
+contra o MESMO `CGK173.dmx` (com `RemHeader: true`, `TabLength: 4`)
+bateu **byte a byte, de primeira**, contra esse `.bmx` real — a
+primeira vez que a validação deste projeto vai além do texto Classic
+e confirma o BINÁRIO tokenizado inteiro.
+
+Com isso, **o motor de conversão MSX está completo e validado de
+ponta a ponta, do Dignified ao binário `.bmx`** — o que falta agora é
+só wiring de CLI/interface (nenhuma das três expõe isso pro usuário
+ainda) e portar os outros dois dialetos (ZX81/ZX Spectrum).
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1949,6 +2012,16 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   (todo `_` nele está no fim de linha) - validação 100% de ponta a
   ponta continua de pé. 2 testes novos de ponta a ponta. Ver Bloco 1
   acima pro detalhamento completo. — **M**, **1**
+- [x] **Ligação ao tokenizer MSX Batoken implementada** (2026-11-23,
+  `internal/platforms/msx/compile.go`) — `msx.CompileToBinary(ctx,
+  platform) ([]byte, error)` roda `core.Run` e tokeniza o resultado
+  direto em memória (`GenerateResult.Code`/`Tokenize` já tinham
+  exatamente o mesmo formato, zero mudança precisou nos dois lados).
+  `CGK173.dmx` inteiro compilado pra `.bmx` bate byte a byte (18.815
+  bytes) contra o `.bmx` real gerado por `python badig.py ... --tk_
+  tokenize` — primeira validação de ponta a ponta até o BINÁRIO, não
+  só o texto Classic. 2 testes novos. Ver Bloco 1 acima pro
+  detalhamento completo. — **M**, **1**
 - [x] **Loop labels implementados** (2026-11-22, `nome{ ... }` como
   laço fechado + `exit`) — fiel a `get_label_lines`/`get_jump_labels`/
   `get_loop_label_return`/`get_labels_exit` (`badig.py:849-921`), um

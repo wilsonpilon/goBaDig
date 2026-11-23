@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.19.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.20.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), mas o **motor de
 > conversão** (`internal/core` + `internal/platforms/msx`) é a peça
@@ -13,13 +13,13 @@ para VSCode cobrindo os três dialetos.
 > de variável `DECLARE`, compilação condicional `KEEP`, `INCLUDE`,
 > comentários `##`/bloco de 3 cerquilhas/duas aspas simples, fusão de
 > linha pelos separadores `_` e `:`, cabeçalho REM automático,
-> expansão de TAB, atalho `_CALL` do MSX) e gera a listagem Classic
-> numerada e formatada — **validado 100% de ponta a ponta, byte a
-> byte, contra um programa MSX real completo (891 linhas) e a saída
-> do `badig.py` original rodando em Python, sem nenhuma diferença
-> restante** — com isso, todo o caminho textual Dignified→Classic
-> está fechado. Ainda não está ligado a nenhuma interface (CLI/TUI/
-> GUI) nem ao tokenizer binário. Ver [`OUTLINE.md`](OUTLINE.md) para o
+> expansão de TAB, atalho `_CALL` do MSX) e já tokeniza o resultado
+> em binário `.bmx` de verdade (`msx.CompileToBinary`, ligado ao
+> tokenizer MSX Batoken) — **validado 100% de ponta a ponta, byte a
+> byte, contra um programa MSX real completo (891 linhas) tokenizado
+> pelo `badig.py` original rodando em Python, sem nenhuma diferença
+> restante**. Ainda não está ligado a nenhuma interface (CLI/TUI/
+> GUI). Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.

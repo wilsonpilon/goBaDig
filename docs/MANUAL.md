@@ -105,9 +105,12 @@ diferença restante**; **`v1.19.0`** implementa o Pass 1 do separador
 de chamada Dignified `_` fora do fim de linha (`_CLS` equivale a
 `CALL CLS`; o nome logo depois do `_` fica fora da renomeação de
 variável) — **com isso, todo o caminho textual Dignified→Classic
-está fechado** — ainda sem nenhum comando de conversão real
-disponível pro usuário: falta ligar tudo isso ao tokenizer já pronto
-pra fechar o caminho completo até o binário (ver seção 6).
+está fechado**; **`v1.20.0`** liga tudo isso ao tokenizer MSX Batoken
+(`msx.CompileToBinary`) — **a primeira conversão Dignified→binário
+`.bmx` de ponta a ponta de verdade, validada byte a byte contra o
+`CGK173.dmx` inteiro tokenizado pelo `badig.py` real** — ainda sem
+nenhum comando de conversão disponível pro usuário final (nenhuma das
+três interfaces chama essa função ainda; ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -219,11 +222,13 @@ diferente do `_`), e a partir da `v1.18.0` um cabeçalho REM
 automático de 2 linhas é inserido e TAB é expandido pra espaço, e a
 partir da `v1.19.0` um `_` fora do fim de linha vira o atalho de
 `CALL` do MSX (`_CLS` equivale a `CALL CLS`, excluindo o nome
-seguinte da renomeação de variável) — validado 100% de ponta a
-ponta, byte a byte, contra o `CGK173.dmx` inteiro e a saída real do
-`badig.py`, sem nenhuma diferença restante, e com isso todo o caminho
-textual Dignified→Classic fechado — mas ainda falta ligar tudo isso
-ao tokenizer. Nada disso é utilizável pelo usuário final ainda.
+seguinte da renomeação de variável) — com isso todo o caminho textual
+Dignified→Classic fechado —, e a partir da `v1.20.0` o resultado já
+é tokenizado de verdade (`msx.CompileToBinary`, ligando ao tokenizer
+MSX Batoken pronto desde a `v1.4.0`): o `CGK173.dmx` inteiro
+compilado direto pra `.bmx` binário bate byte a byte contra o `.bmx`
+real do `badig.py`. Nada disso é utilizável pelo usuário final ainda
+(nenhuma interface chama essa função).
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

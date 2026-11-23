@@ -35,6 +35,30 @@ exata do pacote.
 
 ---
 
+## [1.20.0] — 2026-11-23 — bloco **NEW**, feature **tokenizer-wiring** (build 0)
+
+**Ligação ao tokenizer MSX Batoken** — a primeira conversão
+Dignified→binário `.bmx` de ponta a ponta de verdade, fechando o
+caminho completo que faltava desde a v1.4.0.
+
+### Adicionado
+
+- `msx.CompileToBinary(ctx, platform) ([]byte, error)`: roda o
+  pipeline textual inteiro (`core.Run`) e tokeniza o resultado
+  (`Tokenize`) num só passo — `GenerateResult.Code` já tinha
+  exatamente o formato que `Tokenize` espera, então a ligação não
+  precisou de nenhuma mudança nos dois lados, só a função que os
+  encadeia.
+- 2 testes novos (a ligação em si, confirmada contra uma chamada
+  equivalente feita na mão; propagação de erro de Parse).
+
+### Validação
+
+`CGK173.dmx` inteiro (891 linhas) compilado direto pra `.bmx` binário
+bate **byte a byte** (18.815 bytes) contra o `.bmx` real gerado por
+`python badig.py CGK173.dmx CGK173.amx --tk_tokenize` nesta máquina —
+a primeira validação de ponta a ponta até o binário.
+
 ## [1.19.0] — 2026-11-23 — bloco **NEW**, feature **callshorthand** (build 0)
 
 **Pass 1 MSX: separador de chamada Dignified `_` fora do fim de
