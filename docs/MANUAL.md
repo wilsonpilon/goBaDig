@@ -101,9 +101,13 @@ implementa o cabeçalho REM automático de 2 linhas e a expansão de
 TAB pra espaços — fechando os dois últimos gaps conhecidos — **o
 `CGK173.dmx` inteiro (891 linhas) agora bate byte a byte contra a
 saída real do `badig.py` rodando em Python de verdade, sem nenhuma
-diferença restante** — ainda sem nenhum comando de conversão real
-disponível pro usuário: falta o Pass 1 do separador `_` pra fechar o
-caminho Dignified→Classic (ver seção 6).
+diferença restante**; **`v1.19.0`** implementa o Pass 1 do separador
+de chamada Dignified `_` fora do fim de linha (`_CLS` equivale a
+`CALL CLS`; o nome logo depois do `_` fica fora da renomeação de
+variável) — **com isso, todo o caminho textual Dignified→Classic
+está fechado** — ainda sem nenhum comando de conversão real
+disponível pro usuário: falta ligar tudo isso ao tokenizer já pronto
+pra fechar o caminho completo até o binário (ver seção 6).
 
 ## 4. Compilar a partir do código-fonte
 
@@ -212,11 +216,14 @@ some inteiro; um bloco de duas aspas simples vira N linhas de
 comentário classic reais), e a partir da `v1.17.0` um `:` clássico no
 fim de linha também funde com a próxima (mantendo o próprio `:`,
 diferente do `_`), e a partir da `v1.18.0` um cabeçalho REM
-automático de 2 linhas é inserido e TAB é expandido pra espaço —
-validado 100% de ponta a ponta, byte a byte, contra o `CGK173.dmx`
-inteiro e a saída real do `badig.py`, sem nenhuma diferença restante
-— mas ainda falta o Pass 1 do separador `_`, e ligar tudo isso ao
-tokenizer. Nada disso é utilizável pelo usuário final ainda.
+automático de 2 linhas é inserido e TAB é expandido pra espaço, e a
+partir da `v1.19.0` um `_` fora do fim de linha vira o atalho de
+`CALL` do MSX (`_CLS` equivale a `CALL CLS`, excluindo o nome
+seguinte da renomeação de variável) — validado 100% de ponta a
+ponta, byte a byte, contra o `CGK173.dmx` inteiro e a saída real do
+`badig.py`, sem nenhuma diferença restante, e com isso todo o caminho
+textual Dignified→Classic fechado — mas ainda falta ligar tudo isso
+ao tokenizer. Nada disso é utilizável pelo usuário final ainda.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

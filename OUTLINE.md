@@ -5,8 +5,8 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-22.
-Estado: **v1.18.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
+Estado: **v1.19.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -44,12 +44,16 @@ stream, `print #1,1` recebe espaço só depois do `print`, `##`/`###`
 somem sem deixar rastro, um bloco de duas aspas simples virando N
 linhas de comentário classic reais, `for f=0 to 5:` + `print f:` +
 `next:` numa linha só mantendo os `:`, cabeçalho REM de 2 linhas
-quando pedido, TAB expandido pra espaço), confirmada em testes de
-ponta a ponta completos (`Lex`→`Parse`→`Generate`), e **validada
-100% de ponta a ponta contra o `CGK173.dmx` inteiro (891 linhas) E
-contra a saída REAL do `badig.py` rodando num Python de verdade
-nesta máquina, com ZERO diferença restante** (`diff` vazio, byte a
-byte — não só leitura de código). **Correção de uma suposição
+quando pedido, TAB expandido pra espaço, e um `_` fora do fim de
+linha virando o atalho de `CALL` do MSX, excluindo o identificador
+seguinte da renomeação de variável — `MSX_CALL_SEPARATOR`/
+`MSX_CALL_IDENTIFIER`, `internal/platforms/msx/parser.go`),
+confirmada em testes de ponta a ponta completos
+(`Lex`→`Parse`→`Generate`), e **validada 100% de ponta a ponta contra
+o `CGK173.dmx` inteiro (891 linhas) E contra a saída REAL do
+`badig.py` rodando num Python de verdade nesta máquina, com ZERO
+diferença restante** (`diff` vazio, byte a byte — não só leitura de
+código). **Correção de uma suposição
 anterior**: numa rodada passada eu tinha documentado que "o Python
 reserva 2 números de linha pro cabeçalho mesmo com `-rh` desligado" —
 isso estava ERRADO (achado rodando de novo um teste mínimo): `-rh`
@@ -100,11 +104,13 @@ linha (corrigido: `KindProgram` agora entra no mesmo colapso de
 `NEWLINE` que labels/`_`/separador já tinham). Também corrigido nesta
 janela: `identifierPattern` (compartilhado) era restrito a ASCII
 minúsculo — bug real, latente desde as rodadas de variável/label, que
-cortava nomes camelCase/mixedCase (`v1.9.1`). **Ainda falta**: Pass 1
-do `Parser` (separador de chamada Dignified `_` fora do fim de linha,
-rendering ainda não entendido) — depois disso, falta só ligar tudo
-isso ao tokenizer já pronto pra fechar o caminho completo até o
-binário. Ver Blocos 1-4 na seção 7 para o detalhamento.
+cortava nomes camelCase/mixedCase (`v1.9.1`). O Pass 1 do `Parser`
+(separador de chamada Dignified `_` fora do fim de linha) foi
+implementado em seguida (v1.19.0, ver Bloco 1 abaixo) — era a última
+peça não entendida do caminho textual Dignified→Classic. **Ainda
+falta**: ligar tudo isso ao tokenizer já pronto pra fechar o caminho
+completo até o binário. Ver Blocos 1-4 na seção 7 para o
+detalhamento.
 **As 9 perguntas da seção 8 foram respondidas pelo usuário em
 2026-11-20** — ver seção 8 para o registro de cada decisão. Nota de
 ambiente: nesta máquina o repositório vive em `C:\goBaDig` (caminho
@@ -1690,6 +1696,77 @@ conteúdo nem de número de linha, do início ao fim do arquivo inteiro.
 Essa é a primeira validação de ponta a ponta 100% completa, byte a
 byte, contra um exemplo real e contra o motor Python de verdade.
 
+**Pass 1 do separador Dignified `_` fora do fim de linha implementado**
+(2026-11-23, `internal/platforms/msx/parser.go`): última peça
+documentada como "ainda não entendida" do caminho textual
+Dignified→Classic. Usuário escolheu esse passo como próximo (depois
+de "qual o próximo passo" → "siga então pelo Pass 1 do separador
+Dignified `_` fora do fim de linha").
+
+Pesquisei `badig_dignified.py:96-100` (o comentário já dava a pista:
+"Instruction separator - Shared with some classic Basics call
+instruction - Decided in parser based on position relative to end of
+line") e `badig_msx.py:570-587`, o `pass_1` do próprio dialeto MSX
+(`self.clc.pass_1()`, chamado pelo core pra TODO token que não bate
+em nenhum dos casos especiais do core — confirmado em
+`badig.py:1432-1437`). Achado: um `_` (`D_INSTSP`) NÃO imediatamente
+seguido de `NEWLINE` é o atalho de `CALL` do MSX de verdade
+(`_CLS` == `CALL CLS`) — retagueado pra `C_CALINS`; o identificador
+IMEDIATAMENTE seguinte também é retagueado, pra `C_CALIDF`, cujo
+único efeito é NÃO bater nos checks `D_IDNTTP` que o Pass 3
+(`get_hard_variable`)/Pass 4 (`process_variable`, a renomeação pra
+alias de 2 letras) fazem — ou seja, o nome depois de `_` nunca é
+renomeado, mesmo que o MESMO nome, usado de novo em OUTRO lugar sem
+`_` na frente, continue sendo renomeado normalmente. Confirmado
+rodando `python badig.py` de verdade contra um `.dmx` mínimo
+(`_myroutine` / `myroutine=5` / `print myroutine` → `"10 _myroutine"`
+/ `"20 zz=5"` / `"30 print zz"` — só a OCORRÊNCIA logo após `_` fica
+intocada).
+
+Implementado em `msx.Parser.Pass1` (que já existia como stub vazio,
+nunca usado até agora) — exatamente o ponto certo, já que esse hook é
+chamado pelo core pra todo token que não é um dos casos especiais
+dele (`pass1Dignified`, `platform.Parser.Pass1(ctx, tokens, i)`),
+igual o `self.clc.pass_1()` do original. Dois Kinds novos,
+próprios da plataforma (mesmo padrão de `KindSeparator`/`MSX_SEPARATOR`):
+`msx.KindCallSeparator`/`MSX_CALL_SEPARATOR` e
+`msx.KindCallIdentifier`/`MSX_CALL_IDENTIFIER`. Como o Pass 3/4 de
+`msx/parser.go` já só reage a `core.KindIdentifier` (`if tok.Kind !=
+core.KindIdentifier { return Continue }`), retaguear o identificador
+pra um Kind DIFERENTE já basta — zero mudança adicional precisou nas
+duas passes de renomeação. O `_` retagueado (`MSX_CALL_SEPARATOR`)
+renderiza como texto puro "_", colado sem espaço no nome seguinte,
+porque "_" já está em `CompoundSymbols()` (`c_symb_comp`) desde a
+rodada do `generate()` — nenhuma mudança adicional precisou ali
+também.
+
+`_` ao FIM de linha (seguido de `NEWLINE`) continua intocado por esse
+hook — a OUTRA metade do mesmo token, a fusão de linha Dignified, que
+já funcionava desde antes e continua passando pelo `pass3Includes`
+do core exatamente como sempre.
+
+Simplificação deliberada, documentada: um identificador retagueado
+seguido imediatamente de `{` (padrão de abertura de loop label do
+`pass2Labels`) não foi tratado como caso especial — nenhum programa
+Dignified real combina atalho de `CALL` com loop label no mesmo
+identificador, e o próprio original nem tem essa ambiguidade pra
+começar (detecta loop labels pelos símbolos `{`/`}`, nunca pelo tipo
+do identificador anterior, `badig.py:1469-1478`).
+
+2 testes novos de ponta a ponta no MSX (identificador exclusivo da
+renomeação, inclusive confirmando que o MESMO nome usado de novo sem
+`_` na frente continua sendo renomeado; `_` no fim de linha continua
+fundindo a linha normalmente). `CGK173.dmx` não usa esse mecanismo em
+nenhum lugar de verdade (todo `_` nele está no fim de linha) — a
+validação 100% de ponta a ponta contra a saída real do `badig.py`
+continua de pé, zero diferença, confirmada de novo depois dessa
+mudança.
+
+Com isso, **todo o caminho textual Dignified→Classic documentado como
+"ainda falta" está fechado** — o que resta é ligar tudo isso ao
+tokenizer MSX Batoken (pronto desde a v1.4.0) pra produzir `.bmx`
+binário de ponta a ponta de verdade.
+
 **Fase 3 — Motor do pipeline + validação** (o que prova que o desenho
 funciona) — **estado em 2026-11-22, superando a descrição original de
 2026-11-21 abaixo**: o core JÁ faz processamento Dignified de núcleo
@@ -1858,13 +1935,20 @@ recursivo/`-asc` (Fase 3), e a Fase 4 inteira (config em camadas).
   **Fora de escopo, documentado**: loop labels (`nome{ }`/`exit`,
   usado no `CGK173.dmx` em `keys{ }` etc.), inserção de header,
   relatório de labels (`-lbr`). — **A**, **1**
-- [ ] Pass 1 MSX (separador de chamada Dignified `_` → "instrução de
-  chamada", só quando `_` NÃO está no fim de linha — o caso "fim de
-  linha" já foi resolvido nesta rodada como fusão de linha, ver item
-  acima) — ainda não está claro o que esse recurso deveria gerar no
-  texto Classic final (`.tok` muda, `.val` não; não encontrei nenhuma
-  conversão de "_" pra texto "CALL" em nenhum lugar do Python);
-  precisa de mais pesquisa antes de portar. — **M**, **1**
+- [x] **Pass 1 MSX implementado** (2026-11-23,
+  `internal/platforms/msx/parser.go`) — a dúvida antiga acima estava
+  mal colocada: não gera texto "CALL" nenhum (`.val` mesmo não muda,
+  confirmado de novo) — o efeito real é só EXCLUIR o identificador
+  logo depois do `_` da renomeação de variável de 2 letras
+  (`C_CALIDF` nunca bate nos checks `D_IDNTTP` do Pass 3/4). Dois
+  Kinds novos (`msx.KindCallSeparator`/`msx.KindCallIdentifier`),
+  retagueados dentro do próprio `Pass1` (stub vazio até agora, o
+  ponto certo - é chamado pra todo token que não é um caso especial
+  do core, igual `self.clc.pass_1()`). Confirmado contra
+  `python badig.py` de verdade. `CGK173.dmx` não usa esse mecanismo
+  (todo `_` nele está no fim de linha) - validação 100% de ponta a
+  ponta continua de pé. 2 testes novos de ponta a ponta. Ver Bloco 1
+  acima pro detalhamento completo. — **M**, **1**
 - [x] **Loop labels implementados** (2026-11-22, `nome{ ... }` como
   laço fechado + `exit`) — fiel a `get_label_lines`/`get_jump_labels`/
   `get_loop_label_return`/`get_labels_exit` (`badig.py:849-921`), um

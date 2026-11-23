@@ -35,6 +35,31 @@ exata do pacote.
 
 ---
 
+## [1.19.0] — 2026-11-23 — bloco **NEW**, feature **callshorthand** (build 0)
+
+**Pass 1 MSX: separador de chamada Dignified `_` fora do fim de
+linha** — última peça do caminho textual Dignified→Classic ainda não
+portada.
+
+### Adicionado
+
+- Um `_` não imediatamente seguido de `NEWLINE` é agora reconhecido
+  como o atalho de `CALL` do MSX (`_CLS` == `CALL CLS`): o
+  identificador logo depois dele fica excluído da renomeação de
+  variável pra alias de 2 letras — mesmo que o MESMO nome, usado de
+  novo em outro lugar sem `_` na frente, continue sendo renomeado
+  normalmente.
+- `_` no fim de linha continua se comportando exatamente como antes
+  (fusão de linha Dignified, implementada em release anterior).
+- 2 testes novos de ponta a ponta no MSX.
+
+### Validação
+
+`CGK173.dmx` não usa esse mecanismo em nenhum lugar de verdade (todo
+`_` nele está no fim de linha) — a validação 100% de ponta a ponta,
+byte a byte, contra a saída real do `badig.py` continua de pé, sem
+nenhuma diferença.
+
 ## [1.18.0] — 2026-11-23 — bloco **NEW**, feature **remheader** (build 0)
 
 **Cabeçalho REM de 2 linhas + expansão de TAB** — fecha os dois
