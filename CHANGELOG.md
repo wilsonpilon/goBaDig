@@ -35,6 +35,28 @@ exata do pacote.
 
 ---
 
+## [1.24.0] — 2026-11-23 — bloco **NEW**, feature **gui-options-panels** (build 0)
+
+**4 painéis de configuração na GUI** — Etapa D, a última do painel de
+configuração: agora as três interfaces (CLI, TUI, GUI) têm o mesmo
+conjunto de opções editável.
+
+### Adicionado
+
+- Menu **Setup** da GUI ganha os mesmos 4 itens da TUI: **Basic
+  Dignified**, **MSX**, **ZX81**, **ZX Spectrum** — cada um abre um
+  formulário (`dialog.ShowForm` do Fyne) com todas as opções daquela
+  categoria, valores atuais pré-preenchidos, Apply/Cancel.
+- Validação em tempo real para opções numéricas (o botão Apply fica
+  desabilitado enquanto o valor estiver fora do intervalo permitido).
+- 6 testes novos.
+
+### O que não mudou / ainda falta
+
+Nenhum valor configurado neste painel (em qualquer das três
+interfaces) ainda é lido por um comando de conversão real — isso é
+consumo futuro pelo pipeline, um passo separado.
+
 ## [1.23.0] — 2026-11-23 — bloco **NEW**, feature **tui-options-panels** (build 0)
 
 **4 painéis de configuração na TUI** — Etapa C do painel de

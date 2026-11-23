@@ -6,16 +6,17 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.23.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.24.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
 ainda), **catálogo de opções de configuração do `badig.py` + schema
 SQLite + comandos `SET`/`SETTINGS`/`DIALECT` no CLI + 4 painéis de
-configuração na TUI (Etapas A, B e C do painel de config, ver Bloco
-1/Fase 4 abaixo — só o painel da GUI ainda falta, Etapa D)** —
-histórico completo de cada um desses itens em `CHANGELOG.md` e nos
-Blocos correspondentes abaixo, não repetido aqui.
+configuração na TUI e na GUI (Etapas A, B, C e D do painel de config,
+ver Bloco 1/Fase 4 abaixo — painel de configuração COMPLETO nas três
+interfaces)** — histórico completo de cada um desses itens em
+`CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
+aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -1955,8 +1956,40 @@ rodadas seguintes:
   continua pegando uma navegação REALMENTE errada (a tela nunca
   mostraria o texto certo e o teste estoura o timeout com erro claro),
   só deixa de ser frágil sob carga. — **M**, **2**
-- [ ] Etapa D — os mesmos 4 painéis na GUI (`internal/gui`), mesmo
-  padrão de `showThemeInstaller`. — **M**, **2**
+- [x] **Etapa D — os mesmos 4 painéis na GUI implementados**
+  (2026-11-23, `internal/gui/gui.go`): `Setup` ganha os mesmos 4
+  itens da TUI, cada um chamando `showOptionsPanel(w, store,
+  category, title)` — mas em vez de reusar `dialog.NewCustomConfirm`
+  (o padrão de `showThemeInstaller`, que já tem seus próprios botões
+  Confirm/Dismiss), usa `dialog.ShowForm` (Fyne já tem um diálogo de
+  formulário pronto, com Apply/Cancel e integração de validação
+  embutida) — mais perto do próprio `widget.Form`/`tview.Form` da TUI
+  do que forçar o padrão de tema num formulário de N campos. Mapeamento
+  `options.Field`→widget: `TypeBool`→`widget.Check`,
+  `TypeEnum`→`widget.Select`, `TypeInt`/`TypeString`→`widget.Entry`.
+  Diferente da TUI (que só valida no clique de Apply): `Entry.
+  Validator` liga direto em `options.Validate`, e o `dialog.ShowForm`
+  do Fyne já desabilita o próprio botão Apply sozinho enquanto
+  qualquer campo reporta inválido — validação em tempo real de
+  graça pros campos `TypeInt` fora do Min/Max.
+
+  A parte de montar os widgets (`options.Field`→`*widget.FormItem` +
+  getter de leitura) foi separada numa função pura,
+  `buildOptionsFormItems`, justamente pra dar pra testar sem precisar
+  rodar uma janela/diálogo de verdade (Fyne não tem, neste projeto,
+  nenhum padrão estabelecido de testar diálogo renderizado de ponta a
+  ponta — `theme_test.go`, o precedente mais próximo, também só testa
+  a função pura de mapear paleta, nunca o `showThemeInstaller` em si).
+  6 testes novos (contagem/ordem dos campos bate com o catálogo;
+  cada `Type` mapeia pro widget certo; valor default usado quando
+  nada foi gravado ainda; valor gravado tem prioridade sobre o
+  default; seleção de enum funciona mesmo com case diferente;
+  validador de inteiro rejeita fora do Min/Max). Precisou de um
+  `TestMain` novo no pacote (`test.NewApp()`, o driver de teste do
+  Fyne) — primeira vez que este pacote cria um widget de verdade em
+  teste, `Entry.SetText` mede texto pra layout e precisa de um app
+  Fyne "atual" configurado, coisa que `theme_test.go` nunca precisou
+  (só mexe com cor/paleta, nunca constrói widget). — **M**, **2**
 - [ ] Resolução de fato das 4 camadas (SQLite global < projeto < CLI <
   remtags no código) — **A**, **3** (não há CLI real de flags pra
   testar contra ainda)

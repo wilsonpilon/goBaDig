@@ -212,8 +212,18 @@ Navegação: setas ou `Alt+letra` movem/abrem o menu, `Enter` confirma,
 é possível escolher entre seis temas inspirados em VS Code Dark, Dracula,
 Monokai, Nord, Solarized Light e Gruvbox Dark. A escolha da GUI também é
 aplicada na hora e persistida em SQLite no diretório de configuração do
-usuário. Nenhuma conversão de BASIC
-acontece ainda em nenhuma das duas. O argumento `<arquivo> -id msx`
+usuário.
+
+O menu `Setup` da GUI também tem os mesmos 4 itens de configuração da
+TUI (desde a `v1.24.0`): **Basic Dignified**, **MSX**, **ZX81** e
+**ZX Spectrum** — cada um abre um formulário com as opções daquela
+categoria (checkbox/lista suspensa/campo de texto conforme o tipo),
+valores atuais já preenchidos, botões `Apply`/`Cancel`. Diferente da
+TUI, campos numéricos validam em tempo real: `Apply` fica desabilitado
+enquanto o valor estiver fora do intervalo permitido. Nenhuma
+conversão de BASIC acontece ainda em nenhuma das duas interfaces, e
+nenhum valor configurado nos painéis (CLI, TUI ou GUI) ainda é lido
+por um comando de conversão real. O argumento `<arquivo> -id msx`
 (conversão de fato) chega junto com os Blocos 1-4 do `OUTLINE.md`.
 
 ## 6. Converter um programa Dignified
