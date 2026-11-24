@@ -197,6 +197,20 @@ type Parser interface {
 type BuiltinDefine struct {
 	Content    []Token
 	DefaultVar []Token
+	// Expand, if non-nil, replaces the whole call-expansion mechanism
+	// for this one define: instead of splicing the call's resolved
+	// argument tokens (its own explicit `(...)` args, or DefaultVar if
+	// called bare) at Content's single placeholder marker, it is
+	// called with those same resolved tokens directly, and its return
+	// value becomes the call's ENTIRE expansion - Content/DefaultVar
+	// are unused when this is set. Added for ZX81's "[?](row,col)"
+	// PRINT AT macro (badig_zx81.py's own Parser.replace_print_at),
+	// which needs to split its arguments on a top-level comma and
+	// default EACH ONE independently to "0" - MSX's own simpler
+	// "[?](x,y)" macro, which just pastes whatever raw tokens it's
+	// given verbatim at a single placeholder, doesn't need this and
+	// leaves Expand nil.
+	Expand func(args []Token) []Token
 }
 
 // Settings holds dialect-specific config, applied after the shared

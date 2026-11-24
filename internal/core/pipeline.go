@@ -612,6 +612,12 @@ type functionEntry struct {
 type defineEntry struct {
 	content    []Token
 	defaultVar []Token
+	// expand is BuiltinDefine's own Expand, carried through unchanged -
+	// ver BuiltinDefine's own doc comment (contract.go). nil for every
+	// user-written DEFINE (readDefines never sets it) and for a
+	// platform's own simpler builtins (MSX's "[?](x,y)" leaves it nil
+	// too).
+	expand func([]Token) []Token
 }
 
 // pass1Dignified replaces the generic runPass(platform.Parser.Pass1)
@@ -652,7 +658,7 @@ type defineEntry struct {
 func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]Token, map[string]functionEntry, error) {
 	defines := map[string]defineEntry{}
 	for name, bd := range platform.Parser.BuiltinDefines() {
-		defines[name] = defineEntry{content: bd.Content, defaultVar: bd.DefaultVar}
+		defines[name] = defineEntry{content: bd.Content, defaultVar: bd.DefaultVar, expand: bd.Expand}
 	}
 	functions := map[string]functionEntry{}
 	var out []Token
@@ -1173,6 +1179,10 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 		insertVar := def.defaultVar
 		if haveExplicitArg {
 			insertVar = explicitArg
+		}
+
+		if def.expand != nil {
+			return def.expand(insertVar), nil
 		}
 
 		var expanded []Token
