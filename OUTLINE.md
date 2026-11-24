@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.30.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.31.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -30,15 +30,19 @@ no console) que fecha o ciclo completo: compila, gera um disco
 `.dsk` de teste (`AUTOEXEC.BAS`) e abre no openMSX de verdade —
 ciclo MSX completo: editar→compilar→testar num emulador real, tudo
 via CLI (ver Bloco 1 abaixo — TUI/GUI ainda não chamam nenhum desses
-comandos), e o **módulo ZX81** (Bloco 3) começou: tokenizer (Classic
-ASCII numerado→imagem `.p` completa, incluindo o ponto flutuante
-oculto do ZX81) e agora **Description+Lexer** (vocabulário clássico,
-1 letra de variável, escape hex `\{XX}`, aspas duplicadas dentro de
-string, um achado empírico grande sobre número com sinal — ver Bloco
-3 abaixo), tudo confirmado contra o Python real — ainda sem Parser
-ZX81, nenhum `.dzx` compila de ponta a ponta ainda)** — histórico
-completo de cada um desses itens em `CHANGELOG.md` e nos Blocos
-correspondentes abaixo, não repetido aqui.
+comandos), e o módulo ZX81 (Bloco 3) deu um salto grande: tokenizer
+(Classic ASCII numerado→imagem `.p` completa, incluindo o ponto
+flutuante oculto), `Description`+`Lexer` (vocabulário clássico, 1 letra
+de variável, escape hex `\{XX}`, um achado empírico grande sobre
+número com sinal) e agora `Parser` (alocação de 1 letra, `PRINT AT`
+via uma evolução pequena do `core.BuiltinDefine` — `Expand`, `LET`
+implícito) — primeiro arquivo `.dzx` ZX81 real já compila de ponta a
+ponta (ver Bloco 3 abaixo; `remx`/renumeração de listagem numerada
+deliberadamente adiados, documentados lá), tudo confirmado contra o
+Python real — ainda sem comando `compile`/`execute` pro ZX81, sem
+EightyOne validado de verdade)** — histórico completo de cada um
+desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
+não repetido aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -2579,13 +2583,84 @@ ainda não chamam nenhum desses comandos.
 
 ### Bloco 3 — Módulo ZX81
 
-- [ ] Portar `Description`/`Lexer`/`Parser` ZX81 (1 letra Z→A, `PRINT AT`,
-  LET implícito, renumeração com rejeição de salto computado, `remx`). — **M**, **1** —
+- [x] Portar `Description`/`Lexer`/`Parser` ZX81 (1 letra Z→A, `PRINT AT`,
+  LET implícito — `remx`/renumeração de listagem numerada **deferidos**,
+  ver nota ao final). — **M**, **1** —
   **Description+Lexer feitos em 2026-11-24**
-  (`internal/platforms/zx81/{description,lexer}.go`, v1.30.0); Parser
-  (alocação de 1 letra, `PRINT AT`, `LET` implícito, `remx` como
-  diretiva Dignified, renumeração de listagem numerada) ainda falta —
-  Etapa 3 do roteiro.
+  (`internal/platforms/zx81/{description,lexer}.go`, v1.30.0); **Parser
+  feito em 2026-11-24** (`internal/platforms/zx81/parser.go`, v1.31.0).
+
+  **Decisão de escopo, documentada**: `remx` e a renumeração de
+  listagem numerada (`dignify_numbered`) ficam de fora desta Etapa 3,
+  diferente do que o roteiro aprovado previa inicialmente. Achado,
+  lendo `badig_zx81.py` de novo com atenção: `preprocess`/`postprocess`
+  (as duas funções por trás de `remx` E da renumeração) não são passes
+  do `Parser` (`pass_1`...`pass_5`/`generate`) — `preprocess` roda
+  ANTES do lexer até ver o texto fonte (`d_code`, linhas crúas), e
+  `postprocess` roda DEPOIS do `generate()`, sobre a listagem Classic
+  já RENDERIZADA (`c_code`, strings de texto, não tokens). São hooks
+  que ENVOLVEM o pipeline inteiro, não parte dele — meu `core.Parse`/
+  `core.Generate` de hoje não tem (nem deveria ganhar sem necessidade
+  real) um ponto de extensão pra isso; seria uma evolução de
+  arquitetura BEM maior que a do `BuiltinDefine.Expand` (abaixo), e
+  nenhum programa ZX81 real ainda precisa de nenhuma das duas. Junto
+  com a Etapa 6, já adiada, do roteiro.
+
+  **Alocação de 1 letra** (`process_variable`, Pass4): reusa
+  `core.NewDescendingAllocator()` sem nenhuma mudança, só com
+  `variableCategory{AliasChars:"abcdefghijklmnopqrstuvwxyz",
+  AliasLen:1}` — confirma a previsão de `internal/core/allocator.go`
+  (citada desde a Etapa 1). **Diferença real de comportamento vs MSX,
+  confirmada lendo o Python de novo**: pro MSX, uma variável marcada
+  `~` (Dignified, "mantenha o nome longo") fica INTOCADA — pro ZX81,
+  isso é um ERRO FATAL sempre ("ZX-81 variables must be one letter,
+  optionally followed by $."), porque o BASIC clássico do ZX81
+  literalmente não consegue representar um nome de variável com mais
+  de 1 caractere — `~` é uma sintaxe Dignified compartilhada, mas
+  genuinamente impossível de honrar nesse dialeto. Confirmado rodando
+  o `badig.py` real tanto pro caso `~nomelongo` quanto `~a` (nome já
+  curto, erro DIFERENTE: "can't use ~ on a short named variable").
+
+  **`LET` implícito** (`generate()`): BASIC clássico do ZX81 não tem
+  atribuição nua (`a=1` sempre precisa de `LET`/`?`/alguma instrução
+  no início) — inserido automaticamente quando um identificador abre
+  uma declaração (logo depois do número de linha, ou logo depois de
+  `THEN`). Implementado como o hook `Parser.Generate` devolvendo
+  `Replace` com `[Instruction("let"), <identificador original>]` — o
+  passe de espaçamento genérico do `core.Generate` (já existente,
+  compartilhado) cuida do espaço entre os dois sozinho, sem precisar
+  de nenhuma lógica nova aí.
+
+  **`PRINT AT`** (`[?](row,col)` → `print at row,col;`) — **achado de
+  arquitetura confirmado, evolução do contrato feita**: em vez da
+  evolução de `HookAction`/`Pass2` que a Etapa 2 tinha previsto
+  (consumir um span de vários tokens), a solução real foi mais simples:
+  `core.BuiltinDefine` ganhou um campo novo, `Expand func(args []Token)
+  []Token` (opcional, `nil` pro `[?](x,y)` mais simples do MSX) — quando
+  presente, substitui o mecanismo de splice-num-placeholder-só por uma
+  função que recebe os argumentos JÁ RESOLVIDOS da chamada (os tokens
+  crus entre os parênteses, ou o `DefaultVar` se chamado sem parênteses)
+  e devolve a expansão INTEIRA da chamada. Isso roda dentro do Pass 1,
+  já bespoke/com cursor próprio (`expandDefineCall`), que JÁ calculava
+  esses argumentos resolvidos como efeito colateral de preencher o
+  placeholder — zero necessidade de o Pass 2 também virar bespoke.
+  `printAtExpand` (novo, `internal/platforms/zx81/parser.go`) separa
+  os argumentos por vírgula de nível zero (respeitando parênteses
+  aninhados, mesmo princípio do `replace_print_at` original), default
+  `"0"` pra cada lado que faltar.
+
+  Validação cruzada extensa contra o `badig.py` real (não só os testes
+  automatizados): alocação de 3 variáveis longas em sequência
+  (`z`,`y`, depois outra `y`/`z` dependendo da ordem - confirmado
+  rodando com 3 nomes diferentes), sufixo `$` compartilhando o mesmo
+  slot do nome base, os 4 casos de `PRINT AT` (ambas coordenadas, sem
+  nenhuma, só a primeira, só a segunda), parênteses aninhados dentro
+  de uma coordenada (`[?](row,peek(1,2))`), `LET` implícito depois do
+  número de linha E depois de `THEN`, e os dois erros de `~` — TODOS
+  batendo exatamente com a saída/erro reais.
+
+  12 testes automatizados novos em `parser_test.go` (ponta a ponta,
+  Lex→Parse→Generate).
 
   Vocabulário clássico (31 instruções, 3 funções `$`, 21 funções
   planas, 4 jump keywords, 3 operadores, 18 símbolos incluindo os 4
@@ -2684,8 +2759,23 @@ ainda não chamam nenhum desses comandos.
   PATH) — não bloqueia este item nem o próximo (Description/Lexer/
   Parser), mas vai bloquear a validação real de "abrir `.p` no
   emulador" quando chegar a hora (equivalente ao `execute` do MSX).
-- [ ] Gerar formato `.p` (imagem de memória completa, system vars +
-  display file + programa). — **M**, **1**
+- [x] Gerar formato `.p` (imagem de memória completa, system vars +
+  display file + programa). — **M**, **1** — **feito junto com o
+  tokenizer** (`programImage`, `internal/platforms/zx81/tokenizer.go`,
+  v1.29.0) — `Tokenize()` já devolve a imagem completa, não só o
+  bytecode do programa.
+- [ ] `remx` (diretiva Dignified, reserva bytes crus numa linha REM) +
+  renumeração de listagem numerada colada direto (`dignify_numbered`,
+  rejeição de salto computado) — **adiado da Etapa 3 do Parser**
+  (2026-11-24): as duas são `preprocess`/`postprocess` no Python,
+  hooks que envolvem o pipeline INTEIRO (antes do lexer / depois do
+  `generate()` já renderizado), não passes do `Parser` — exigiriam uma
+  evolução de arquitetura maior que a já feita pro `PRINT AT`
+  (`BuiltinDefine.Expand`), e nenhum programa ZX81 real ainda precisa
+  de nenhuma das duas. O tokenizer (Etapa 1) já sabe gerar a linha REM
+  de `remx` sozinho (`remxLine`/`parseRemx`, `tokenizer.go`) — só falta
+  o reconhecimento como diretiva Dignified e a reinserção pós-`generate`.
+  — **M**, **2**
 - [ ] Portar DignifieR ZX81. — **M**, **2**
 - [ ] Integração EightyOne básica (lançar `.p`, sem seleção de modelo
   ainda, igual ao Python). — **B**, **1**

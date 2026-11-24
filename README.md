@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.30.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.31.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), e o **ciclo MSX
 > completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou
@@ -20,13 +20,13 @@ para VSCode cobrindo os três dialetos.
 > --execute <arquivo.dmx>` (ou `execute <arquivo.dmx>`) compila,
 > empacota o resultado num disco `.dsk` de teste e abre no openMSX de
 > verdade, pra testar na hora. TUI e GUI ainda não chamam nenhum
-> desses comandos. O módulo **ZX81** começou: o tokenizer
-> (`internal/platforms/zx81`, texto já numerado → imagem `.p`
-> completa) e agora o `Description`/`Lexer` do dialeto (vocabulário
-> clássico, 1 letra de variável, escape hex) já estão portados e
-> validados contra o Python real — ainda sem `Parser`, nenhum `.dzx`
-> compila de ponta a ponta ainda. ZX Spectrum ainda não tem motor de
-> conversão próprio. Ver [`OUTLINE.md`](OUTLINE.md) para o
+> desses comandos. O módulo **ZX81** deu um salto grande: tokenizer,
+> `Description`/`Lexer` e agora `Parser` (alocação de 1 letra,
+> `PRINT AT`, `LET` implícito) já estão portados e validados contra o
+> Python real — o **primeiro arquivo `.dzx` ZX81 real já compila de
+> ponta a ponta**, faltando só ligar `compile`/`execute` e validar no
+> emulador. ZX Spectrum ainda não tem motor de conversão próprio. Ver
+> [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.

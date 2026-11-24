@@ -134,8 +134,11 @@ detalhamento. TUI e GUI ainda não chamam nenhum desses comandos.
 imagem `.p` completa) — nenhum arquivo `.dzx` ZX81 compila ainda
 (falta o Description/Lexer/Parser do dialeto). **`v1.30.0`** porta o
 `Description`/`Lexer` do dialeto (vocabulário clássico, 1 letra de
-variável, escape hex `\{XX}`) — ainda falta o `Parser`, nenhum
-comando novo pro usuário em nenhuma das duas releases.
+variável, escape hex `\{XX}`). **`v1.31.0`** porta o `Parser`
+(alocação de 1 letra, `PRINT AT`, `LET` implícito) — o primeiro
+arquivo `.dzx` ZX81 real já compila de ponta a ponta, mas nenhuma das
+três releases ganhou um comando novo pro usuário ainda (`compile`/
+`execute` pro ZX81 ficam pra uma próxima etapa).
 
 ## 4. Compilar a partir do código-fonte
 

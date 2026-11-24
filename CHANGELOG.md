@@ -35,6 +35,40 @@ exata do pacote.
 
 ---
 
+## [1.31.0] — 2026-11-24 — bloco **NEW**, feature **zx81-parser** (build 0)
+
+**Parser ZX81** (Bloco 3, Etapa 3 de 5) — fecha o Dignified→Classic
+pro ZX81: o **primeiro arquivo `.dzx` real já compila de ponta a
+ponta** (Lex→Parse→Generate). Falta só ligar `compile`/`execute` (já
+tem o tokenizer pronto) e validar no emulador.
+
+### Adicionado
+
+- `internal/platforms/zx81/parser.go`: alocação de variável de 1
+  letra (reusa `core.NewDescendingAllocator()` sem mudança), `LET`
+  implícito, `PRINT AT` (`[?](row,col)` → `print at row,col;`).
+- `core.BuiltinDefine` ganha um campo novo, `Expand` (opcional) —
+  deixa um `DEFINE` embutido substituir sua expansão inteira em vez
+  de só preencher um placeholder, usado pelo `PRINT AT` do ZX81 pra
+  separar e defaultar duas coordenadas independentemente.
+- 12 testes automatizados de ponta a ponta.
+
+### Achados
+
+- `~` (Dignified, "mantenha o nome longo") é sempre erro fatal pro
+  ZX81 — BASIC clássico do ZX81 não consegue representar um nome de
+  variável com mais de 1 caractere, diferente do MSX.
+- Toda a validação (alocação, `PRINT AT`, `LET` implícito, os erros
+  de `~`) foi confirmada rodando o `badig.py` real primeiro, teste Go
+  depois.
+
+### Decisão de escopo
+
+- `remx` e a renumeração de listagem numerada ficam de fora desta
+  etapa — são hooks que envolvem o pipeline inteiro no Python
+  (`preprocess`/`postprocess`), não passes do `Parser`, e exigiriam
+  uma evolução de arquitetura maior. Ver `OUTLINE.md`, Bloco 3.
+
 ## [1.30.0] — 2026-11-24 — bloco **NEW**, feature **zx81-lexer** (build 0)
 
 **Description + Lexer ZX81** (Bloco 3, Etapa 2 de 5) —
