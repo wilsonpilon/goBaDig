@@ -35,6 +35,39 @@ exata do pacote.
 
 ---
 
+## [1.33.0] — 2026-11-24 — bloco **NEW**, feature **zx81-execute** (build 0)
+
+**Comando `compile`/`execute` pro ZX81** (Bloco 3, Etapa 5 de 5 —
+roteiro completo) — os comandos já existentes (até aqui hard-coded
+pro MSX) agora escolhem o dialeto pela extensão do arquivo:
+`goBaDig programa.dzx`/`goBaDig --execute programa.dzx` funcionam
+igual aos seus equivalentes `.dmx`. **Ciclo ZX81 completo via CLI,
+igual ao MSX.**
+
+### Adicionado
+
+- `internal/cli/dialect.go`: `compileByExtension`/
+  `runInEmulatorByExtension`, despachando `.dmx`→MSX, `.dzx`→ZX81.
+- `msx.CompileFile`/`msx.RunInEmulator` (e os equivalentes do console)
+  deixam de ser chamados direto por `cli.go`/`console.go` — só pelo
+  dispatch acima.
+- `internal/platforms/zx81/compile.go` (`CompileFile`,
+  `DefaultCompileSettings`) e `run.go` (`RunInEmulator`) — sem nenhum
+  passo de "empacotar num disco" (diferente do MSX): o `.p` já é tudo
+  que o EightyOne precisa.
+- 11 testes automatizados novos.
+
+### Validado
+
+- Um processo `EightyOne.exe` real, lançado de verdade por
+  `goBaDig --execute`, confirmado rodando nesta máquina.
+
+### O que não mudou / ainda falta
+
+- `remx` e a renumeração de listagem numerada continuam fora de
+  escopo (documentado desde a Etapa 3).
+- TUI/GUI ainda não chamam nenhum desses comandos.
+
 ## [1.32.0] — 2026-11-24 — bloco **NEW**, feature **zx81-validation** (build 0)
 
 **Validação de ponta a ponta ZX81** (Bloco 3, Etapa 4 de 5) — os 2

@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.32.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.33.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -38,11 +38,15 @@ número com sinal) e agora `Parser` (alocação de 1 letra, `PRINT AT`
 via uma evolução pequena do `core.BuiltinDefine` — `Expand`, `LET`
 implícito) — e a validação de ponta a ponta com 2 programas ZX81
 reais já existentes no projeto (`zx81-intro.DZX`/`mcode-ok.DZX`),
-batendo byte a byte contra o `badig.py` real (ver Bloco 3 abaixo;
-`remx`/renumeração de listagem numerada deliberadamente adiados,
-documentados lá), tudo confirmado contra o Python real — ainda sem
-comando `compile`/`execute` pro ZX81, sem
-EightyOne validado de verdade)** — histórico completo de cada um
+batendo byte a byte contra o `badig.py` real — e agora os comandos
+`compile`/`execute` do CLI/console (até aqui hard-coded pro MSX)
+escolhem o dialeto pela extensão do arquivo (`.dmx`→MSX, `.dzx`→ZX81),
+com `goBaDig --execute programa.dzx` compilando e abrindo de verdade
+no EightyOne (confirmado com um processo real rodando nesta máquina)
+(ver Bloco 3 abaixo; `remx`/renumeração de listagem numerada
+deliberadamente adiados, documentados lá), tudo confirmado contra o
+Python real e o EightyOne real — ciclo ZX81 completo via CLI, igual
+ao MSX)** — histórico completo de cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
 
@@ -2701,6 +2705,50 @@ ainda não chamam nenhum desses comandos.
   do arquivo Python (relatórios `-lnr`/`-var`, renumeração) continuam
   fora de escopo pelas mesmas razões já documentadas.
 
+  **Etapa 5 (comando `compile`/`execute` pro ZX81), feita em
+  2026-11-24**: generaliza os comandos já existentes do MSX (até aqui
+  hard-coded) pra escolher o dialeto pela EXTENSÃO do arquivo —
+  `internal/cli/dialect.go` (novo), `compileByExtension`/
+  `runInEmulatorByExtension`, `.dmx`→MSX, `.dzx`→ZX81. `cli.go`/
+  `console.go` chamam só essas duas funções agora, sem mais nenhuma
+  referência direta a `msx.*`.
+
+  `internal/platforms/zx81/compile.go` (novo): `DefaultCompileSettings`
+  (mesmos defaults compartilhados do MSX — `LineStart`/`LineStep`=10,
+  `RemHeader`=true, `TabLength`=4 — não são valores ZX81-específicos)
+  e `CompileFile(dzxPath, settings) (azxPath, pPath string, err
+  error)`, espelhando `msx.CompileFile` quase 1:1: `core.Run` + o
+  `Tokenize` do ZX81 (pronto desde a Etapa 1), escrevendo `.azx`
+  (CRLF, mesma convenção do `.amx`) e `.p` (binário, bytes crus).
+
+  `internal/platforms/zx81/run.go` (novo): `RunInEmulator(pPath)` —
+  SEM nenhum passo de "empacotar num disco" (diferente do MSX): o
+  `.p` que `CompileFile` já produz é tudo que o EightyOne precisa pra
+  bootar direto no programa compilado — ZX81 não tem sistema de
+  arquivos de disco/convenção AUTOEXEC pra passar por isso.
+  `exec.LookPath("eightyone")` + `exec.Command(exePath, pPath)` — SEM
+  nenhuma flag (diferente do `-diska` do openMSX), confirmado lendo
+  `emulator_interface.py` de novo: `subprocess.Popen([emulator_path,
+  file_save])`, só o caminho como argumento posicional único.
+
+  **Validação real**: estendi o PATH manualmente SÓ pra esta sessão
+  de shell (`D:\zeddy\EightyOne`) — o usuário já instalou e configurou
+  o PATH do sistema, mas isso ainda não chegou ao processo do Claude
+  Code em si (precisa reiniciar a sessão/terminal pra isso propagar).
+  Com isso, rodei `goBaDig --execute` de VERDADE contra um `.dzx`
+  mínimo — confirmei um processo `EightyOne.exe` real rodando via
+  `Get-Process` (mesmo nível de confirmação já aceito pro MSX/openMSX:
+  processo vivo confirmado, sem confirmação visual do programa
+  rodando dentro — sem display neste ambiente).
+
+  11 testes automatizados novos (`internal/platforms/zx81`:
+  `CompileFile` escreve `.azx`/`.p` corretos incluindo o cabeçalho REM
+  — `"REM"`, a palavra, não `'` — erro claro pra arquivo inexistente,
+  `RunInEmulator` com `PATH` vazio retorna erro claro;
+  `internal/cli`: `compileByExtension`/`runInEmulatorByExtension`
+  despacham certo por extensão e rejeitam extensão desconhecida, mais
+  os pares `.dzx` dos testes `Run`/console já existentes pro `.dmx`).
+
   Vocabulário clássico (31 instruções, 3 funções `$`, 21 funções
   planas, 4 jump keywords, 3 operadores, 18 símbolos incluindo os 4
   compostos `<>`/`>=`/`<=`/`**` dentro do próprio `c_symbol`, mais 7
@@ -2816,12 +2864,22 @@ ainda não chamam nenhum desses comandos.
   o reconhecimento como diretiva Dignified e a reinserção pós-`generate`.
   — **M**, **2**
 - [ ] Portar DignifieR ZX81. — **M**, **2**
-- [ ] Integração EightyOne básica (lançar `.p`, sem seleção de modelo
-  ainda, igual ao Python). — **B**, **1**
+- [x] Integração EightyOne básica (lançar `.p`, sem seleção de modelo
+  ainda, igual ao Python). — **B**, **1** — **feito em 2026-11-24**
+  (`internal/platforms/zx81/{compile,run}.go`, v1.33.0) — ver Etapa 5
+  abaixo, junto com o comando `compile`/`execute` que a usa.
 - [ ] Implementar tabela Unicode (`-tr`) para ZX81 — **nunca existiu no
   Python**, oportunidade de fazer melhor que o original. — **M**, **2**
-- [ ] Validar carregamento real de `.p` em emulador — nunca foi feito nem
-  no Python. — **B** (execução manual), **1**
+- [x] Validar carregamento real de `.p` em emulador — nunca foi feito nem
+  no Python. — **B** (execução manual), **1** — **feito em
+  2026-11-24**: `goBaDig --execute` de verdade, com o EightyOne de
+  verdade no PATH desta sessão de shell (estendido manualmente pra
+  essa validação — o PATH do sistema que o usuário configurou ainda
+  não chegou ao processo do Claude Code em si), abriu um processo
+  `EightyOne.exe` real (confirmado via `Get-Process`) carregando um
+  `.p` de verdade gerado pelo compilador. Sem confirmação visual do
+  programa rodando (mesma limitação de ambiente sem display já
+  documentada pro MSX).
 - [ ] Suporte a `.81`/`.p81` (variantes do `.p` sem/com nome de arquivo,
   `.p81` podendo guardar múltiplos programas). — **M**, **2**
 - [ ] Integração ZEsarUX e sz81/XZ81 como backends alternativos ao

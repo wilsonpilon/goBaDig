@@ -138,9 +138,12 @@ variável, escape hex `\{XX}`). **`v1.31.0`** porta o `Parser`
 (alocação de 1 letra, `PRINT AT`, `LET` implícito) — o primeiro
 arquivo `.dzx` ZX81 real já compila de ponta a ponta. **`v1.32.0`**
 valida isso contra 2 programas ZX81 reais já existentes no projeto,
-byte a byte contra o `badig.py` original — nenhuma das quatro
-releases ganhou um comando novo pro usuário ainda (`compile`/
-`execute` pro ZX81 ficam pra uma próxima etapa).
+byte a byte contra o `badig.py` original. **`v1.33.0`** generaliza os
+comandos `compile`/`execute` (até aqui hard-coded pro MSX) pra
+escolher o dialeto pela extensão do arquivo — `goBaDig programa.dzx`
+e `goBaDig --execute programa.dzx` já funcionam de verdade, abrindo
+no EightyOne. Ciclo ZX81 completo via CLI, igual ao MSX — ver seção 6
+pro detalhamento.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -247,18 +250,19 @@ valores atuais já preenchidos, botões `Apply`/`Cancel`. Diferente da
 TUI, campos numéricos validam em tempo real: `Apply` fica desabilitado
 enquanto o valor estiver fora do intervalo permitido. O ciclo
 completo de conversão (compilar e testar num emulador real) já
-existe de verdade no CLI (`goBaDig <arquivo.dmx>`/`--execute
-<arquivo.dmx>`, ou `compile`/`execute <arquivo.dmx>` no console, ver
-seção 6), mas ainda não em nenhuma das duas interfaces gráficas —
+existe de verdade no CLI, pro MSX e pro ZX81 (`goBaDig
+<arquivo.dmx|arquivo.dzx>`/`--execute <arquivo.dmx|arquivo.dzx>`, ou
+`compile`/`execute` no console, ver seção 6), mas ainda não em
+nenhuma das duas interfaces gráficas —
 TUI e GUI ainda não chamam esses comandos, e nenhum valor configurado
 nos painéis (CLI, TUI ou GUI) ainda é lido por eles (usam sempre os
 defaults do `badig.py` original).
 
 ## 6. Converter um programa Dignified
 
-**Ciclo completo funciona de verdade pro MSX desde a `v1.28.0`, só
-pelo CLI** (TUI/GUI ainda não chamam esses comandos — ver seção 5).
-Histórico de como
+**Ciclo completo funciona de verdade pro MSX desde a `v1.28.0` e pro
+ZX81 desde a `v1.33.0`, só pelo CLI** (TUI/GUI ainda não chamam esses
+comandos — ver seção 5). Histórico de como
 o motor chegou até aqui: a partir da `v1.3.0` existe um primeiro
 núcleo do motor em Go (`internal/core`), a
 partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
@@ -303,6 +307,22 @@ real do `badig.py`. A partir da `v1.27.0` isso já tem um comando real
 comando (`execute`) fecha o ciclo completo, empacotando o resultado
 num disco `.dsk` de teste e abrindo no openMSX de verdade.
 
+O **ZX81** seguiu o mesmo caminho, só que mais rápido: a partir da
+`v1.29.0` o tokenizer (`internal/platforms/zx81`) já converte texto
+Classic ASCII numerado numa imagem `.p` completa (incluindo o ponto
+flutuante oculto do ZX81), a partir da `v1.30.0` o `Description`/
+`Lexer` já classificam texto ZX81 Dignified real em tokens, a partir
+da `v1.31.0` o `Parser` já aloca variáveis de 1 letra (`counter=0` →
+`z=0`, não 2 letras como o MSX), insere `LET` automaticamente (ZX81
+clássico não tem atribuição nua) e expande `[?](linha,coluna)` →
+`print at linha,coluna;`, e a `v1.32.0` validou tudo isso contra 2
+programas ZX81 reais já existentes no projeto, byte a byte contra o
+`badig.py` original. A partir da `v1.33.0` os comandos `compile`/
+`execute` também funcionam pro ZX81, abrindo no EightyOne em vez do
+openMSX. `remx` (diretiva Dignified pra reservar bytes crus numa
+linha REM) e a renumeração automática de uma listagem numerada colada
+direto continuam fora de escopo — ver `OUTLINE.md`, Bloco 3.
+
 ### Uso
 
 ```console
@@ -342,15 +362,38 @@ tempo real ainda (mapear erro de execução pra linha Dignified de
 origem) — o emulador abre numa janela normal, pro usuário acompanhar
 e interagir diretamente.
 
+O mesmo ciclo funciona pro ZX81, trocando a extensão:
+
+```console
+goBaDig programa.dzx
+```
+
+Gera `programa.azx` (listagem Classic numerada) e `programa.p`
+(imagem de memória completa, pronta pro emulador), no mesmo
+diretório. No console, `compile programa.dzx`.
+
+```console
+goBaDig --execute programa.dzx
+```
+
+Compila e abre o EightyOne (precisa estar no `PATH`) direto com o
+`.p` — sem nenhum passo de "empacotar num disco": o `.p` já é tudo
+que o EightyOne precisa pra bootar no programa compilado, diferente
+do MSX (que precisa de um disco com `AUTOEXEC.BAS`). No console,
+`execute programa.dzx`. Os dois caminhos (`.dmx`/`.dzx`) escolhem o
+dialeto automaticamente pela extensão do arquivo
+(`internal/cli/dialect.go`) — nenhuma flag `-id` ainda, mas também
+não precisa de uma, já que a extensão já diz tudo.
+
 Erro de conversão (arquivo não encontrado, sintaxe Dignified
 inválida, etc.) imprime a mensagem na saída de erro e sai com código
 diferente de zero (CLI) ou mostra a mensagem no próprio console
 (`--cli`) — nenhum arquivo parcial é deixado pela metade nesse caso.
 
-Só MSX por enquanto (ZX81/ZX Spectrum ainda não têm
+MSX e ZX81 por enquanto (ZX Spectrum ainda não tem
 `Description`/`Lexer`/`Parser` próprio implementado). TUI e GUI ainda
-não têm nenhum desses comandos — próxima etapa natural depois de
-ZX81/ZX Spectrum terem seu próprio motor de conversão.
+não têm nenhum desses comandos — próxima etapa natural depois de ZX
+Spectrum ter seu próprio motor de conversão.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não
