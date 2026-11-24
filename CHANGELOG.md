@@ -35,6 +35,23 @@ exata do pacote.
 
 ---
 
+## [1.32.0] — 2026-11-24 — bloco **NEW**, feature **zx81-validation** (build 0)
+
+**Validação de ponta a ponta ZX81** (Bloco 3, Etapa 4 de 5) — os 2
+exemplos reais já existentes no projeto (`badig/examples/zx81/
+zx81-intro.DZX` e `mcode-ok.DZX`) rodados pelo pipeline inteiro
+(`Lex→Parse→Generate`) batem **byte a byte** contra a saída real do
+`badig.py`.
+
+### Adicionado
+
+- 2 testes de ponta a ponta comitados (conteúdo embutido, sem
+  depender de arquivo em disco) + 2 vetores de ouro adicionais do
+  `test_tokenizer_zx81.py` que dependiam do `Parser` (agora existe):
+  as duas formas de escape de aspas sobrevivem intactas até o
+  `Generate()`; `DECLARE` com alias explícito interage corretamente
+  com a alocação automática de outra variável.
+
 ## [1.31.0] — 2026-11-24 — bloco **NEW**, feature **zx81-parser** (build 0)
 
 **Parser ZX81** (Bloco 3, Etapa 3 de 5) — fecha o Dignified→Classic

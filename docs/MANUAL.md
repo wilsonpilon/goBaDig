@@ -136,8 +136,10 @@ imagem `.p` completa) — nenhum arquivo `.dzx` ZX81 compila ainda
 `Description`/`Lexer` do dialeto (vocabulário clássico, 1 letra de
 variável, escape hex `\{XX}`). **`v1.31.0`** porta o `Parser`
 (alocação de 1 letra, `PRINT AT`, `LET` implícito) — o primeiro
-arquivo `.dzx` ZX81 real já compila de ponta a ponta, mas nenhuma das
-três releases ganhou um comando novo pro usuário ainda (`compile`/
+arquivo `.dzx` ZX81 real já compila de ponta a ponta. **`v1.32.0`**
+valida isso contra 2 programas ZX81 reais já existentes no projeto,
+byte a byte contra o `badig.py` original — nenhuma das quatro
+releases ganhou um comando novo pro usuário ainda (`compile`/
 `execute` pro ZX81 ficam pra uma próxima etapa).
 
 ## 4. Compilar a partir do código-fonte

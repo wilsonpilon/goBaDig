@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.31.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.32.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -36,10 +36,12 @@ flutuante oculto), `Description`+`Lexer` (vocabulário clássico, 1 letra
 de variável, escape hex `\{XX}`, um achado empírico grande sobre
 número com sinal) e agora `Parser` (alocação de 1 letra, `PRINT AT`
 via uma evolução pequena do `core.BuiltinDefine` — `Expand`, `LET`
-implícito) — primeiro arquivo `.dzx` ZX81 real já compila de ponta a
-ponta (ver Bloco 3 abaixo; `remx`/renumeração de listagem numerada
-deliberadamente adiados, documentados lá), tudo confirmado contra o
-Python real — ainda sem comando `compile`/`execute` pro ZX81, sem
+implícito) — e a validação de ponta a ponta com 2 programas ZX81
+reais já existentes no projeto (`zx81-intro.DZX`/`mcode-ok.DZX`),
+batendo byte a byte contra o `badig.py` real (ver Bloco 3 abaixo;
+`remx`/renumeração de listagem numerada deliberadamente adiados,
+documentados lá), tudo confirmado contra o Python real — ainda sem
+comando `compile`/`execute` pro ZX81, sem
 EightyOne validado de verdade)** — histórico completo de cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
@@ -2661,6 +2663,43 @@ ainda não chamam nenhum desses comandos.
 
   12 testes automatizados novos em `parser_test.go` (ponta a ponta,
   Lex→Parse→Generate).
+
+  **Etapa 4 (validação de ponta a ponta), feita em 2026-11-24**: os
+  DOIS exemplos reais já existentes no projeto
+  (`badig/examples/zx81/zx81-intro.DZX` e `mcode-ok.DZX` — não
+  escritos pra esta rodada, já estavam no repositório) rodados pelo
+  pipeline inteiro (`Lex→Parse→Generate`) batem **byte a byte** contra
+  a saída real do `badig.py` (confirmado rodando `python badig.py` de
+  verdade nesta máquina, com o cabeçalho de remtag/comentário e — no
+  caso do `mcode-ok.DZX` — a linha `remx` removidos antes, já que
+  extração de remtag e `remx`-como-diretiva estão fora de escopo,
+  documentado acima). `zx81-intro.DZX` exercita `DECLARE` com dois
+  aliases numa linha só, dois `FOR`/`NEXT` com variáveis diferentes,
+  sintaxe classic `print at R,C;` digitada direto (sem passar pelo
+  atalho `[?]`), caracteres gráficos com escape de barra invertida
+  dentro de string, e um label de loop que aponta pra ELE MESMO (loop
+  infinito "espera uma tecla"). `mcode-ok.DZX` exercita `DECLARE` com
+  alias explícito por variável, sufixo `$` compartilhando o alias da
+  base, indexação de string (`h$(i)`), expressões aritméticas, e as
+  funções `len`/`code`/`rand`/`usr`. Virou 2 testes comitados
+  (`TestEndToEndRealIntroExample`/`TestEndToEndRealMcodeExample`,
+  conteúdo embutido como string Go, sem depender de arquivo em disco —
+  mesmo princípio 100%-em-memória já usado o projeto inteiro) +
+  2 scratch (`zz_scratch_e2e_test.go`, não comitado, lendo os arquivos
+  reais do disco via `core.LoadLines`).
+
+  Também portados (agora que o `Parser` existe) mais 2 vetores de ouro
+  do `test_tokenizer_zx81.py` que dependiam do pipeline Dignified
+  completo, antes fora de alcance: `test_doubled_and_backslash_quotes_
+  inside_dignified_strings` (as duas formas de escape de aspas
+  sobrevivem intactas até o `Generate()`, já que nada entre o Lexer e
+  a renderização as decodifica — só o tokenizer, Etapa 1, faz isso) e
+  `test_long_variables_allocate_from_z_down_and_honor_declare`
+  (`DECLARE` com alias explícito reserva o slot antes de qualquer
+  alocação automática; uma variável longa alocada automaticamente
+  depois ainda desce corretamente a partir de `z`). Os demais vetores
+  do arquivo Python (relatórios `-lnr`/`-var`, renumeração) continuam
+  fora de escopo pelas mesmas razões já documentadas.
 
   Vocabulário clássico (31 instruções, 3 funções `$`, 21 funções
   planas, 4 jump keywords, 3 operadores, 18 símbolos incluindo os 4
