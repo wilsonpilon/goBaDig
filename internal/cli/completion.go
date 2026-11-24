@@ -6,7 +6,7 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 )
 
-var consoleCommands = []string{"about", "dialect", "exit", "help", "man", "quit", "set", "settings", "theme", "version"}
+var consoleCommands = []string{"about", "compile", "dialect", "exit", "help", "man", "quit", "set", "settings", "theme", "version"}
 
 type completionState struct {
 	completed string

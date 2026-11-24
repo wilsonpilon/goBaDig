@@ -15,6 +15,7 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/options"
+	"github.com/wilsonpilon/goBaDig/internal/platforms/msx"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
@@ -161,6 +162,8 @@ func (s *consoleState) execute(line string) bool {
 		s.executeSet(argument)
 	case "settings":
 		s.executeSettings()
+	case "compile":
+		s.executeCompile(argument)
 	default:
 		fmt.Fprintf(s.out, "comando desconhecido: %q (digite \"help\")\n", line)
 	}
@@ -336,6 +339,23 @@ func (s *consoleState) printOptions(category string) error {
 		fmt.Fprintf(s.out, "  %s = %s\n", field.Key, values[field.Key])
 	}
 	return nil
+}
+
+// executeCompile implements the console's own "compile <arquivo.dmx>"
+// command - the interactive-mode counterpart to "goBaDig
+// <arquivo.dmx>" at the non-interactive command line (ver cli.go's
+// own runCompile), both wrapping the same msx.CompileFile.
+func (s *consoleState) executeCompile(path string) {
+	if path == "" {
+		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx>")
+		return
+	}
+	amxPath, bmxPath, err := msx.CompileFile(path, nil)
+	if err != nil {
+		fmt.Fprintf(s.out, "erro: %v\n", err)
+		return
+	}
+	fmt.Fprintf(s.out, "Convertido: %s\n  -> %s\n  -> %s\n", path, amxPath, bmxPath)
 }
 
 func ansiColor(colorHex string, background bool) string {

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -59,6 +60,7 @@ func TestCompleteLine(t *testing.T) {
 		{input: "about x", want: "about x", count: 0},
 		{input: "dia", want: "dialect ", count: 1},
 		{input: "dialect ms", want: "dialect msx ", count: 1},
+		{input: "com", want: "compile ", count: 1},
 	}
 	for _, test := range cases {
 		got, candidates := completeLine(test.input)
@@ -261,5 +263,45 @@ func TestSettingsCommandListsCoreAndCurrentDialectOptions(t *testing.T) {
 	}
 	if strings.Contains(got, "SPECTRUM_MODEL") {
 		t.Fatalf("executeSettings() with the default (MSX) dialect must not list ZX Spectrum's own options; got:\n%s", got)
+	}
+}
+
+func TestCompileCommandWritesAmxAndBmxNextToTheSourceFile(t *testing.T) {
+	dir := t.TempDir()
+	dmxPath := filepath.Join(dir, "programa.dmx")
+	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeCompile(dmxPath)
+
+	if !strings.Contains(out.String(), "Convertido") {
+		t.Fatalf("executeCompile(%s) output missing success confirmation; got: %s", dmxPath, out.String())
+	}
+	for _, ext := range []string{".amx", ".bmx"} {
+		path := strings.TrimSuffix(dmxPath, ".dmx") + ext
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %s to exist: %v", path, err)
+		}
+	}
+}
+
+func TestCompileCommandWithoutAnArgumentShowsUsage(t *testing.T) {
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeCompile("")
+	if !strings.Contains(out.String(), "uso:") {
+		t.Fatalf("executeCompile(\"\") output missing usage hint; got: %s", out.String())
+	}
+}
+
+func TestCompileCommandReportsErrorForMissingFile(t *testing.T) {
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeCompile(filepath.Join(t.TempDir(), "nope.dmx"))
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeCompile(missing file) output missing error; got: %s", out.String())
 	}
 }
