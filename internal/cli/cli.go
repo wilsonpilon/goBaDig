@@ -61,6 +61,7 @@ func HelpText() string {
 USO:
     goBaDig [opcao]
     goBaDig <arquivo.dmx>
+    goBaDig --execute <arquivo.dmx>
 
 OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --help         mostra esta ajuda e sai
@@ -71,7 +72,11 @@ OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --cli          abre o modo console: um prompt interativo que fica
                    aguardando comandos, como "theme dracula",
                    "set INITIAL_LINE 10", "settings", "compile
-                   programa.dmx" e "help"
+                   programa.dmx", "execute programa.dmx" e "help"
+    --execute      compila, gera um disco .dsk de teste (o programa
+                   compilado como AUTOEXEC.BAS, pra rodar sozinho sem
+                   precisar digitar nada) e abre no openMSX (precisa
+                   estar no PATH)
 
 Passar um arquivo MSX Dignified (<arquivo.dmx>) direto, sem nenhuma
 opcao, converte ele: gera <arquivo.amx> (listagem Classic numerada) e
@@ -93,11 +98,19 @@ func Banner() string {
 		version.Version, version.Block, version.Feature)
 }
 
-// Run handles the non-interactive modes (help/man/banner/compile),
-// printing to stdout and reporting the exit code. It returns
-// handled=false when the caller (main) still needs to launch an
-// interactive mode (TUI/GUI).
+// Run handles the non-interactive modes (help/man/banner/compile/
+// execute), printing to stdout and reporting the exit code. It
+// returns handled=false when the caller (main) still needs to
+// launch an interactive mode (TUI/GUI).
 func Run(args []string) (handled bool, exitCode int) {
+	// --execute is checked before Parse even runs: unlike a bare
+	// positional file (compileFileArg, below, matched only once
+	// Parse has found no other flag), --execute needs its own
+	// explicit flag plus the filename right after it, which Parse's
+	// own single-token flag matching has no way to carry.
+	if path, ok := executeFileArg(args); ok {
+		return true, runExecute(path)
+	}
 	switch Parse(args) {
 	case ModeHelp:
 		// A bare positional file ("goBaDig programa.dmx") falls into
@@ -161,5 +174,40 @@ func runCompile(path string) int {
 		return 1
 	}
 	fmt.Fprintf(os.Stdout, "Convertido: %s\n  -> %s\n  -> %s\n", path, amxPath, bmxPath)
+	return 0
+}
+
+// executeFileArg finds the filename argument right after an
+// "--execute"/"-execute" flag, if present.
+func executeFileArg(args []string) (string, bool) {
+	for i, a := range args {
+		if a == "--execute" || a == "-execute" {
+			if i+1 < len(args) {
+				return args[i+1], true
+			}
+			return "", false
+		}
+	}
+	return "", false
+}
+
+// runExecute implements `goBaDig --execute <arquivo.dmx>` - the
+// user's own "edit/badig/execute" workflow vocabulary: compile,
+// package the result as a bootable test disk (msx.BuildTestDisk,
+// AUTOEXEC.BAS so it runs with no typing needed) and open it in a
+// real emulator (msx.RunInEmulator) so the user can try the program
+// right away, same as goBaDig's own earlier "compilar" step already
+// does for just the .amx/.bmx files.
+func runExecute(path string) int {
+	diskPath, err := msx.BuildTestDisk(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
+		return 1
+	}
+	if err := msx.RunInEmulator(diskPath); err != nil {
+		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(os.Stdout, "Disco gerado: %s\nAbrindo no emulador...\n", diskPath)
 	return 0
 }

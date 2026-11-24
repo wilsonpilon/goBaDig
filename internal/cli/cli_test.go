@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -123,5 +124,55 @@ func TestRunPrefersAnExplicitModeFlagOverABareFileArgument(t *testing.T) {
 	handled, _ := Run([]string{"--tui", "programa.dmx"})
 	if handled {
 		t.Fatalf(`Run(["--tui", "programa.dmx"]): expected handled=false (the --tui flag must win, not trigger a compile)`)
+	}
+}
+
+func TestExecuteFileArg(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+		ok   bool
+	}{
+		{"flag with file", []string{"--execute", "programa.dmx"}, "programa.dmx", true},
+		{"short flag", []string{"-execute", "programa.dmx"}, "programa.dmx", true},
+		{"flag without a following file", []string{"--execute"}, "", false},
+		{"no flag at all", []string{"programa.dmx"}, "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, ok := executeFileArg(c.args)
+			if ok != c.ok || got != c.want {
+				t.Fatalf("executeFileArg(%v) = (%q, %v), want (%q, %v)", c.args, got, ok, c.want, c.ok)
+			}
+		})
+	}
+}
+
+// TestRunExecuteBuildsTheDiskEvenWhenTheEmulatorIsMissing mirrors
+// console_test.go's own equivalent test for the --cli entry point -
+// points PATH at an empty directory so this never actually launches
+// a real emulator window, while still confirming the real
+// msx.BuildTestDisk step ran (the disk exists) and the emulator's
+// own failure is reported with a non-zero exit code.
+func TestRunExecuteBuildsTheDiskEvenWhenTheEmulatorIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dmxPath := filepath.Join(dir, "programa.dmx")
+	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handled, code := Run([]string{"--execute", dmxPath})
+	if !handled {
+		t.Fatalf("Run(--execute %s): expected handled=true", dmxPath)
+	}
+	if code == 0 {
+		t.Fatalf("Run(--execute %s) with no emulator on PATH: expected a non-zero exit code", dmxPath)
+	}
+	diskPath := strings.TrimSuffix(dmxPath, ".dmx") + ".dsk"
+	if _, err := os.Stat(diskPath); err != nil {
+		t.Fatalf("expected the disk to still have been built at %s: %v", diskPath, err)
 	}
 }

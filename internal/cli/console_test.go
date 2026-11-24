@@ -61,6 +61,7 @@ func TestCompleteLine(t *testing.T) {
 		{input: "dia", want: "dialect ", count: 1},
 		{input: "dialect ms", want: "dialect msx ", count: 1},
 		{input: "com", want: "compile ", count: 1},
+		{input: "exe", want: "execute ", count: 1},
 	}
 	for _, test := range cases {
 		got, candidates := completeLine(test.input)
@@ -303,5 +304,54 @@ func TestCompileCommandReportsErrorForMissingFile(t *testing.T) {
 	state.executeCompile(filepath.Join(t.TempDir(), "nope.dmx"))
 	if !strings.Contains(out.String(), "erro") {
 		t.Fatalf("executeCompile(missing file) output missing error; got: %s", out.String())
+	}
+}
+
+// TestExecuteCommandBuildsTheDiskEvenWhenTheEmulatorIsMissing points
+// PATH at an empty directory so openmsx can never be found - this
+// still exercises the real msx.BuildTestDisk step (which doesn't
+// touch PATH at all) without this test launching an actual emulator
+// window every time the suite runs. Confirms the disk gets built
+// (and stays on disk) even though the emulator-launch step fails,
+// and that the failure is reported through the console the same way
+// every other error here is.
+func TestExecuteCommandBuildsTheDiskEvenWhenTheEmulatorIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dmxPath := filepath.Join(dir, "programa.dmx")
+	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute(dmxPath)
+
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeExecute with no emulator on PATH: want an error reported, got: %s", out.String())
+	}
+	diskPath := strings.TrimSuffix(dmxPath, ".dmx") + ".dsk"
+	if _, err := os.Stat(diskPath); err != nil {
+		t.Fatalf("expected the disk to still have been built at %s: %v", diskPath, err)
+	}
+}
+
+func TestExecuteCommandWithoutAnArgumentShowsUsage(t *testing.T) {
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute("")
+	if !strings.Contains(out.String(), "uso:") {
+		t.Fatalf("executeExecute(\"\") output missing usage hint; got: %s", out.String())
+	}
+}
+
+func TestExecuteCommandReportsErrorForMissingFile(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute(filepath.Join(t.TempDir(), "nope.dmx"))
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeExecute(missing file) output missing error; got: %s", out.String())
 	}
 }

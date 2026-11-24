@@ -164,6 +164,8 @@ func (s *consoleState) execute(line string) bool {
 		s.executeSettings()
 	case "compile":
 		s.executeCompile(argument)
+	case "execute":
+		s.executeExecute(argument)
 	default:
 		fmt.Fprintf(s.out, "comando desconhecido: %q (digite \"help\")\n", line)
 	}
@@ -356,6 +358,28 @@ func (s *consoleState) executeCompile(path string) {
 		return
 	}
 	fmt.Fprintf(s.out, "Convertido: %s\n  -> %s\n  -> %s\n", path, amxPath, bmxPath)
+}
+
+// executeExecute implements the console's own "execute <arquivo.dmx>"
+// - the user's own "edit/badig/execute" workflow vocabulary: compile,
+// build a bootable test disk (AUTOEXEC.BAS, no typing needed) and
+// open it in a real emulator. Counterpart to cli.go's own runExecute
+// (--execute), both wrapping msx.BuildTestDisk/msx.RunInEmulator.
+func (s *consoleState) executeExecute(path string) {
+	if path == "" {
+		fmt.Fprintln(s.out, "uso: execute <arquivo.dmx>")
+		return
+	}
+	diskPath, err := msx.BuildTestDisk(path)
+	if err != nil {
+		fmt.Fprintf(s.out, "erro: %v\n", err)
+		return
+	}
+	if err := msx.RunInEmulator(diskPath); err != nil {
+		fmt.Fprintf(s.out, "erro: %v\n", err)
+		return
+	}
+	fmt.Fprintf(s.out, "Disco gerado: %s\nAbrindo no emulador...\n", diskPath)
 }
 
 func ansiColor(colorHex string, background bool) string {
