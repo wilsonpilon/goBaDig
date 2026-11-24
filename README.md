@@ -4,22 +4,22 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.26.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.27.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
-> editor de texto completo integrado — WibEdit), mas o **motor de
-> conversão** (`internal/core` + `internal/platforms/msx`) é a peça
-> em desenvolvimento ativo agora: já lê um programa MSX Basic
-> Dignified real (macros `DEFINE`, funções `FUNC`/`RET`, alias manual
-> de variável `DECLARE`, compilação condicional `KEEP`, `INCLUDE`,
-> comentários `##`/bloco de 3 cerquilhas/duas aspas simples, fusão de
-> linha pelos separadores `_` e `:`, cabeçalho REM automático,
-> expansão de TAB, atalho `_CALL` do MSX) e já tokeniza o resultado
-> em binário `.bmx` de verdade (`msx.CompileToBinary`, ligado ao
-> tokenizer MSX Batoken) — **validado 100% de ponta a ponta, byte a
-> byte, contra um programa MSX real completo (891 linhas) tokenizado
-> pelo `badig.py` original rodando em Python, sem nenhuma diferença
-> restante**. Ainda não está ligado a nenhuma interface (CLI/TUI/
-> GUI). Ver [`OUTLINE.md`](OUTLINE.md) para o
+> editor de texto completo integrado — WibEdit), e o **motor de
+> conversão MSX** (`internal/core` + `internal/platforms/msx`) já
+> tem um **comando real de verdade**: `goBaDig <arquivo.dmx>` no CLI
+> (ou `compile <arquivo.dmx>` no console `--cli`) lê um programa MSX
+> Basic Dignified real (macros `DEFINE`, funções `FUNC`/`RET`, alias
+> manual de variável `DECLARE`, compilação condicional `KEEP`,
+> `INCLUDE`, comentários, fusão de linha, cabeçalho REM automático,
+> expansão de TAB, atalho `_CALL` do MSX) e gera `.amx` (listagem
+> Classic numerada) e `.bmx` (binário tokenizado) — **validado 100%
+> de ponta a ponta, byte a byte nos dois arquivos, contra um programa
+> MSX real completo (891 linhas) convertido pelo `badig.py` original
+> rodando em Python, sem nenhuma diferença restante**. TUI e GUI
+> ainda não chamam esse comando; ZX81/ZX Spectrum ainda não têm motor
+> de conversão próprio. Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.

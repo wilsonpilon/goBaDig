@@ -114,8 +114,17 @@ três interfaces chama essa função ainda; ver seção 6). **`v1.21.0`**
 começa o painel de configuração: `internal/options` cataloga as ~40
 opções que o `badig.py` original expõe (numeração de linha, cabeçalho
 REM, TAB, tokenizer, emulador — por dialeto) e `internal/config`
-ganha o schema SQLite que as persiste — ainda sem comando `SET` no
-CLI nem painel na TUI/GUI (próximas etapas).
+ganha o schema SQLite que as persiste; nas releases seguintes esse
+painel ganhou comandos `SET`/`SETTINGS`/`DIALECT` no CLI (`v1.22.0`)
+e os mesmos 4 painéis na TUI (`v1.23.0`) e na GUI (`v1.24.0`); a
+`v1.25.0` corrigiu um bug de cor no menu suspenso da TUI; a `v1.26.0`
+portou a biblioteca `.DSK` (MSX-DOS/FAT12,
+`internal/platforms/msx/dsk`) usada pelo futuro gerenciador de
+arquivos. **`v1.27.0`** finalmente liga tudo isso a um comando real
+pro usuário: `goBaDig <arquivo.dmx>` no CLI (ou `compile
+<arquivo.dmx>` no console `--cli`) converte um arquivo MSX Dignified
+de verdade, gerando `.amx` e `.bmx` — ver seção 6 pro detalhamento.
+TUI e GUI ainda não chamam esse comando.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -220,16 +229,19 @@ TUI (desde a `v1.24.0`): **Basic Dignified**, **MSX**, **ZX81** e
 categoria (checkbox/lista suspensa/campo de texto conforme o tipo),
 valores atuais já preenchidos, botões `Apply`/`Cancel`. Diferente da
 TUI, campos numéricos validam em tempo real: `Apply` fica desabilitado
-enquanto o valor estiver fora do intervalo permitido. Nenhuma
-conversão de BASIC acontece ainda em nenhuma das duas interfaces, e
+enquanto o valor estiver fora do intervalo permitido. A conversão de
+BASIC já existe de verdade no CLI (`goBaDig <arquivo.dmx>`/`compile
+<arquivo.dmx>` no console, ver seção 6), mas ainda não em nenhuma das
+duas interfaces gráficas — TUI e GUI ainda não chamam esse comando, e
 nenhum valor configurado nos painéis (CLI, TUI ou GUI) ainda é lido
-por um comando de conversão real. O argumento `<arquivo> -id msx`
-(conversão de fato) chega junto com os Blocos 1-4 do `OUTLINE.md`.
+por ele (usa sempre os defaults do `badig.py` original).
 
 ## 6. Converter um programa Dignified
 
-**(pendente — depende dos Blocos 1 a 4 do `OUTLINE.md`)**. A partir da
-`v1.3.0` existe um primeiro núcleo do motor em Go (`internal/core`), a
+**Funciona de verdade pro MSX desde a `v1.27.0`, só pelo CLI** (TUI/
+GUI ainda não chamam esse comando — ver seção 5). Histórico de como
+o motor chegou até aqui: a partir da `v1.3.0` existe um primeiro
+núcleo do motor em Go (`internal/core`), a
 partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
 converte texto Classic ASCII numerado em binário `.bmx`, e a partir da
 `v1.5.0` o `Description`/`Lexer` MSX já classificam texto Dignified
@@ -267,8 +279,37 @@ Dignified→Classic fechado —, e a partir da `v1.20.0` o resultado já
 é tokenizado de verdade (`msx.CompileToBinary`, ligando ao tokenizer
 MSX Batoken pronto desde a `v1.4.0`): o `CGK173.dmx` inteiro
 compilado direto pra `.bmx` binário bate byte a byte contra o `.bmx`
-real do `badig.py`. Nada disso é utilizável pelo usuário final ainda
-(nenhuma interface chama essa função).
+real do `badig.py`.
+
+### Uso
+
+```console
+goBaDig programa.dmx
+```
+
+Sem nenhuma opção antes do nome do arquivo, converte: gera
+`programa.amx` (listagem Classic numerada, mesma convenção de fim de
+linha do `badig.py` original) e `programa.bmx` (binário tokenizado),
+os dois no mesmo diretório de `programa.dmx`. No console (`--cli`),
+o mesmo comando é `compile programa.dmx`. Os dois caminhos chamam a
+mesma função (`msx.CompileFile`), que já usa os mesmos defaults do
+`badig.py` original (numeração a partir de 10, passo 10, cabeçalho
+REM de 2 linhas, TAB expandido em 4 colunas) — ainda não há nenhuma
+flag pra mudar isso a partir da linha de comando (as opções
+persistidas pelos painéis de configuração — seção 5 — ainda não são
+lidas por este comando).
+
+Erro de conversão (arquivo não encontrado, sintaxe Dignified
+inválida, etc.) imprime a mensagem na saída de erro e sai com código
+diferente de zero (CLI) ou mostra a mensagem no próprio console
+(`--cli`) — nenhum arquivo parcial é deixado pela metade nesse caso.
+
+Só MSX por enquanto (ZX81/ZX Spectrum ainda não têm
+`Description`/`Lexer`/`Parser` próprio implementado). TUI e GUI ainda
+não têm esse comando — é a próxima etapa natural, junto com a visão
+maior já discutida (copiar o resultado pra uma pasta, gerar um
+`.DSK` com ele dentro — `internal/platforms/msx/dsk`, ver seção
+acima — e abrir num emulador de verdade pra testar).
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

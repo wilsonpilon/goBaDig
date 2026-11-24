@@ -5,8 +5,8 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-23.
-Estado: **v1.26.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
+Estado: **v1.27.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -20,10 +20,14 @@ assim que o menu `Setup` passou a ter itens de verdade de sobra pra
 revelar o problema), e a biblioteca `.DSK` (MSX-DOS/FAT12) portada de
 `E:\msxdiskutil` (referência real do usuário em PureBasic) pro Go —
 `internal/platforms/msx/dsk`, Etapa 1 do futuro gerenciador de
-arquivos de dois painéis (ver Bloco 1 abaixo — navegação/UI ainda não
-começaram)** — histórico completo de cada um desses itens em
-`CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
-aqui.
+arquivos de dois painéis, e o comando `compilar` de verdade
+(`goBaDig <arquivo.dmx>` no CLI, `compile <arquivo.dmx>` no console
+`--cli`) — a primeira conversão Dignified→binário disponível pro
+USUÁRIO FINAL, não só testada internamente, validada byte a byte nos
+dois arquivos de saída contra o `CGK173.dmx` inteiro (ver Bloco 1
+abaixo — TUI/GUI ainda não chamam esse comando)** — histórico
+completo de cada um desses itens em `CHANGELOG.md` e nos Blocos
+correspondentes abaixo, não repetido aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -2147,6 +2151,77 @@ de dois painéis na TUI, só leitura, local + abrir um `.DSK` num
 painel); Etapa 3 (operações de arquivo pela UI — adicionar/extrair/
 apagar/criar disco, o uso "principal" pedido); Etapa 4 (operações
 local↔local completas, baixa prioridade); GUI equivalente.
+
+**Comando `compilar` de verdade implementado** (2026-11-24,
+`internal/platforms/msx/compile.go` + `internal/cli/cli.go` +
+`internal/cli/console.go`) — a primeira conversão Dignified→binário
+de verdade disponível pro USUÁRIO FINAL (não só testada
+internamente). Usuário perguntou se já era hora de implementar o
+"compilar" (preprocessar: pegar um `.dmx`, gerar `.amx`+`.bmx`),
+citando a visão maior de depois copiar pra uma pasta, gerar um disco
+`.DSK` com o resultado, e testar num emulador de verdade. Respondi
+(pergunta exploratória, recomendação curta): sim, boa hora -
+`core.Run`, `msx.CompileToBinary` e a biblioteca `dsk` já estavam
+todos prontos e validados, esse passo era puramente orquestração, não
+lógica de motor nova. Usuário escolheu seguir.
+
+Implementado: `msx.DefaultCompileSettings()` (os defaults reais do
+`badig.py` - `LineStart`/`LineStep=10`, `RemHeader=true`,
+`TabLength=4` - resolvendo de vez a decisão deliberada, documentada
+desde a rodada do cabeçalho REM, de manter o zero-value do Go
+diferente do default Python só até existir um chamador real pra
+decidir; agora existe). `msx.CompileFile(dmxPath, settings)` -
+`settings=nil` usa os defaults - carrega o arquivo
+(`core.LoadLines`), monta o `CompileContext`/`Platform` MSX na mão,
+roda `core.Run`, tokeniza (`Tokenize`), escreve `<base>.amx` (texto,
+CRLF - confirmado que é exatamente o que o `badig.py` real escreve
+no Windows: `generate()` usa só `\n` por linha,
+`support/helper.py`'s `IO.load_file`/`save_file` abre em modo texto
+do Python, que traduz pra `\r\n` no Windows) e `<base>.bmx` (binário)
+ao lado do arquivo de entrada.
+
+CLI: `goBaDig <arquivo.dmx>` (sem opção nenhuma) agora compila -
+mesma convenção do `badig.py` original (`badig.py <input>
+[output]`, sem precisar de verbo/subcomando). `cli.Run`'s dispatch
+intercepta isso dentro do próprio `case ModeHelp` (onde um argumento
+posicional sem flag reconhecida já cai hoje) via
+`compileFileArg(args)` (exatamente 1 argumento que não começa com
+"-"), SEM mudar `Parse`/seu enum `Mode` nem quebrar nenhum teste
+existente - uma flag explícita (`--tui` etc.) sempre ganha, porque
+`Parse` já teria retornado outro `Mode` antes disso ser alcançado.
+Console (`--cli`) ganhou o comando irmão `compile <arquivo.dmx>`
+(`executeCompile`), chamando a mesma `msx.CompileFile`.
+
+**Validação de ponta a ponta contra o `CGK173.dmx` inteiro através do
+NOVO ponto de entrada** (não só a lógica interna já testada): copiei
+o arquivo real pra um diretório temporário, rodei `CompileFile` nele,
+e comparei os DOIS arquivos resultantes byte a byte contra as
+referências reais já validadas em rodadas anteriores
+(`D:\temp\user\badig_test\CGK173.amx`, o `.amx` real do `badig.py`,
+confirmado CRLF; e `CGK173.bmx.reference` no scratchpad) - bateu
+EXATO nos dois, de primeira. Também testado manualmente pelos dois
+pontos de entrada de verdade (`go run ./cmd/goBaDig arquivo.dmx` e
+`compile arquivo.dmx` dentro do console `--cli`), incluindo um
+programa com `DEFINE` de verdade.
+
+9 testes automatizados novos (`msx.CompileFile` escreve os dois
+arquivos com o conteúdo certo incluindo o cabeçalho REM; erro claro
+pra arquivo de origem inexistente; `compileFileArg` cobre
+nenhum/um/dois argumentos e um argumento com flag; `cli.Run` compila
+de verdade um argumento posicional, cria os arquivos de verdade,
+reporta erro pra arquivo inexistente, e uma flag explícita como
+`--tui` sempre ganha de um argumento posicional; o comando `compile`
+do console escreve os arquivos, mostra uso sem argumento, mostra erro
+pra arquivo inexistente; completar com Tab reconhece `compile`).
+
+**Fora de escopo, documentado**: nenhuma flag de linha de comando
+ainda lê/aplica as opções persistidas pelos painéis de configuração
+(usa sempre `DefaultCompileSettings`); nenhum caminho de saída
+customizável (sempre ao lado do arquivo de entrada, mesmo nome base);
+seleção de dialeto por extensão/flag `-id` (só MSX existe); TUI/GUI
+ainda não chamam esse comando; a visão maior (copiar pra pasta, gerar
+disco `.DSK`, testar no emulador) fica pra uma rodada futura,
+construindo sobre a biblioteca `dsk` já pronta.
 
 ### Bloco 2 — Módulo MSX
 

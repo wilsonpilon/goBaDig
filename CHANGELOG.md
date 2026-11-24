@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.27.0] — 2026-11-24 — bloco **NEW**, feature **compile-command** (build 0)
+
+**Comando `compilar` de verdade** — a primeira conversão
+Dignified→binário disponível pro usuário final (não só testada
+internamente): `goBaDig <arquivo.dmx>` no CLI, `compile
+<arquivo.dmx>` no console `--cli`.
+
+### Adicionado
+
+- `msx.CompileFile(dmxPath, settings)`: converte um `.dmx` de
+  verdade, escrevendo `<base>.amx` (listagem Classic, CRLF — mesma
+  convenção do `badig.py` real no Windows) e `<base>.bmx` (binário
+  tokenizado) ao lado do arquivo de entrada.
+- `msx.DefaultCompileSettings()`: os defaults reais do `badig.py`
+  (`LineStart`/`LineStep=10`, `RemHeader=true`, `TabLength=4`).
+- `goBaDig <arquivo.dmx>` (CLI, sem nenhuma opção) e `compile
+  <arquivo.dmx>` (console) chamam os dois.
+- Validado byte a byte, nos dois arquivos de saída, contra o
+  `CGK173.dmx` inteiro (891 linhas) convertido pelo `badig.py` real.
+- 9 testes novos.
+
+### O que não mudou / ainda falta
+
+Nenhuma flag ainda lê as opções persistidas pelos painéis de
+configuração (usa sempre os defaults); nenhum caminho de saída
+customizável; TUI/GUI ainda não chamam esse comando; a visão maior
+(copiar pra pasta, gerar disco `.DSK`, testar num emulador) fica
+pra uma rodada futura.
+
 ## [1.26.0] — 2026-11-23 — bloco **NEW**, feature **dsk-library** (build 0)
 
 **Biblioteca `.DSK` (MSX-DOS/FAT12) portada** — Etapa 1 do
