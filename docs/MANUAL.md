@@ -132,8 +132,10 @@ detalhamento. TUI e GUI ainda não chamam nenhum desses comandos.
 **`v1.29.0`** começa o módulo **ZX81**: só o tokenizer por enquanto
 (`internal/platforms/zx81`, texto Classic ASCII já numerado →
 imagem `.p` completa) — nenhum arquivo `.dzx` ZX81 compila ainda
-(falta o Description/Lexer/Parser do dialeto), sem nenhum comando
-novo pro usuário nesta release.
+(falta o Description/Lexer/Parser do dialeto). **`v1.30.0`** porta o
+`Description`/`Lexer` do dialeto (vocabulário clássico, 1 letra de
+variável, escape hex `\{XX}`) — ainda falta o `Parser`, nenhum
+comando novo pro usuário em nenhuma das duas releases.
 
 ## 4. Compilar a partir do código-fonte
 

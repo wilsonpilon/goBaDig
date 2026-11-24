@@ -35,6 +35,35 @@ exata do pacote.
 
 ---
 
+## [1.30.0] — 2026-11-24 — bloco **NEW**, feature **zx81-lexer** (build 0)
+
+**Description + Lexer ZX81** (Bloco 3, Etapa 2 de 5) —
+`internal/platforms/zx81` ganha o vocabulário clássico do dialeto
+(31 instruções, funções, operadores, símbolos) e o scanner que
+classifica texto ZX81 Dignified real. Ainda sem Parser — nenhum
+`.dzx` compila de ponta a ponta ainda.
+
+### Adicionado
+
+- `description.go`: `core.Description` completo pro ZX81 (1 letra de
+  variável, `CommentChar()="REM"`, etc.).
+- `lexer.go`: `core.Lexer` completo — palavras-chave, operadores,
+  símbolos (incluindo os compostos `<>`/`>=`/`<=`/`**`), escape hex
+  `\{XX}` com Kind próprio, string com `\"` e `""` coexistindo,
+  `REM`, `?` como atalho de `PRINT`.
+- 11 testes automatizados, incluindo 9 casos documentando um
+  comportamento real bem peculiar de número com sinal (confirmado
+  rodando o `badig.py` real com `-lex -prr`): um sinal só funde com
+  um número quando imediatamente seguido de um dígito puro — nunca
+  atravessa um ponto decimal nem um expoente.
+
+### Achado
+
+- O ZX81 real não tem o atalho `''` de bloco de comentário clássico
+  que o MSX tem — confirmado lendo o código-fonte das duas
+  plataformas; o mecanismo genérico do `core` já lida com isso sem
+  nenhum código extra.
+
 ## [1.29.0] — 2026-11-24 — bloco **NEW**, feature **zx81-tokenizer** (build 0)
 
 **Tokenizer ZX81** (Bloco 3, Etapa 1 de 5) — primeira peça do módulo

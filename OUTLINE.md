@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.29.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.30.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -30,13 +30,15 @@ no console) que fecha o ciclo completo: compila, gera um disco
 `.dsk` de teste (`AUTOEXEC.BAS`) e abre no openMSX de verdade —
 ciclo MSX completo: editar→compilar→testar num emulador real, tudo
 via CLI (ver Bloco 1 abaixo — TUI/GUI ainda não chamam nenhum desses
-comandos), e o **tokenizer ZX81** (`internal/platforms/zx81`, Bloco 3
-— Classic ASCII numerado→imagem `.p` completa, incluindo o ponto
-flutuante oculto do ZX81, confirmado byte a byte contra o Python real
-- ainda sem Description/Lexer/Parser ZX81, sem nenhum comando que
-chame ele ainda)** — histórico completo de cada um desses itens em
-`CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
-aqui.
+comandos), e o **módulo ZX81** (Bloco 3) começou: tokenizer (Classic
+ASCII numerado→imagem `.p` completa, incluindo o ponto flutuante
+oculto do ZX81) e agora **Description+Lexer** (vocabulário clássico,
+1 letra de variável, escape hex `\{XX}`, aspas duplicadas dentro de
+string, um achado empírico grande sobre número com sinal — ver Bloco
+3 abaixo), tudo confirmado contra o Python real — ainda sem Parser
+ZX81, nenhum `.dzx` compila de ponta a ponta ainda)** — histórico
+completo de cada um desses itens em `CHANGELOG.md` e nos Blocos
+correspondentes abaixo, não repetido aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -2578,7 +2580,65 @@ ainda não chamam nenhum desses comandos.
 ### Bloco 3 — Módulo ZX81
 
 - [ ] Portar `Description`/`Lexer`/`Parser` ZX81 (1 letra Z→A, `PRINT AT`,
-  LET implícito, renumeração com rejeição de salto computado, `remx`). — **M**, **1**
+  LET implícito, renumeração com rejeição de salto computado, `remx`). — **M**, **1** —
+  **Description+Lexer feitos em 2026-11-24**
+  (`internal/platforms/zx81/{description,lexer}.go`, v1.30.0); Parser
+  (alocação de 1 letra, `PRINT AT`, `LET` implícito, `remx` como
+  diretiva Dignified, renumeração de listagem numerada) ainda falta —
+  Etapa 3 do roteiro.
+
+  Vocabulário clássico (31 instruções, 3 funções `$`, 21 funções
+  planas, 4 jump keywords, 3 operadores, 18 símbolos incluindo os 4
+  compostos `<>`/`>=`/`<=`/`**` dentro do próprio `c_symbol`, mais 7
+  operadores compostos exclusivos do Dignified `c_e_symb`) portado
+  verbatim de `badig_zx81.py`, lido por completo (não só resumido)
+  nesta rodada. `CommentChar()` = `"REM"` (a PALAVRA, não um caractere
+  de pontuação como o `'` do MSX) — confirmado também, lendo
+  `badig_msx.py`/`badig_zx81.py` direto, que o ZX81 real **não tem**
+  o atalho `''` de bloco de comentário clássico que o MSX tem
+  (`c_o_brem` é uma entrada só do `classic_groups` do MSX, nunca
+  existiu no do ZX81) — o mecanismo genérico do `core`
+  (`CommentChar()+CommentChar()`) já lida com isso de graça (`"REMREM"`
+  nunca bate com texto real), sem precisar de nenhum código extra.
+
+  **Achado grande, confirmado empiricamente rodando o `badig.py` real
+  com `-lex -prr`** (não só lendo o regex): um sinal (`+`/`-`) no
+  início de um número só funde com um número de verdade quando
+  IMEDIATAMENTE seguido de um DÍGITO PURO — nunca atravessa um ponto
+  decimal nem um expoente, mesmo sem nenhum espaço no meio. `"y-5"` →
+  um token só `-5`; `"-5.5"` → DOIS tokens, `-5` e `.5` separados;
+  `"-.5"` → símbolo `-` sozinho, depois `.5`. Documentado com 9 casos
+  de teste (`TestSignedNumbersOnlyMergeWithAPlainDigitRun`), cada um
+  confirmado contra a saída real do Python antes de virar teste.
+  `c_numdec`'s próprio grupo de sinal opcional parecia, lendo só o
+  regex, que deveria se estender por decimal/expoente também — não é
+  o que acontece de verdade.
+
+  Escape hex `\{XX}` (Dignified-exclusivo, badig_zx81.py's
+  `Lexer.lexing` override) vira um Kind novo (`KindHexByte`) — token
+  próprio, igual ao Python (`C_HEXBYT`), não decodificado ainda (isso
+  já é trabalho do tokenizer, Etapa 1, pronto). String literal ZX81
+  precisou de scanner PRÓPRIO (reivindica `"` por completo, não usa o
+  fallback genérico do `core.Lex` como o MSX faz) — suporta `\"` E
+  `""` (aspas dobradas) como escape de aspas dentro da string, as
+  DUAS formas coexistindo (confirmado: `badig_zx81.py`'s
+  `Lexer.quoted_string` override faz exatamente isso).
+
+  Validação cruzada ad-hoc extra (não fixada como teste): uma linha
+  com `FOR`/`IF`/`AND`/`NOT`/`OR`/`THEN`/`PRINT`/variável `$`/`PEEK`
+  produziu a MESMA sequência de tokens (por valor) nos dois lados,
+  Go e Python real.
+
+  11 testes automatizados novos em `lexer_test.go` (teclado/operador/
+  símbolo básico; símbolo composto do Dignified antes do prefixo de 1
+  char; os 4 símbolos compostos do próprio `c_symbol` antes do
+  prefixo; `#`+letra recusado pro fallback compartilhado; `#` sozinho
+  ainda é símbolo; os 9 casos de sinal+número; número sem sinal mantém
+  forma decimal/expoente completa; escape hex como token próprio;
+  escape hex malformado é fatal; string com as duas formas de escape
+  de aspas; `REM` reivindica o resto da linha; `?` como atalho de
+  `PRINT`; jump keywords+funções; prefixo de palavra-chave não
+  engole um identificador mais longo).
 - [x] Portar tokenizer ZX81, incluindo ponto flutuante oculto (usar
   `test_tokenizer_zx81.py` como golden-master direto). — **M**, **1** —
   **feito em 2026-11-24** (`internal/platforms/zx81/tokenizer.go`,
