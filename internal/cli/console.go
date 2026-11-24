@@ -15,7 +15,6 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/options"
-	"github.com/wilsonpilon/goBaDig/internal/platforms/msx"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
@@ -343,43 +342,41 @@ func (s *consoleState) printOptions(category string) error {
 	return nil
 }
 
-// executeCompile implements the console's own "compile <arquivo.dmx>"
-// command - the interactive-mode counterpart to "goBaDig
-// <arquivo.dmx>" at the non-interactive command line (ver cli.go's
-// own runCompile), both wrapping the same msx.CompileFile.
+// executeCompile implements the console's own "compile
+// <arquivo.dmx|arquivo.dzx>" command - the interactive-mode
+// counterpart to "goBaDig <arquivo.dmx>" at the non-interactive
+// command line (ver cli.go's own runCompile), both wrapping the same
+// compileByExtension dispatch (dialect.go).
 func (s *consoleState) executeCompile(path string) {
 	if path == "" {
-		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx>")
+		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx|arquivo.dzx>")
 		return
 	}
-	amxPath, bmxPath, err := msx.CompileFile(path, nil)
+	classicPath, binaryPath, err := compileByExtension(path)
 	if err != nil {
 		fmt.Fprintf(s.out, "erro: %v\n", err)
 		return
 	}
-	fmt.Fprintf(s.out, "Convertido: %s\n  -> %s\n  -> %s\n", path, amxPath, bmxPath)
+	fmt.Fprintf(s.out, "Convertido: %s\n  -> %s\n  -> %s\n", path, classicPath, binaryPath)
 }
 
-// executeExecute implements the console's own "execute <arquivo.dmx>"
-// - the user's own "edit/badig/execute" workflow vocabulary: compile,
-// build a bootable test disk (AUTOEXEC.BAS, no typing needed) and
-// open it in a real emulator. Counterpart to cli.go's own runExecute
-// (--execute), both wrapping msx.BuildTestDisk/msx.RunInEmulator.
+// executeExecute implements the console's own "execute
+// <arquivo.dmx|arquivo.dzx>" - the user's own "edit/badig/execute"
+// workflow vocabulary: compile, build whatever ready-to-run artifact
+// its own dialect needs and open it in a real emulator. Counterpart
+// to cli.go's own runExecute (--execute), both wrapping
+// runInEmulatorByExtension (dialect.go).
 func (s *consoleState) executeExecute(path string) {
 	if path == "" {
-		fmt.Fprintln(s.out, "uso: execute <arquivo.dmx>")
+		fmt.Fprintln(s.out, "uso: execute <arquivo.dmx|arquivo.dzx>")
 		return
 	}
-	diskPath, err := msx.BuildTestDisk(path)
+	artifactPath, err := runInEmulatorByExtension(path)
 	if err != nil {
 		fmt.Fprintf(s.out, "erro: %v\n", err)
 		return
 	}
-	if err := msx.RunInEmulator(diskPath); err != nil {
-		fmt.Fprintf(s.out, "erro: %v\n", err)
-		return
-	}
-	fmt.Fprintf(s.out, "Disco gerado: %s\nAbrindo no emulador...\n", diskPath)
+	fmt.Fprintf(s.out, "Gerado: %s\nAbrindo no emulador...\n", artifactPath)
 }
 
 func ansiColor(colorHex string, background bool) string {

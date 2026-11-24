@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
-	"github.com/wilsonpilon/goBaDig/internal/platforms/msx"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
@@ -60,8 +59,8 @@ func HelpText() string {
 
 USO:
     goBaDig [opcao]
-    goBaDig <arquivo.dmx>
-    goBaDig --execute <arquivo.dmx>
+    goBaDig <arquivo.dmx|arquivo.dzx>
+    goBaDig --execute <arquivo.dmx|arquivo.dzx>
 
 OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --help         mostra esta ajuda e sai
@@ -72,17 +71,18 @@ OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --cli          abre o modo console: um prompt interativo que fica
                    aguardando comandos, como "theme dracula",
                    "set INITIAL_LINE 10", "settings", "compile
-                   programa.dmx", "execute programa.dmx" e "help"
-    --execute      compila, gera um disco .dsk de teste (o programa
-                   compilado como AUTOEXEC.BAS, pra rodar sozinho sem
-                   precisar digitar nada) e abre no openMSX (precisa
-                   estar no PATH)
+                   programa.dmx", "execute programa.dzx" e "help"
+    --execute      compila e abre num emulador real, pronto pra
+                   testar: MSX gera um disco .dsk de teste (o
+                   programa compilado como AUTOEXEC.BAS) e abre no
+                   openMSX; ZX81 gera o .p direto e abre no EightyOne
+                   (os dois emuladores precisam estar no PATH)
 
-Passar um arquivo MSX Dignified (<arquivo.dmx>) direto, sem nenhuma
-opcao, converte ele: gera <arquivo.amx> (listagem Classic numerada) e
-<arquivo.bmx> (binario tokenizado), no mesmo diretorio do arquivo de
-entrada. Ainda so MSX (ZX81/ZX Spectrum nao tem motor de conversao
-proprio implementado).
+Passar um arquivo Dignified (<arquivo.dmx> pro MSX, <arquivo.dzx> pro
+ZX81) direto, sem nenhuma opcao, converte ele: gera a listagem Classic
+numerada (<arquivo.amx>/<arquivo.azx>) e o binario tokenizado
+(<arquivo.bmx>/<arquivo.p>), no mesmo diretorio do arquivo de entrada.
+ZX Spectrum ainda nao tem motor de conversao proprio implementado.
 
 Sem opcoes, mostra um banner curto (nao entra no modo console).
 
@@ -158,22 +158,19 @@ func compileFileArg(args []string) (string, bool) {
 	return found, true
 }
 
-// runCompile implements `goBaDig <arquivo.dmx>`: the first real
-// "do something to a user's file" command in the project (every
-// piece it calls - msx.CompileFile, which wraps core.Run/Tokenize -
-// already existed and was validated on its own; this is just the
-// CLI entry point to it). MSX is hard-coded because it is the only
-// dialect with a real Description/Lexer/Parser today - selecting a
-// dialect by file extension or a `-id` flag (ver OUTLINE.md, "9
-// perguntas") is deferred until ZX81/ZX Spectrum exist to choose
-// between.
+// runCompile implements `goBaDig <arquivo.dmx>`/`goBaDig
+// <arquivo.dzx>`: the first real "do something to a user's file"
+// command in the project (every piece it calls - msx.CompileFile/
+// zx81.CompileFile, each wrapping its own core.Run/Tokenize - already
+// existed and was validated on its own; this is just the CLI entry
+// point to it, dispatching by extension - ver dialect.go).
 func runCompile(path string) int {
-	amxPath, bmxPath, err := msx.CompileFile(path, nil)
+	classicPath, binaryPath, err := compileByExtension(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(os.Stdout, "Convertido: %s\n  -> %s\n  -> %s\n", path, amxPath, bmxPath)
+	fmt.Fprintf(os.Stdout, "Convertido: %s\n  -> %s\n  -> %s\n", path, classicPath, binaryPath)
 	return 0
 }
 
@@ -191,23 +188,20 @@ func executeFileArg(args []string) (string, bool) {
 	return "", false
 }
 
-// runExecute implements `goBaDig --execute <arquivo.dmx>` - the
-// user's own "edit/badig/execute" workflow vocabulary: compile,
-// package the result as a bootable test disk (msx.BuildTestDisk,
-// AUTOEXEC.BAS so it runs with no typing needed) and open it in a
-// real emulator (msx.RunInEmulator) so the user can try the program
-// right away, same as goBaDig's own earlier "compilar" step already
-// does for just the .amx/.bmx files.
+// runExecute implements `goBaDig --execute <arquivo.dmx>`/`goBaDig
+// --execute <arquivo.dzx>` - the user's own "edit/badig/execute"
+// workflow vocabulary: compile, build whatever ready-to-run artifact
+// its own dialect needs (an MSX test disk with AUTOEXEC.BAS, or just
+// a ZX81 ".p" file directly - ver dialect.go) and open it in a real
+// emulator so the user can try the program right away, same as
+// goBaDig's own earlier "compilar" step already does for just the
+// text/binary output files.
 func runExecute(path string) int {
-	diskPath, err := msx.BuildTestDisk(path)
+	artifactPath, err := runInEmulatorByExtension(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
 		return 1
 	}
-	if err := msx.RunInEmulator(diskPath); err != nil {
-		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
-		return 1
-	}
-	fmt.Fprintf(os.Stdout, "Disco gerado: %s\nAbrindo no emulador...\n", diskPath)
+	fmt.Fprintf(os.Stdout, "Gerado: %s\nAbrindo no emulador...\n", artifactPath)
 	return 0
 }

@@ -176,3 +176,54 @@ func TestRunExecuteBuildsTheDiskEvenWhenTheEmulatorIsMissing(t *testing.T) {
 		t.Fatalf("expected the disk to still have been built at %s: %v", diskPath, err)
 	}
 }
+
+// TestRunCompilesABareZX81FileArgument mirrors
+// TestRunCompilesABareFileArgument for the ZX81 side of
+// compileByExtension's dispatch.
+func TestRunCompilesABareZX81FileArgument(t *testing.T) {
+	dir := t.TempDir()
+	dzxPath := filepath.Join(dir, "programa.dzx")
+	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handled, code := Run([]string{dzxPath})
+	if !handled {
+		t.Fatalf("Run(%v): expected handled=true", dzxPath)
+	}
+	if code != 0 {
+		t.Fatalf("Run(%v): expected exit code 0, got %d", dzxPath, code)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "programa.azx")); err != nil {
+		t.Fatalf("expected programa.azx to exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "programa.p")); err != nil {
+		t.Fatalf("expected programa.p to exist: %v", err)
+	}
+}
+
+// TestRunExecuteBuildsTheZX81FileEvenWhenTheEmulatorIsMissing mirrors
+// TestRunExecuteBuildsTheDiskEvenWhenTheEmulatorIsMissing for the
+// ZX81 side - there is no disk to build, just the ".p" file itself.
+func TestRunExecuteBuildsTheZX81FileEvenWhenTheEmulatorIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dzxPath := filepath.Join(dir, "programa.dzx")
+	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handled, code := Run([]string{"--execute", dzxPath})
+	if !handled {
+		t.Fatalf("Run(--execute %s): expected handled=true", dzxPath)
+	}
+	if code == 0 {
+		t.Fatalf("Run(--execute %s) with no emulator on PATH: expected a non-zero exit code", dzxPath)
+	}
+	pPath := strings.TrimSuffix(dzxPath, ".dzx") + ".p"
+	if _, err := os.Stat(pPath); err != nil {
+		t.Fatalf("expected the .p file to still have been built at %s: %v", pPath, err)
+	}
+}

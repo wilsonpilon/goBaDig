@@ -289,6 +289,31 @@ func TestCompileCommandWritesAmxAndBmxNextToTheSourceFile(t *testing.T) {
 	}
 }
 
+// TestCompileCommandWritesAzxAndPNextToTheSourceFile mirrors
+// TestCompileCommandWritesAmxAndBmxNextToTheSourceFile for the ZX81
+// side of compileByExtension's dispatch.
+func TestCompileCommandWritesAzxAndPNextToTheSourceFile(t *testing.T) {
+	dir := t.TempDir()
+	dzxPath := filepath.Join(dir, "programa.dzx")
+	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeCompile(dzxPath)
+
+	if !strings.Contains(out.String(), "Convertido") {
+		t.Fatalf("executeCompile(%s) output missing success confirmation; got: %s", dzxPath, out.String())
+	}
+	for _, ext := range []string{".azx", ".p"} {
+		path := strings.TrimSuffix(dzxPath, ".dzx") + ext
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %s to exist: %v", path, err)
+		}
+	}
+}
+
 func TestCompileCommandWithoutAnArgumentShowsUsage(t *testing.T) {
 	var out bytes.Buffer
 	state := &consoleState{out: &out}
@@ -334,6 +359,32 @@ func TestExecuteCommandBuildsTheDiskEvenWhenTheEmulatorIsMissing(t *testing.T) {
 	diskPath := strings.TrimSuffix(dmxPath, ".dmx") + ".dsk"
 	if _, err := os.Stat(diskPath); err != nil {
 		t.Fatalf("expected the disk to still have been built at %s: %v", diskPath, err)
+	}
+}
+
+// TestExecuteCommandBuildsTheZX81FileEvenWhenTheEmulatorIsMissing
+// mirrors TestExecuteCommandBuildsTheDiskEvenWhenTheEmulatorIsMissing
+// for the ZX81 side - there is no disk to build, just the ".p" file
+// itself, from the real zx81.CompileFile step.
+func TestExecuteCommandBuildsTheZX81FileEvenWhenTheEmulatorIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dzxPath := filepath.Join(dir, "programa.dzx")
+	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute(dzxPath)
+
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeExecute with no emulator on PATH: want an error reported, got: %s", out.String())
+	}
+	pPath := strings.TrimSuffix(dzxPath, ".dzx") + ".p"
+	if _, err := os.Stat(pPath); err != nil {
+		t.Fatalf("expected the .p file to still have been built at %s: %v", pPath, err)
 	}
 }
 
