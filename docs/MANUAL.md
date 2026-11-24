@@ -129,6 +129,11 @@ console) compila, empacota o resultado num disco `.dsk` de teste
 (`AUTOEXEC.BAS`, roda sozinho) e abre no openMSX — editar→compilar→
 testar num emulador real, tudo via CLI — ver seção 6 pro
 detalhamento. TUI e GUI ainda não chamam nenhum desses comandos.
+**`v1.29.0`** começa o módulo **ZX81**: só o tokenizer por enquanto
+(`internal/platforms/zx81`, texto Classic ASCII já numerado →
+imagem `.p` completa) — nenhum arquivo `.dzx` ZX81 compila ainda
+(falta o Description/Lexer/Parser do dialeto), sem nenhum comando
+novo pro usuário nesta release.
 
 ## 4. Compilar a partir do código-fonte
 

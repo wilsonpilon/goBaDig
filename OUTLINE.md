@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.28.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.29.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -30,7 +30,11 @@ no console) que fecha o ciclo completo: compila, gera um disco
 `.dsk` de teste (`AUTOEXEC.BAS`) e abre no openMSX de verdade —
 ciclo MSX completo: editar→compilar→testar num emulador real, tudo
 via CLI (ver Bloco 1 abaixo — TUI/GUI ainda não chamam nenhum desses
-comandos)** — histórico completo de cada um desses itens em
+comandos), e o **tokenizer ZX81** (`internal/platforms/zx81`, Bloco 3
+— Classic ASCII numerado→imagem `.p` completa, incluindo o ponto
+flutuante oculto do ZX81, confirmado byte a byte contra o Python real
+- ainda sem Description/Lexer/Parser ZX81, sem nenhum comando que
+chame ele ainda)** — histórico completo de cada um desses itens em
 `CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
 aqui.
 
@@ -2575,8 +2579,51 @@ ainda não chamam nenhum desses comandos.
 
 - [ ] Portar `Description`/`Lexer`/`Parser` ZX81 (1 letra Z→A, `PRINT AT`,
   LET implícito, renumeração com rejeição de salto computado, `remx`). — **M**, **1**
-- [ ] Portar tokenizer ZX81, incluindo ponto flutuante oculto (usar
-  `test_tokenizer_zx81.py` como golden-master direto). — **M**, **1**
+- [x] Portar tokenizer ZX81, incluindo ponto flutuante oculto (usar
+  `test_tokenizer_zx81.py` como golden-master direto). — **M**, **1** —
+  **feito em 2026-11-24** (`internal/platforms/zx81/tokenizer.go`,
+  v1.29.0). Ainda SEM Description/Lexer/Parser ZX81 (item acima) — este
+  tokenizer só converte texto Classic ASCII **já numerado** (o mesmo
+  formato intermediário que o `.AZX` do Python produziria) em imagem
+  `.p` completa; nada ainda chama ele a partir do CLI/console (precisa
+  do item de cima primeiro, pra ter de onde vir esse texto Classic a
+  partir de um `.dzx` real).
+
+  Confirmado byte a byte contra o `tokenize_lines` real do Python:
+  todos os vetores de ouro comitados (`docs/golden-vectors/
+  zx81-tokenizer.md`, extraídos de `test_tokenizer_zx81.py`) passam,
+  e os 27 testes do próprio `test_tokenizer_zx81.py` (classe
+  `TokenizerTests`) rodam limpos nesta máquina (`python -m unittest`).
+  Validação cruzada ad-hoc extra (6 linhas cobrindo `LET`/`FOR`/`STEP`/
+  `IF`/`<>`/`GOTO`/`REM`, não fixada como teste) produziu o MESMO
+  buffer de 784 bytes nos dois lados.
+
+  Achado de arquitetura confirmado durante a pesquisa (fork dedicado):
+  `internal/core/allocator.go` **já previa o esquema de 1 letra do
+  ZX81** antes mesmo deste port começar (comentário próprio citando
+  "ZX81 (everything 1 letter)") — o alocador descendente genérico
+  (`core.NewDescendingAllocator()`) vai servir sem nenhuma mudança
+  quando o item de cima (Parser) chegar, só com uma
+  `VariableCategory{AliasChars: "abcdefghijklmnopqrstuvwxyz",
+  AliasLen: 1}` nova.
+
+  `PRINT AT` (achado, documentado pro item de cima): no Python é um
+  `DEFINE` embutido (`[?](row,col)` → `print at row,col;`, mesmo
+  mecanismo do `[?](x,y)`→`locate x,y:?` do MSX), mas com uma
+  diferença que o `core.Parser`/`HookAction` de hoje não cobre ainda:
+  precisa "contrair" vários tokens de entrada (marcador + argumentos
+  brutos + marcador de fechamento) numa única decisão, pra tratar
+  coordenada ausente como `0` - o `BuiltinDefines`+`Pass1` de hoje só
+  sabe EXPANDIR um token em vários, não o inverso. Vai precisar de uma
+  evolução pequena e já no mesmo espírito de toda evolução anterior
+  desse contrato (ex.: `Replace` ganhou `[]Token` quando o Pass 5 do
+  MSX precisou expandir `x+=5`) — decisão de design adiada pro
+  momento de implementar esse item, não resolvida agora.
+
+  **EightyOne não está instalado nesta máquina** (nem `C:\zeddy\`, nem
+  PATH) — não bloqueia este item nem o próximo (Description/Lexer/
+  Parser), mas vai bloquear a validação real de "abrir `.p` no
+  emulador" quando chegar a hora (equivalente ao `execute` do MSX).
 - [ ] Gerar formato `.p` (imagem de memória completa, system vars +
   display file + programa). — **M**, **1**
 - [ ] Portar DignifieR ZX81. — **M**, **2**

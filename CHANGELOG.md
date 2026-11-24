@@ -35,6 +35,33 @@ exata do pacote.
 
 ---
 
+## [1.29.0] — 2026-11-24 — bloco **NEW**, feature **zx81-tokenizer** (build 0)
+
+**Tokenizer ZX81** (Bloco 3, Etapa 1 de 5) — primeira peça do módulo
+ZX81: `internal/platforms/zx81` converte texto Classic ASCII ZX81 já
+numerado numa imagem `.p` completa (system vars + programa + display
+file + variáveis), incluindo o "ponto flutuante oculto" que o ZX81
+esconde depois de cada número tokenizado. Ainda sem
+Description/Lexer/Parser ZX81 (nenhum `.dzx` Dignified ainda
+compila) — ver Etapas 2-5 no roteiro, `OUTLINE.md`, Bloco 3.
+
+### Adicionado
+
+- `zx81.Tokenize(lines []string) ([]byte, error)`.
+- `remx <linha>,<count>[,<byte>]` (diretiva de reserva de bytes crus
+  dentro de uma linha REM).
+- `docs/golden-vectors/zx81-tokenizer.md`.
+- 27 testes automatizados, portados dos vetores de ouro reais do
+  próprio `test_tokenizer_zx81.py` do projeto Python original.
+
+### Verificado
+
+- Os 27 testes do `test_tokenizer_zx81.py` real (`TokenizerTests`)
+  continuam passando nesta máquina.
+- Validação cruzada ad-hoc: `tokenize_lines` (Python) e
+  `zx81.Tokenize` (Go) produzem o mesmo buffer byte a byte pra uma
+  entrada nova, fora dos vetores já fixados.
+
 ## [1.28.0] — 2026-11-24 — bloco **NEW**, feature **execute-command** (build 0)
 
 **Comando `execute`** — fecha o ciclo MSX completo via CLI: editar →
