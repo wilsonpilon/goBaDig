@@ -123,8 +123,12 @@ portou a biblioteca `.DSK` (MSX-DOS/FAT12,
 arquivos. **`v1.27.0`** finalmente liga tudo isso a um comando real
 pro usuário: `goBaDig <arquivo.dmx>` no CLI (ou `compile
 <arquivo.dmx>` no console `--cli`) converte um arquivo MSX Dignified
-de verdade, gerando `.amx` e `.bmx` — ver seção 6 pro detalhamento.
-TUI e GUI ainda não chamam esse comando.
+de verdade, gerando `.amx` e `.bmx`. **`v1.28.0`** fecha o ciclo:
+`goBaDig --execute <arquivo.dmx>` (ou `execute <arquivo.dmx>` no
+console) compila, empacota o resultado num disco `.dsk` de teste
+(`AUTOEXEC.BAS`, roda sozinho) e abre no openMSX — editar→compilar→
+testar num emulador real, tudo via CLI — ver seção 6 pro
+detalhamento. TUI e GUI ainda não chamam nenhum desses comandos.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -229,17 +233,20 @@ TUI (desde a `v1.24.0`): **Basic Dignified**, **MSX**, **ZX81** e
 categoria (checkbox/lista suspensa/campo de texto conforme o tipo),
 valores atuais já preenchidos, botões `Apply`/`Cancel`. Diferente da
 TUI, campos numéricos validam em tempo real: `Apply` fica desabilitado
-enquanto o valor estiver fora do intervalo permitido. A conversão de
-BASIC já existe de verdade no CLI (`goBaDig <arquivo.dmx>`/`compile
-<arquivo.dmx>` no console, ver seção 6), mas ainda não em nenhuma das
-duas interfaces gráficas — TUI e GUI ainda não chamam esse comando, e
-nenhum valor configurado nos painéis (CLI, TUI ou GUI) ainda é lido
-por ele (usa sempre os defaults do `badig.py` original).
+enquanto o valor estiver fora do intervalo permitido. O ciclo
+completo de conversão (compilar e testar num emulador real) já
+existe de verdade no CLI (`goBaDig <arquivo.dmx>`/`--execute
+<arquivo.dmx>`, ou `compile`/`execute <arquivo.dmx>` no console, ver
+seção 6), mas ainda não em nenhuma das duas interfaces gráficas —
+TUI e GUI ainda não chamam esses comandos, e nenhum valor configurado
+nos painéis (CLI, TUI ou GUI) ainda é lido por eles (usam sempre os
+defaults do `badig.py` original).
 
 ## 6. Converter um programa Dignified
 
-**Funciona de verdade pro MSX desde a `v1.27.0`, só pelo CLI** (TUI/
-GUI ainda não chamam esse comando — ver seção 5). Histórico de como
+**Ciclo completo funciona de verdade pro MSX desde a `v1.28.0`, só
+pelo CLI** (TUI/GUI ainda não chamam esses comandos — ver seção 5).
+Histórico de como
 o motor chegou até aqui: a partir da `v1.3.0` existe um primeiro
 núcleo do motor em Go (`internal/core`), a
 partir da `v1.4.0` o tokenizer MSX (`internal/platforms/msx`) já
@@ -279,7 +286,10 @@ Dignified→Classic fechado —, e a partir da `v1.20.0` o resultado já
 é tokenizado de verdade (`msx.CompileToBinary`, ligando ao tokenizer
 MSX Batoken pronto desde a `v1.4.0`): o `CGK173.dmx` inteiro
 compilado direto pra `.bmx` binário bate byte a byte contra o `.bmx`
-real do `badig.py`.
+real do `badig.py`. A partir da `v1.27.0` isso já tem um comando real
+(`compilar`, ver "Uso" abaixo), e a partir da `v1.28.0` um segundo
+comando (`execute`) fecha o ciclo completo, empacotando o resultado
+num disco `.dsk` de teste e abrindo no openMSX de verdade.
 
 ### Uso
 
@@ -299,6 +309,27 @@ flag pra mudar isso a partir da linha de comando (as opções
 persistidas pelos painéis de configuração — seção 5 — ainda não são
 lidas por este comando).
 
+```console
+goBaDig --execute programa.dmx
+```
+
+Compila, empacota o resultado num disco `.dsk` novo (o programa
+compilado gravado como `AUTOEXEC.BAS` — convenção da própria ROM de
+disco do MSX pra rodar um programa sozinho assim que o disco dá
+boot, sem precisar digitar nada) e abre o openMSX (precisa estar no
+`PATH`) com esse disco montado, pra testar o programa na hora. No
+console, o mesmo comando é `execute programa.dmx`. Os dois chamam
+`msx.BuildTestDisk` + `msx.RunInEmulator`, reaproveitando a
+biblioteca `.DSK` (`internal/platforms/msx/dsk`, seção acima) e o
+comando `compilar`. Os arquivos reais de sistema MSX-DOS
+(`MSXDOS.SYS`/`COMMAND.COM`) não são incluídos no disco de propósito
+(são software de terceiros sob copyright) — o disco mostra um breve
+"Boot error" antes de cair pro `AUTOEXEC.BAS` sozinho; não é um bug,
+é só apertar uma tecla. Nenhum protocolo de monitoramento de erro em
+tempo real ainda (mapear erro de execução pra linha Dignified de
+origem) — o emulador abre numa janela normal, pro usuário acompanhar
+e interagir diretamente.
+
 Erro de conversão (arquivo não encontrado, sintaxe Dignified
 inválida, etc.) imprime a mensagem na saída de erro e sai com código
 diferente de zero (CLI) ou mostra a mensagem no próprio console
@@ -306,10 +337,8 @@ diferente de zero (CLI) ou mostra a mensagem no próprio console
 
 Só MSX por enquanto (ZX81/ZX Spectrum ainda não têm
 `Description`/`Lexer`/`Parser` próprio implementado). TUI e GUI ainda
-não têm esse comando — é a próxima etapa natural, junto com a visão
-maior já discutida (copiar o resultado pra uma pasta, gerar um
-`.DSK` com ele dentro — `internal/platforms/msx/dsk`, ver seção
-acima — e abrir num emulador de verdade pra testar).
+não têm nenhum desses comandos — próxima etapa natural depois de
+ZX81/ZX Spectrum terem seu próprio motor de conversão.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

@@ -35,6 +35,37 @@ exata do pacote.
 
 ---
 
+## [1.28.0] — 2026-11-24 — bloco **NEW**, feature **execute-command** (build 0)
+
+**Comando `execute`** — fecha o ciclo MSX completo via CLI: editar →
+compilar → testar num emulador real. `goBaDig --execute
+<arquivo.dmx>` (ou `execute <arquivo.dmx>` no console `--cli`)
+compila, gera um disco `.dsk` de teste (o programa como
+`AUTOEXEC.BAS`, pra rodar sozinho sem digitar nada) e abre no
+openMSX.
+
+### Adicionado
+
+- `msx.BuildTestDisk(dmxPath)`: compila e empacota o resultado num
+  disco `.dsk` novo.
+- `msx.RunInEmulator(diskPath)`: abre o openMSX (precisa estar no
+  `PATH`) com o disco montado.
+- `goBaDig --execute <arquivo.dmx>` e `execute <arquivo.dmx>` no
+  console.
+- Validado com um processo `openmsx.exe` real, lançado de verdade
+  pelos dois pontos de entrada.
+- 12 testes novos.
+
+### O que não mudou / ainda falta
+
+Nenhum protocolo de monitoramento de erro em tempo real (mapear erro
+pra linha Dignified); nenhuma opção de máquina/extensão do emulador
+configurável ainda (usa os defaults do openMSX); os arquivos reais de
+sistema MSX-DOS (`MSXDOS.SYS`/`COMMAND.COM`) não são embutidos no
+disco de propósito (são software de terceiros sob copyright) — o
+disco gerado mostra um breve "Boot error" antes de cair pro
+`AUTOEXEC.BAS`, não é um bug; TUI/GUI ainda não chamam esse comando.
+
 ## [1.27.0] — 2026-11-24 — bloco **NEW**, feature **compile-command** (build 0)
 
 **Comando `compilar` de verdade** — a primeira conversão

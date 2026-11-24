@@ -4,12 +4,11 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.27.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.28.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
-> editor de texto completo integrado — WibEdit), e o **motor de
-> conversão MSX** (`internal/core` + `internal/platforms/msx`) já
-> tem um **comando real de verdade**: `goBaDig <arquivo.dmx>` no CLI
-> (ou `compile <arquivo.dmx>` no console `--cli`) lê um programa MSX
+> editor de texto completo integrado — WibEdit), e o **ciclo MSX
+> completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou
+> `compile <arquivo.dmx>` no console `--cli`) lê um programa MSX
 > Basic Dignified real (macros `DEFINE`, funções `FUNC`/`RET`, alias
 > manual de variável `DECLARE`, compilação condicional `KEEP`,
 > `INCLUDE`, comentários, fusão de linha, cabeçalho REM automático,
@@ -17,9 +16,12 @@ para VSCode cobrindo os três dialetos.
 > Classic numerada) e `.bmx` (binário tokenizado) — **validado 100%
 > de ponta a ponta, byte a byte nos dois arquivos, contra um programa
 > MSX real completo (891 linhas) convertido pelo `badig.py` original
-> rodando em Python, sem nenhuma diferença restante**. TUI e GUI
-> ainda não chamam esse comando; ZX81/ZX Spectrum ainda não têm motor
-> de conversão próprio. Ver [`OUTLINE.md`](OUTLINE.md) para o
+> rodando em Python, sem nenhuma diferença restante** —, e `goBaDig
+> --execute <arquivo.dmx>` (ou `execute <arquivo.dmx>`) compila,
+> empacota o resultado num disco `.dsk` de teste e abre no openMSX de
+> verdade, pra testar na hora. TUI e GUI ainda não chamam nenhum
+> desses comandos; ZX81/ZX Spectrum ainda não têm motor de conversão
+> próprio. Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.

@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.27.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.28.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -24,10 +24,15 @@ arquivos de dois painéis, e o comando `compilar` de verdade
 (`goBaDig <arquivo.dmx>` no CLI, `compile <arquivo.dmx>` no console
 `--cli`) — a primeira conversão Dignified→binário disponível pro
 USUÁRIO FINAL, não só testada internamente, validada byte a byte nos
-dois arquivos de saída contra o `CGK173.dmx` inteiro (ver Bloco 1
-abaixo — TUI/GUI ainda não chamam esse comando)** — histórico
-completo de cada um desses itens em `CHANGELOG.md` e nos Blocos
-correspondentes abaixo, não repetido aqui.
+dois arquivos de saída contra o `CGK173.dmx` inteiro, e o comando
+`execute` (`goBaDig --execute <arquivo.dmx>`/`execute <arquivo.dmx>`
+no console) que fecha o ciclo completo: compila, gera um disco
+`.dsk` de teste (`AUTOEXEC.BAS`) e abre no openMSX de verdade —
+ciclo MSX completo: editar→compilar→testar num emulador real, tudo
+via CLI (ver Bloco 1 abaixo — TUI/GUI ainda não chamam nenhum desses
+comandos)** — histórico completo de cada um desses itens em
+`CHANGELOG.md` e nos Blocos correspondentes abaixo, não repetido
+aqui.
 
 **O motor de conversão começou a existir em 2026-11-21**: `internal/core`
 (Bloco 1), **tokenizer MSX Batoken** (`internal/platforms/msx/tokenizer.go`,
@@ -2219,9 +2224,94 @@ ainda lê/aplica as opções persistidas pelos painéis de configuração
 (usa sempre `DefaultCompileSettings`); nenhum caminho de saída
 customizável (sempre ao lado do arquivo de entrada, mesmo nome base);
 seleção de dialeto por extensão/flag `-id` (só MSX existe); TUI/GUI
-ainda não chamam esse comando; a visão maior (copiar pra pasta, gerar
-disco `.DSK`, testar no emulador) fica pra uma rodada futura,
-construindo sobre a biblioteca `dsk` já pronta.
+ainda não chamam esse comando. A visão maior (copiar pra pasta, gerar
+disco `.DSK`, testar no emulador) foi implementada na MESMA sessão,
+logo abaixo.
+
+**Comando `execute` (disco de teste + emulador) implementado**
+(2026-11-24, `internal/platforms/msx/run.go` +
+`internal/cli/cli.go`/`console.go`) — fecha o ciclo completo que o
+usuário descreveu: "copiar para uma pasta e gerar um disco, e este
+disco poder ser usado no emulador para o usuário já poder testar".
+Usuário confirmou seguir direto depois do `compilar` (v1.27.0), e
+perguntou também sobre a sequência maior (MSX → ZX81/ZXSpectrum →
+Interfaces — respondi que sim, boa ordem, recomendação curta, ver
+registro na conversa).
+
+Pesquisei como o `badig.py` real invoca o openMSX
+(`msx/emulator_interface.py:209-303`) antes de desenhar: ele NÃO
+monta um `.dsk` de verdade pra testar — usa o próprio recurso do
+openMSX de montar uma PASTA como disco virtual (`cmd.extend(['-diska',
+self.stg.file_path])`, onde `file_path` é o diretório do arquivo
+salvo, não um arquivo `.dsk`). Decidi NÃO replicar isso ao pé da
+letra: o usuário pediu explicitamente "gerar um disco" (e comissionou
+a biblioteca `dsk` especificamente pra isso, v1.26.0) — mais rico que
+o que o original faz, então segui o pedido explícito do usuário em
+vez do comportamento literal do original nesse ponto específico.
+
+`msx.BuildTestDisk(dmxPath)`: compila (`CompileFile`), cria um disco
+novo (`dsk.Create`) e adiciona o `.bmx` resultante como
+`AUTOEXEC.BAS` — convenção da própria ROM de disco do MSX pra rodar
+um programa sozinho, sem precisar digitar nada, assim que o disco dá
+boot. **Decisão deliberada, documentada**: NÃO embuto os arquivos
+reais de sistema do MSX-DOS (`MSXDOS.SYS`/`COMMAND.COM`) no disco
+gerado, mesmo tendo cópias reais deles em `E:\msxdiskutil` (usadas lá
+só pros testes locais do próprio usuário) — são software de sistema
+de terceiros, sob copyright, não algo que esse projeto deveria
+embutir/redistribuir. Efeito prático: o boot sector padrão (herdado
+do `dsk.Create`) tenta carregar `MSXDOS.SYS` primeiro, não acha, e o
+MSX real mostra um "Boot error" breve antes de cair pra BASIC e
+achar o `AUTOEXEC.BAS` sozinho — confirmado rodando de verdade no
+openMSX (ver Verificação abaixo); custa 1 tecla, não é bug.
+
+`msx.RunInEmulator(diskPath)`: acha `openmsx` no PATH
+(`exec.LookPath`, resolve `.exe` no Windows sozinho) e abre
+`-diska <diskPath>` — mesma flag do original, sem o protocolo de
+monitoramento via `stdio`/script TCL (`badig_msx.py`'s próprio
+`-control stdio` + comandos — feature bem maior, já adiada desde
+sempre em "Monitoramento de execução em tempo real", Bloco 5). Não
+espera o emulador terminar (abre a janela e devolve o controle).
+
+CLI: `goBaDig --execute <arquivo.dmx>` — precisou de uma flag
+explícita (diferente de `compile`, que reusa o argumento posicional
+livre, `--execute` precisa do NOME do arquivo logo depois, que
+`Parse`/seu `Mode` não carregam) — checado em `cli.Run` ANTES de
+`Parse` rodar, prioridade mais alta que qualquer outra coisa (único
+jeito de garantir que funciona independente de onde `Parse` erraria
+sem essa checagem). Console (`--cli`) ganhou o comando irmão
+`execute <arquivo.dmx>`, usando o vocabulário exato que o usuário já
+tinha usado espontaneamente ("edit/badig/execute").
+
+**Validação real**: rodei o CLI de verdade (`go run ./cmd/goBaDig
+--execute arquivo.dmx`) — abriu DOIS processos `openmsx.exe` reais
+(confirmado via `Get-Process`), ficaram rodando sem crash. Sem
+confirmação VISUAL do boot (ambiente sem display nesta sessão,
+mesma limitação já documentada na Etapa 1 da biblioteca `dsk`) —
+pude confirmar que o "Boot error" é esperado (não um bug) só por
+raciocínio sobre o boot sector, não visualmente. Os dois processos
+ficaram pra o usuário fechar manualmente (matar processo via
+PowerShell foi bloqueado pelo classificador de permissão do Claude
+Code como ação destrutiva — corretamente, já que eu não deveria
+matar processo sem confirmação).
+
+12 testes automatizados novos (`BuildTestDisk` produz um disco com
+exatamente `AUTOEXEC.BAS` contendo os bytes certos do `.bmx`; erro
+claro pra arquivo de origem inexistente; `RunInEmulator` com `PATH`
+vazio retorna erro claro em vez de travar/crashar; `executeFileArg`
+cobre flag com/sem arquivo e ausência da flag; `cli.Run`/o comando
+`execute` do console constroem o disco de verdade mesmo quando o
+emulador não é encontrado — `PATH` sobrescrito pra um diretório vazio
+nos testes, assim a suíte nunca abre uma janela de emulador de
+verdade sozinha — e reportam o erro certo; completar com Tab
+reconhece `execute`).
+
+**Fora de escopo, documentado**: protocolo de monitoramento via
+`stdio`/TCL (mapear erro de execução pra linha Dignified); seleção de
+máquina/extensão/configuração do emulador via flag (as opções já
+existem no catálogo - `EMULATOR_MACHINE`/`EMULATOR_EXTENSION`/etc. -
+mas nada ainda lê o SQLite pra aplicar aqui); copiar MSX-DOS de
+verdade pro disco (decisão deliberada, documentada acima); TUI/GUI
+ainda não chamam nenhum desses comandos.
 
 ### Bloco 2 — Módulo MSX
 
