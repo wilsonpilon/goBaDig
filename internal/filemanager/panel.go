@@ -125,10 +125,28 @@ func (p *panel) render() {
 		if !e.modTime.IsZero() {
 			date = e.modTime.Format("2006-01-02 15:04")
 		}
-		color := p.entryColor(e)
-		p.table.SetCell(row, 0, tview.NewTableCell(name).SetExpansion(1).SetTextColor(color))
-		p.table.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight).SetTextColor(color))
-		p.table.SetCell(row, 2, tview.NewTableCell(date).SetTextColor(color))
+		// SetStyle (both fg and bg in one call) - NOT just
+		// SetTextColor: tview.NewTableCell seeds cell.Style to a
+		// concrete, non-default value (Styles.PrimaryTextColor on
+		// Styles.PrimitiveBackgroundColor - tview's own global
+		// white-on-black), and SetTextColor only mutates that
+		// style's FOREGROUND component in place
+		// (table.go: `c.Style = c.Style.Foreground(color)` when
+		// c.Style != tcell.StyleDefault, which is always). The
+		// background component is left exactly as the constructor
+		// set it - tview's own hardcoded black - unless
+		// SetBackgroundColor is ALSO called. The actually-shipped
+		// v1.41.1 "fix" called only SetTextColor, so every row's
+		// text correctly picked up the active theme's color, but
+		// sat on a plain black box the theme never chose - "gray on
+		// gray" if that theme's foreground happens to be a muted
+		// color (confirmed directly: internal/filemanager/panel_test.go
+		// reads cell.Style's own fg/bg fields after render, not a
+		// rendered screen, to catch this precisely).
+		style := tcell.StyleDefault.Foreground(p.entryColor(e)).Background(p.colors.PanelBackground)
+		p.table.SetCell(row, 0, tview.NewTableCell(name).SetExpansion(1).SetStyle(style))
+		p.table.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight).SetStyle(style))
+		p.table.SetCell(row, 2, tview.NewTableCell(date).SetStyle(style))
 	}
 	if len(p.entries) > 0 {
 		p.table.Select(0, 0)
