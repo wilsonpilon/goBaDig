@@ -176,7 +176,7 @@ func TestEmulatorArg(t *testing.T) {
 }
 
 // TestRunExecuteHonorsAnExplicitEmulatorFlag confirms "--emulator"
-// actually reaches runInEmulatorByExtension end to end through Run()
+// actually reaches dialect.RunInEmulatorByExtension end to end through Run()
 // - PATH points at an empty directory, same no-real-emulator-window
 // pattern as every other test here, but ZEsarUX is a valid ZX81
 // backend (dialect.go's emulatorBackends), so this still exercises
@@ -279,7 +279,7 @@ func TestRunExecuteBuildsTheDiskEvenWhenTheEmulatorIsMissing(t *testing.T) {
 
 // TestRunCompilesABareZX81FileArgument mirrors
 // TestRunCompilesABareFileArgument for the ZX81 side of
-// compileByExtension's dispatch.
+// dialect.CompileByExtension's dispatch.
 func TestRunCompilesABareZX81FileArgument(t *testing.T) {
 	dir := t.TempDir()
 	dzxPath := filepath.Join(dir, "programa.dzx")
@@ -330,7 +330,7 @@ func TestRunExecuteBuildsTheZX81FileEvenWhenTheEmulatorIsMissing(t *testing.T) {
 
 // TestRunCompilesABareZXSpectrumFileArgument mirrors
 // TestRunCompilesABareFileArgument for the ZX Spectrum side of
-// compileByExtension's dispatch.
+// dialect.CompileByExtension's dispatch.
 func TestRunCompilesABareZXSpectrumFileArgument(t *testing.T) {
 	dir := t.TempDir()
 	dzsPath := filepath.Join(dir, "programa.dzs")

@@ -291,7 +291,7 @@ func TestCompileCommandWritesAmxAndBmxNextToTheSourceFile(t *testing.T) {
 
 // TestCompileCommandWritesAzxAndPNextToTheSourceFile mirrors
 // TestCompileCommandWritesAmxAndBmxNextToTheSourceFile for the ZX81
-// side of compileByExtension's dispatch.
+// side of dialect.CompileByExtension's dispatch.
 func TestCompileCommandWritesAzxAndPNextToTheSourceFile(t *testing.T) {
 	dir := t.TempDir()
 	dzxPath := filepath.Join(dir, "programa.dzx")
@@ -316,7 +316,7 @@ func TestCompileCommandWritesAzxAndPNextToTheSourceFile(t *testing.T) {
 
 // TestCompileCommandWritesAzsAndTapNextToTheSourceFile mirrors
 // TestCompileCommandWritesAmxAndBmxNextToTheSourceFile for the ZX
-// Spectrum side of compileByExtension's dispatch.
+// Spectrum side of dialect.CompileByExtension's dispatch.
 func TestCompileCommandWritesAzsAndTapNextToTheSourceFile(t *testing.T) {
 	dir := t.TempDir()
 	dzsPath := filepath.Join(dir, "programa.dzs")
@@ -441,7 +441,7 @@ func TestExecuteCommandBuildsTheZXSpectrumFileEvenWhenTheEmulatorIsMissing(t *te
 
 // TestExecuteCommandHonorsAnExplicitEmulatorArgument confirms the
 // console's own "execute <file> <emulator>" form (added 2026-11-26)
-// reaches runInEmulatorByExtension end to end - same no-real-
+// reaches dialect.RunInEmulatorByExtension end to end - same no-real-
 // emulator-window PATH override as every other test here.
 func TestExecuteCommandHonorsAnExplicitEmulatorArgument(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())

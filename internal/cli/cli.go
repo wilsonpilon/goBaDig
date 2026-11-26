@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
+	"github.com/wilsonpilon/goBaDig/internal/dialect"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
@@ -182,9 +183,9 @@ func compileFileArg(args []string) (string, bool) {
 // msx.CompileFile/zx81.CompileFile/zxspectrum.CompileFile, each
 // wrapping its own core.Run/Tokenize - already existed and was
 // validated on its own; this is just the CLI entry point to it,
-// dispatching by extension - ver dialect.go).
+// dispatching by extension - ver internal/dialect.
 func runCompile(path string) int {
-	classicPath, binaryPath, err := compileByExtension(path)
+	classicPath, binaryPath, err := dialect.CompileByExtension(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
 		return 1
@@ -253,13 +254,14 @@ func stripEmulatorFlag(args []string) []string {
 // user's own "edit/badig/execute" workflow vocabulary: compile, build
 // whatever ready-to-run artifact its own dialect needs (an MSX test
 // disk with AUTOEXEC.BAS, or just a ZX81 ".p"/Spectrum ".tap" file
-// directly - ver dialect.go) and open it in a real emulator so the
-// user can try the program right away, same as goBaDig's own earlier
-// "compilar" step already does for just the text/binary output files.
-// backend selects an explicit `--emulator` name ("" for each
-// dialect's own default - ver dialect.go's own emulatorBackends).
+// directly - ver internal/dialect) and open it in a real emulator so
+// the user can try the program right away, same as goBaDig's own
+// earlier "compilar" step already does for just the text/binary
+// output files. backend selects an explicit `--emulator` name ("" for
+// each dialect's own default - ver internal/dialect's own
+// EmulatorBackends).
 func runExecute(path, backend string) int {
-	artifactPath, err := runInEmulatorByExtension(path, backend)
+	artifactPath, err := dialect.RunInEmulatorByExtension(path, backend)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
 		return 1

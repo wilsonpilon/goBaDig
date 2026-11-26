@@ -1,4 +1,4 @@
-package cli
+package dialect
 
 import (
 	"os"
@@ -14,9 +14,9 @@ func TestCompileByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	classicPath, binaryPath, err := compileByExtension(dmxPath)
+	classicPath, binaryPath, err := CompileByExtension(dmxPath)
 	if err != nil {
-		t.Fatalf("compileByExtension(.dmx): %v", err)
+		t.Fatalf("CompileByExtension(.dmx): %v", err)
 	}
 	if want := filepath.Join(dir, "hello.amx"); classicPath != want {
 		t.Fatalf("classicPath = %q, want %q", classicPath, want)
@@ -29,9 +29,9 @@ func TestCompileByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	classicPath, binaryPath, err = compileByExtension(dzxPath)
+	classicPath, binaryPath, err = CompileByExtension(dzxPath)
 	if err != nil {
-		t.Fatalf("compileByExtension(.dzx): %v", err)
+		t.Fatalf("CompileByExtension(.dzx): %v", err)
 	}
 	if want := filepath.Join(dir, "hello.azx"); classicPath != want {
 		t.Fatalf("classicPath = %q, want %q", classicPath, want)
@@ -44,9 +44,9 @@ func TestCompileByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	classicPath, binaryPath, err = compileByExtension(dzsPath)
+	classicPath, binaryPath, err = CompileByExtension(dzsPath)
 	if err != nil {
-		t.Fatalf("compileByExtension(.dzs): %v", err)
+		t.Fatalf("CompileByExtension(.dzs): %v", err)
 	}
 	if want := filepath.Join(dir, "hello.azs"); classicPath != want {
 		t.Fatalf("classicPath = %q, want %q", classicPath, want)
@@ -57,9 +57,9 @@ func TestCompileByExtensionDispatchesByFileExtension(t *testing.T) {
 }
 
 func TestCompileByExtensionRejectsAnUnknownExtension(t *testing.T) {
-	_, _, err := compileByExtension("programa.txt")
+	_, _, err := CompileByExtension("programa.txt")
 	if err == nil || !strings.Contains(err.Error(), "unrecognized dialect") {
-		t.Fatalf("compileByExtension(.txt): want an 'unrecognized dialect' error, got %v", err)
+		t.Fatalf("CompileByExtension(.txt): want an 'unrecognized dialect' error, got %v", err)
 	}
 }
 
@@ -77,8 +77,8 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dmxPath, ""); err == nil {
-		t.Fatal("runInEmulatorByExtension(.dmx) with no emulator on PATH: want error, got nil")
+	if _, err := RunInEmulatorByExtension(dmxPath, ""); err == nil {
+		t.Fatal("RunInEmulatorByExtension(.dmx) with no emulator on PATH: want error, got nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.dsk")); err != nil {
 		t.Fatalf("expected the MSX test disk to still have been built: %v", err)
@@ -88,8 +88,8 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dzxPath, ""); err == nil {
-		t.Fatal("runInEmulatorByExtension(.dzx) with no emulator on PATH: want error, got nil")
+	if _, err := RunInEmulatorByExtension(dzxPath, ""); err == nil {
+		t.Fatal("RunInEmulatorByExtension(.dzx) with no emulator on PATH: want error, got nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.p")); err != nil {
 		t.Fatalf("expected the ZX81 .p file to still have been built: %v", err)
@@ -99,8 +99,8 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dzsPath, ""); err == nil {
-		t.Fatal("runInEmulatorByExtension(.dzs) with no emulator on PATH: want error, got nil")
+	if _, err := RunInEmulatorByExtension(dzsPath, ""); err == nil {
+		t.Fatal("RunInEmulatorByExtension(.dzs) with no emulator on PATH: want error, got nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.tap")); err != nil {
 		t.Fatalf("expected the ZX Spectrum .tap file to still have been built: %v", err)
@@ -108,19 +108,17 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 }
 
 func TestRunInEmulatorByExtensionRejectsAnUnknownExtension(t *testing.T) {
-	_, err := runInEmulatorByExtension("programa.txt", "")
+	_, err := RunInEmulatorByExtension("programa.txt", "")
 	if err == nil || !strings.Contains(err.Error(), "unrecognized dialect") {
-		t.Fatalf("runInEmulatorByExtension(.txt): want an 'unrecognized dialect' error, got %v", err)
+		t.Fatalf("RunInEmulatorByExtension(.txt): want an 'unrecognized dialect' error, got %v", err)
 	}
 }
 
 // TestRunInEmulatorByExtensionHonorsAnExplicitBackend confirms each
-// dialect's own alternative backends (dialect.go's emulatorBackends)
-// are reachable, and that the artifact still gets built even when
-// that specific backend can't be found on PATH - same no-emulator-
-// on-PATH pattern as TestRunInEmulatorByExtensionDispatchesByFileExtension.
-// Added 2026-11-26 at the user's own request (ZEsarUX for ZX81/
-// Spectrum, fMSX/blueMSX+ for MSX).
+// dialect's own alternative backends (EmulatorBackends) are reachable,
+// and that the artifact still gets built even when that specific
+// backend can't be found on PATH - same no-emulator-on-PATH pattern as
+// TestRunInEmulatorByExtensionDispatchesByFileExtension.
 func TestRunInEmulatorByExtensionHonorsAnExplicitBackend(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	dir := t.TempDir()
@@ -138,8 +136,8 @@ func TestRunInEmulatorByExtensionHonorsAnExplicitBackend(t *testing.T) {
 		if err := os.WriteFile(path, []byte("print 1\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := runInEmulatorByExtension(path, c.backend); err == nil {
-			t.Fatalf("runInEmulatorByExtension(%s, %q) with no emulator on PATH: want error, got nil", c.ext, c.backend)
+		if _, err := RunInEmulatorByExtension(path, c.backend); err == nil {
+			t.Fatalf("RunInEmulatorByExtension(%s, %q) with no emulator on PATH: want error, got nil", c.ext, c.backend)
 		}
 		if _, err := os.Stat(filepath.Join(dir, c.artifact)); err != nil {
 			t.Fatalf("%s/%s: expected %s to still have been built: %v", c.ext, c.backend, c.artifact, err)
@@ -153,14 +151,14 @@ func TestRunInEmulatorByExtensionRejectsAnUnknownBackend(t *testing.T) {
 	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dzsPath, "nope"); err == nil || !strings.Contains(err.Error(), "unknown --emulator") {
-		t.Fatalf(`runInEmulatorByExtension(.dzs, "nope"): want an "unknown --emulator" error, got %v`, err)
+	if _, err := RunInEmulatorByExtension(dzsPath, "nope"); err == nil || !strings.Contains(err.Error(), "unknown --emulator") {
+		t.Fatalf(`RunInEmulatorByExtension(.dzs, "nope"): want an "unknown --emulator" error, got %v`, err)
 	}
 
 	// A backend valid for a DIFFERENT dialect is still rejected - each
 	// dialect's own list is exactly what it supports, not shared
 	// vocabulary.
-	if _, err := runInEmulatorByExtension(dzsPath, "fmsx"); err == nil || !strings.Contains(err.Error(), "unknown --emulator") {
-		t.Fatalf(`runInEmulatorByExtension(.dzs, "fmsx"): want an "unknown --emulator" error, got %v`, err)
+	if _, err := RunInEmulatorByExtension(dzsPath, "fmsx"); err == nil || !strings.Contains(err.Error(), "unknown --emulator") {
+		t.Fatalf(`RunInEmulatorByExtension(.dzs, "fmsx"): want an "unknown --emulator" error, got %v`, err)
 	}
 }

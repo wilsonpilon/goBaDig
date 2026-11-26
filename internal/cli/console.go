@@ -14,6 +14,7 @@ import (
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
+	"github.com/wilsonpilon/goBaDig/internal/dialect"
 	"github.com/wilsonpilon/goBaDig/internal/options"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
@@ -346,13 +347,13 @@ func (s *consoleState) printOptions(category string) error {
 // <arquivo.dmx|arquivo.dzx|arquivo.dzs>" command - the interactive-mode
 // counterpart to "goBaDig <arquivo.dmx>" at the non-interactive
 // command line (ver cli.go's own runCompile), both wrapping the same
-// compileByExtension dispatch (dialect.go).
+// dialect.CompileByExtension dispatch (internal/dialect).
 func (s *consoleState) executeCompile(path string) {
 	if path == "" {
 		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx|arquivo.dzx|arquivo.dzs>")
 		return
 	}
-	classicPath, binaryPath, err := compileByExtension(path)
+	classicPath, binaryPath, err := dialect.CompileByExtension(path)
 	if err != nil {
 		fmt.Fprintf(s.out, "erro: %v\n", err)
 		return
@@ -365,13 +366,13 @@ func (s *consoleState) executeCompile(path string) {
 // "edit/badig/execute" workflow vocabulary: compile, build whatever
 // ready-to-run artifact its own dialect needs and open it in a real
 // emulator. Counterpart to cli.go's own runExecute (--execute
-// --emulator), both wrapping runInEmulatorByExtension (dialect.go).
-// The optional second token picks an explicit backend (dialect.go's
-// own emulatorBackends) instead of each dialect's own default -
-// added 2026-11-26 at the user's own request; argument was already
-// the WHOLE rest of the line past "execute " (ver execute's own
-// strings.Cut), so this does one more split on the first remaining
-// space, same convention.
+// --emulator), both wrapping dialect.RunInEmulatorByExtension
+// (internal/dialect). The optional second token picks an explicit
+// backend (internal/dialect's own EmulatorBackends) instead of each
+// dialect's own default - added 2026-11-26 at the user's own request;
+// argument was already the WHOLE rest of the line past "execute " (ver
+// execute's own strings.Cut), so this does one more split on the
+// first remaining space, same convention.
 func (s *consoleState) executeExecute(argument string) {
 	path, backend, _ := strings.Cut(argument, " ")
 	backend = strings.TrimSpace(backend)
@@ -379,7 +380,7 @@ func (s *consoleState) executeExecute(argument string) {
 		fmt.Fprintln(s.out, "uso: execute <arquivo.dmx|arquivo.dzx|arquivo.dzs> [emulador]")
 		return
 	}
-	artifactPath, err := runInEmulatorByExtension(path, backend)
+	artifactPath, err := dialect.RunInEmulatorByExtension(path, backend)
 	if err != nil {
 		fmt.Fprintf(s.out, "erro: %v\n", err)
 		return
