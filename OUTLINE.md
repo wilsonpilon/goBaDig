@@ -3538,9 +3538,41 @@ ainda não chamam nenhum desses comandos.
   `TestF3CreatesAFileAndOpensItInTheEditor`) dirige o diálogo de
   verdade por teclas simuladas, não uma chamada Go direta - achado
   nesse processo: `Enter` com um `InputField` em foco não envia o
-  formulário na hora, são 3 `Enter`s (campo → foco no botão → clique)
-  pra concluir, não 1 - registrado como lição de teste pra qualquer
-  diálogo futuro deste tipo.
+  formulário na hora (o campo só "termina", passando o foco pro botão
+  - mais um `Enter` clica nele) - registrado como lição de teste pra
+  qualquer diálogo futuro deste tipo. **A contagem exata não é uma
+  constante confiável** (3 numa rodada, 5 noutra pro mesmo cenário -
+  achado corrigindo os dois bugs da v1.42.1 abaixo): o teste usa
+  `submitFormDialog`, que pressiona `Enter` e espera ativamente o
+  diálogo fechar antes de decidir se precisa de mais um, em vez de uma
+  contagem fixa.
+
+  **Duas correções (2026-11-26, v1.42.1)**, reportadas pelo usuário
+  depois de usar a v1.42.0:
+  1. **Barra de status "bagunçada" ao voltar do editor**: fechar o
+     editor sempre trocava pra página `"app"` (o desktop)
+     incondicionalmente, mesmo quando aberto a partir do gerenciador
+     de arquivos (`F3`/`F4`) - o usuário via a barra de status do
+     DESKTOP (`F10 Menu...`), diferente da do gerenciador (`Tab
+     Painel...`), e percebeu isso como "a barra quebrou". Corrigido
+     com `editorReturnPage` (`"app"` pelo menu `Editor > Open`,
+     `"filemanager"` pelo `F3`/`F4`), que `closeEditor` usa pra voltar
+     pro lugar certo. Achado tentando escrever um teste de regressão
+     pra isso via `F3` (criar arquivo) - o teste em si era instável
+     (a sequência de `Enter`s do diálogo às vezes "passava do ponto" e
+     caía dentro do editor já aberto, digitando uma quebra de linha em
+     vez de clicar em nada); reescrito usando `F4` (editar um arquivo
+     já existente, sem diálogo nenhum no caminho) pra testar a mesma
+     correção sem essa fragilidade.
+  2. **Projeto novo organizado em pasta própria**: pedido do usuário -
+     "crie uma pasta dentro do diretório corrente para organizar os
+     arquivos". O campo "Pasta" do diálogo `Ctrl+N` passa a ser a
+     pasta PAI (onde criar o projeto), não mais a pasta final - `
+     createProject` sempre cria uma subpasta com o nome do projeto
+     dentro dela, em vez de jogar os arquivos direto na pasta que o
+     usuário estava navegando. Teste novo
+     (`TestCreateProjectCreatesItsOwnSubfolderInsideTheParent`)
+     confirma que a pasta pai fica limpa.
 
 ### Bloco 7 — GUI (Fyne)
 

@@ -255,9 +255,11 @@ copia e `F6` move (arquivo ou diretório) pro painel oposto (`F6` pede
 confirmação); `F7` cria um diretório; `F8` apaga um arquivo ou
 diretório vazio (também com confirmação); `F9` **executa** no
 emulador padrão daquela plataforma; `Ctrl+N` cria um **projeto** novo
-(nome, pasta - criada se não existir -, dialeto; já gera `main<ext>`
-- `main.dmx`/`main.dzx`/`main.dzs` - e abre no editor) e `Ctrl+P`
-lista os projetos já salvos, pulando o painel ativo direto pra pasta
+(nome, pasta pai - criada se não existir -, dialeto; o projeto ganha
+sua própria subpasta dentro dela, nomeada igual o projeto, pra manter
+os arquivos organizados; já gera `main<ext>` -
+`main.dmx`/`main.dzx`/`main.dzs` - e abre no editor) e `Ctrl+P` lista
+os projetos já salvos, pulando o painel ativo direto pra pasta
 escolhida. `Esc`/`F10` fecha o gerenciador e volta pro desktop.
 Operações de arquivo são só locais nesta versão (nenhuma integração
 com um `.DSK` montado ainda).

@@ -35,6 +35,49 @@ exata do pacote.
 
 ---
 
+## [1.42.1] — 2026-11-26 — bloco **NEW**, feature **fm-control-center** (build 1)
+
+**Duas correções**, reportadas diretamente pelo usuário depois de usar
+a v1.42.0.
+
+### Corrigido
+
+- **Barra de status "bagunçada" ao voltar do editor**: "ao ir para o
+  editor, voltando a barra de status fica bagunçada, não mostrando
+  mais as teclas de atalho". Causa raiz: fechar o editor sempre
+  trocava pra página `"app"` (o desktop) incondicionalmente, mesmo
+  quando o editor tinha sido aberto a partir do gerenciador de
+  arquivos (`F3`/`F4`) - o usuário via a barra de status do DESKTOP
+  (`F10 Menu...`), diferente da barra do gerenciador (`Tab Painel...`),
+  e percebeu isso como "a barra quebrou". Corrigido com
+  `editorReturnPage`, uma variável que guarda de qual página o editor
+  foi aberto (`"app"` pelo menu `Editor > Open`, `"filemanager"` pelo
+  `F3`/`F4`) e que `closeEditor` agora usa pra voltar pro lugar certo.
+- **Projeto novo organizado em pasta própria**: "ao criar projeto,
+  crie uma pasta dentro do diretório corrente para organizar os
+  arquivos". O campo "Pasta" do diálogo `Ctrl+N` passa a ser a pasta
+  **pai** (onde criar o projeto), não mais a pasta final do projeto -
+  `createProject` agora sempre cria uma nova subpasta com o nome do
+  projeto dentro dela, em vez de jogar os arquivos direto na pasta que
+  o usuário estava navegando.
+
+### Verificado
+
+- `internal/tui/new_file_test.go`
+  (`TestClosingTheEditorReturnsToTheFileManagerItWasOpenedFrom`) -
+  usa `F4` (editar um arquivo já existente), não `F3`: `F3` passa por
+  um diálogo `tview.Form` cuja contagem exata de `Enter`s até
+  submeter não é uma constante confiável (confirmado durante o
+  desenvolvimento - uma sequência de `Enter`s, fixa ou com espera
+  ativa, às vezes "passa do ponto" depois que o diálogo fecha,
+  caindo dentro do editor já focado e digitando uma quebra de linha
+  em vez de clicar em nada).
+- `internal/filemanager/filemanager_test.go`
+  (`TestCreateProjectCreatesItsOwnSubfolderInsideTheParent`) - confirma
+  que a pasta pai fica limpa (só a subpasta do projeto aparece nela).
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.42.0] — 2026-11-26 — bloco **NEW**, feature **fm-control-center** (build 0)
 
 **O gerenciador de arquivos vira o centro de controle do programa**,
