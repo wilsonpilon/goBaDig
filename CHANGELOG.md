@@ -35,6 +35,69 @@ exata do pacote.
 
 ---
 
+## [1.41.0] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 0)
+
+**Gerenciador de arquivos de dois painéis na TUI** — pedido do
+usuário: "já que não temos os gerenciadores de arquivo ainda, podemos
+seguir por este caminho e assim chamar o compilador do gerenciador,
+criar projetos, etc.". VSIX/Sublime (Bloco 8) ficam deliberadamente
+pro final — o WibEdit já embutido cobre edição.
+
+### Adicionado
+
+- `internal/filemanager` (novo pacote): componente de tela cheia estilo
+  Norton Commander, dois painéis (`tview.Table`, colunas nome/tamanho/
+  data), navegação local (`Tab` troca painel, `Enter`/`Backspace`
+  entra/sai de diretório).
+- Atalhos: `F2` compila (`dialect.CompileByExtension`), `F9` executa
+  no emulador padrão da plataforma (`dialect.RunInEmulatorByExtension`),
+  `F4` abre o arquivo selecionado no WibEdit já embutido (novo
+  `editor.Editor.OpenFile`), `F5` copia e `F6` move pro painel oposto
+  (`F6`/mover funciona em diretórios também, via `os.Rename`; `F5`/
+  copiar só em arquivos nesta rodada — copiar diretório pediria
+  recursão, fora de escopo), `F7` cria diretório, `F8` apaga (arquivo
+  ou diretório vazio — `os.Remove` já rejeita diretório não-vazio,
+  sem precisar de checagem extra), `Ctrl+N` cria um projeto novo,
+  `Ctrl+P` lista projetos salvos e pula o painel ativo pra pasta
+  escolhida.
+- `internal/config/projects.go`: tabela `projects` (nome, pasta,
+  dialeto, data de criação) no mesmo `*Store` SQLite de temas/opções.
+  `CreateProject`/`ListProjects`. Projeto = nome + pasta (criada se
+  não existir) + dialeto + checkbox opcional pra já gerar um arquivo-
+  fonte inicial vazio (`.dmx`/`.dzx`/`.dzs`) — confirmado com o
+  usuário; configurações por projeto (linha inicial, passo, emulador
+  padrão etc.) ficam fora desta rodada, assim como editar/apagar um
+  projeto já salvo.
+- Novo item de menu "Files" na TUI (`internal/tui/tui.go`), mesmo
+  padrão de 3 pontos já usado pro Editor/WibEdit (`AddPage`+
+  `SetInputCapture`).
+- `internal/chrome` (novo pacote): os ícones/sombra/moldura de janela
+  de `internal/tui/chrome.go` (`attachShadow`/`windowChrome`) extraídos
+  pra um pacote compartilhado, exportado — `internal/filemanager`
+  precisa do mesmo visual retro, e não podia importar `internal/tui`
+  sem criar um ciclo (`internal/tui` importa `internal/filemanager`
+  pra embutir a página, igual já faz com o editor). `internal/tui/
+  chrome.go` manteve só o que é específico dele (o `desktop`, o fundo
+  tramado da área de trabalho).
+
+### Decidido com o usuário
+
+- TUI primeiro, GUI depois — mesma decisão já tomada pro editor.
+- Montagem de `.DSK` num painel e operações local↔`.DSK` ficam pra
+  depois — o `compile`/`execute` do MSX já não precisam disso (o
+  `BuildTestDisk` interno cuida do disco de teste).
+
+### Verificado
+
+- `internal/config/projects_test.go`, `internal/filemanager/
+  filemanager_test.go` (navegação, troca de painel, compilar/executar
+  com `PATH` vazio, copiar/mover/criar diretório/criar projeto), mais
+  um teste de menu na TUI com `tcell.SimulationScreen`
+  (`TestFilesMenuOpensAndClosesTheFileManager`) confirmando que Files
+  > Open abre o gerenciador e Escape fecha de volta pro desktop.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.40.0] — 2026-11-26 — bloco **NEW**, feature **dialect-package** (build 0)
 
 **Refatoração interna, sem mudança de comportamento pro usuário** —

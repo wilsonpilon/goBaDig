@@ -159,7 +159,10 @@ original. **`v1.38.0`** generaliza os comandos `compile`/`execute`
 extensão do arquivo — `goBaDig programa.dzs` e `goBaDig --execute
 programa.dzs` já funcionam de verdade, abrindo no EightyOne. Ciclo ZX
 Spectrum completo via CLI, igual MSX e ZX81 — ver seção 6 pro
-detalhamento.
+detalhamento. **`v1.41.0`** traz o **gerenciador de arquivos de dois
+painéis** na TUI (menu `Files > Open`), com navegação local, compilar/
+executar direto de um painel e criação/listagem de projetos — ver
+seções 5 e 6.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -233,6 +236,23 @@ goBaDig será construída; ainda não está ligado a nada específico de
 BASIC (sem realce de sintaxe ou abertura direta de `.bas`/fontes das 3
 plataformas).
 
+Na TUI, o menu **`Files > Open`** (desde a `v1.41.0`) abre um
+**gerenciador de arquivos de dois painéis**, estilo Norton Commander,
+com navegação local e os atalhos (mostrados na própria barra de
+status): `Tab` troca o painel ativo; `Enter`/`Backspace` entra/sai de
+um diretório; `F2` **compila** o arquivo selecionado (mesmo dispatch
+por extensão do CLI); `F9` **executa** no emulador padrão daquela
+plataforma; `F4` abre o arquivo selecionado no WibEdit já embutido;
+`F5` copia e `F6` move (arquivo ou diretório) pro painel oposto
+(`F6` pede confirmação); `F7` cria um diretório; `F8` apaga um
+arquivo ou diretório vazio (também com confirmação); `Ctrl+N` cria um
+**projeto** novo (nome, pasta - criada se não existir -, dialeto, com
+a opção de já gerar um arquivo-fonte inicial vazio) e `Ctrl+P` lista
+os projetos já salvos, pulando o painel ativo direto pra pasta
+escolhida. `Esc`/`F10` fecha o gerenciador e volta pro desktop.
+Operações de arquivo são só locais nesta versão (nenhuma integração
+com um `.DSK` montado ainda).
+
 Na TUI, há um **desktop clássico inspirado no Turbo Pascal 6, QuickBasic
 e Norton Editor 2.0**: fundo azul, barra de título, menu suspenso,
 espaço de trabalho e barra de status. `Setup > Install` abre uma janela
@@ -270,14 +290,16 @@ existe de verdade no CLI, pro MSX e pro ZX81 (`goBaDig
 <arquivo.dmx|arquivo.dzx>`/`--execute <arquivo.dmx|arquivo.dzx>`, ou
 `compile`/`execute` no console, ver seção 6), mas ainda não em
 nenhuma das duas interfaces gráficas —
-TUI e GUI ainda não chamam esses comandos, e nenhum valor configurado
-nos painéis (CLI, TUI ou GUI) ainda é lido por eles (usam sempre os
-defaults do `badig.py` original).
+a GUI ainda não chama esses comandos (a TUI já chama, pelo
+gerenciador de arquivos - `F2`/`F9`, ver acima), e nenhum valor
+configurado nos painéis (CLI, TUI ou GUI) ainda é lido por eles (usam
+sempre os defaults do `badig.py` original).
 
 ## 6. Converter um programa Dignified
 
 **Ciclo completo funciona de verdade pro MSX desde a `v1.28.0` e pro
-ZX81 desde a `v1.33.0`, só pelo CLI** (TUI/GUI ainda não chamam esses
+ZX81 desde a `v1.33.0`, pelo CLI e, desde a `v1.41.0`, também pelo
+gerenciador de arquivos da TUI** (a GUI ainda não chama esses
 comandos — ver seção 5). Histórico de como
 o motor chegou até aqui: a partir da `v1.3.0` existe um primeiro
 núcleo do motor em Go (`internal/core`), a

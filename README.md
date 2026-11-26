@@ -4,9 +4,10 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.40.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.41.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
-> editor de texto completo integrado — WibEdit), e o **ciclo MSX
+> editor de texto completo integrado — WibEdit, e um **gerenciador de
+> arquivos de dois painéis** com projetos), e o **ciclo MSX
 > completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou
 > `compile <arquivo.dmx>` no console `--cli`) lê um programa MSX
 > Basic Dignified real (macros `DEFINE`, funções `FUNC`/`RET`, alias
@@ -19,8 +20,10 @@ para VSCode cobrindo os três dialetos.
 > rodando em Python, sem nenhuma diferença restante** —, e `goBaDig
 > --execute <arquivo.dmx>` (ou `execute <arquivo.dmx>`) compila,
 > empacota o resultado num disco `.dsk` de teste e abre no openMSX de
-> verdade, pra testar na hora. TUI e GUI ainda não chamam nenhum
-> desses comandos. O módulo **ZX81** chegou no mesmo ponto que o MSX:
+> verdade, pra testar na hora. A GUI ainda não chama nenhum desses
+> comandos; a TUI já chama, pelo novo gerenciador de arquivos (`Files
+> > Open`, `F2` compila/`F9` executa, `Ctrl+N`/`Ctrl+P` cria/lista
+> projetos). O módulo **ZX81** chegou no mesmo ponto que o MSX:
 > `goBaDig programa.dzx`/`goBaDig --execute programa.dzx` já
 > funcionam de verdade, abrindo no EightyOne (confirmado com um
 > processo real rodando nesta máquina) — ciclo ZX81 completo via
@@ -79,7 +82,9 @@ cada formato de mídia/fita/disco.
   `Setup > Install`, painéis de configuração por categoria (`Setup >
   Basic Dignified`/`MSX`/`ZX81`/`ZX Spectrum`), e um editor de texto
   completo integrado (`Editor > Open`, portado do WibEdit) como base
-  da futura IDE.
+  da futura IDE, e um gerenciador de arquivos de dois painéis estilo
+  Norton Commander (`Files > Open`) que já compila/executa pelo mesmo
+  dispatch do CLI e cria/lista projetos.
 - **GUI**: interface gráfica (`Fyne`), mesma ideia da TUI, para quem
   prefere mouse.
 - **VSIX único**: uma extensão VSCode só, cobrindo os três dialetos,

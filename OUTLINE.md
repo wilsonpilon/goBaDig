@@ -3360,6 +3360,63 @@ ainda não chamam nenhum desses comandos.
   nada específico de BASIC (realce de sintaxe, abertura direto de
   `.bas`/arquivos-fonte das 3 plataformas) — é a base crua do editor;
   isso fica para os próximos passos da IDE.
+- [x] **Gerenciador de arquivos de dois painéis** (2026-11-26, v1.41.0,
+  pedido explícito do usuário: "já que não temos os gerenciadores de
+  arquivo ainda, podemos seguir por este caminho e assim chamar o
+  compilador do gerenciador, criar projetos, etc."; VSIX/Sublime —
+  Bloco 8 — ficam deliberadamente pro final, já que o WibEdit embutido
+  cobre edição). Novo pacote `internal/filemanager`: dois painéis
+  (`tview.Table`, colunas nome/tamanho/data) estilo Norton Commander.
+  `Tab` troca o painel ativo; `Enter`/`Backspace` navega; `F2` compila
+  (`dialect.CompileByExtension`); `F9` executa no emulador padrão da
+  plataforma (`dialect.RunInEmulatorByExtension`); `F4` abre o arquivo
+  selecionado no WibEdit já embutido (novo `editor.Editor.OpenFile`,
+  exportando `openInitialFile`); `F5` copia (só arquivo - copiar
+  diretório pediria recursão, fora de escopo nesta rodada) e `F6`
+  move (arquivo OU diretório, via `os.Rename`, sem recursão) pro
+  painel oposto, com confirmação; `F7` cria diretório; `F8` apaga
+  (arquivo ou diretório vazio - `os.Remove` já rejeita diretório
+  não-vazio, sem checagem extra); `Ctrl+N` cria um projeto (nome +
+  pasta, criada se não existir, + dialeto + checkbox opcional pra já
+  gerar um arquivo-fonte inicial vazio) e `Ctrl+P` lista projetos
+  salvos, pulando o painel ativo pra pasta escolhida.
+
+  **Nova tabela `projects`** em `internal/config/projects.go`, mesmo
+  `*Store` SQLite de temas/opções: `CreateProject`/`ListProjects`.
+  Configurações por projeto (linha inicial, passo, emulador padrão
+  etc.) e editar/apagar um projeto já salvo ficam fora desta rodada -
+  confirmado com o usuário via pergunta: "pasta + dialeto + registro
+  pra acesso rápido" é a definição aprovada de "projeto".
+
+  **Novo pacote `internal/chrome`**: os ícones/sombra/moldura de janela
+  de `internal/tui/chrome.go` (`attachShadow`/`windowChrome`/
+  `drawShadow`) extraídos pra lá, exportados. Necessário porque
+  `internal/filemanager` precisa do mesmo visual retro mas não pode
+  importar `internal/tui` (que importa `internal/filemanager` pra
+  embutir a página, igual já faz com o editor - importar nos dois
+  sentidos seria um ciclo). `internal/tui/chrome.go` manteve só o
+  `desktop` (fundo tramado da área de trabalho, genuinamente
+  específico da TUI). Mesma lógica já usada pra extrair
+  `internal/dialect` do `internal/cli` na release anterior.
+
+  **Decisões de escopo confirmadas com o usuário**: TUI primeiro, GUI
+  depois (mesma decisão já tomada pro editor); montagem de `.DSK` num
+  painel e operações local↔`.DSK` ficam pra depois (o `compile`/
+  `execute` do MSX já não precisam disso - o `BuildTestDisk` interno
+  cuida do disco de teste); novo item de menu "Files" colocado no
+  **final** da barra (depois de Help), não entre Editor e Setup, pra
+  não quebrar a navegação por índice (`File→Editor→Setup` via duas
+  setas) que vários testes de regressão já existentes assumiam.
+
+  Testes novos: `internal/config/projects_test.go` (criar/listar,
+  nome vazio/duplicado rejeitado, dialeto inválido rejeitado, ordem
+  por mais recente primeiro), `internal/filemanager/
+  filemanager_test.go` (12 casos: navegação, troca de painel,
+  compilar/executar com `PATH` vazio, copiar/mover/criar diretório/
+  criar projeto), mais `internal/tui/filemanager_menu_test.go`
+  (`tcell.SimulationScreen`, mesmo padrão de `editor_menu_test.go`)
+  confirmando que **Files > Open** abre o gerenciador e `Esc` fecha de
+  volta pro desktop.
 
 ### Bloco 7 — GUI (Fyne)
 
