@@ -85,6 +85,27 @@ func NewFileManager(app *tview.Application, store *config.Store, colors Colors, 
 	fm.status = tview.NewTextView().SetDynamicColors(true)
 	fm.setStatus(statusHelp)
 
+	// Reset the status bar back to the shortcut list whenever the
+	// user moves the selection - the fix for a bug reported directly
+	// by the user: "a linha de status ainda não está sendo atualizada
+	// a cada opção usada, algumas alteram a barra de status e a mesma
+	// não volta". Arrow-key navigation within a panel is handled
+	// entirely by tview.Table's own InputHandler (Up/Down/PageUp/
+	// PageDown aren't in Capture's switch below, so they never reach
+	// this component's own code at all) - this was the one case that
+	// could leave a stale action message (e.g. "compilado: ...")
+	// on screen indefinitely, since only Enter/Backspace (navigating
+	// a directory) explicitly reset it. Safe to fire unconditionally
+	// on every selection change, including the ones every action
+	// below triggers itself via reload()/load(): each action's own
+	// final setStatus call always runs AFTER its reload/load, so it
+	// overwrites this reset right back to the action's own message.
+	for _, p := range fm.panels {
+		p.table.SetSelectionChangedFunc(func(row, column int) {
+			fm.setStatus(statusHelp)
+		})
+	}
+
 	body := tview.NewFlex().
 		AddItem(fm.panels[0].table, 0, 1, true).
 		AddItem(fm.panels[1].table, 0, 1, false)
@@ -207,11 +228,12 @@ func (fm *FileManager) enterSelected() {
 	} else {
 		next = filepath.Join(p.dir, e.name)
 	}
+	// No explicit fm.setStatus(statusHelp) needed on success: p.load
+	// re-renders and re-selects row 0, which fires the
+	// SetSelectionChangedFunc reset registered in NewFileManager.
 	if err := p.load(next); err != nil {
 		fm.setStatus(fmt.Sprintf(" erro: %v", err))
-		return
 	}
-	fm.setStatus(statusHelp)
 }
 
 func (fm *FileManager) goUp() {
@@ -222,7 +244,5 @@ func (fm *FileManager) goUp() {
 	}
 	if err := p.load(parent); err != nil {
 		fm.setStatus(fmt.Sprintf(" erro: %v", err))
-		return
 	}
-	fm.setStatus(statusHelp)
 }

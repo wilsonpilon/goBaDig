@@ -336,3 +336,49 @@ func TestCreateFileRefusesToOverwriteAnExistingFile(t *testing.T) {
 		t.Fatalf("onOpenInEditor should not have been called, got %q", opened)
 	}
 }
+
+// TestSelectingADifferentRowResetsTheStatusBar is a regression test
+// reported directly by the user: "a linha de status ainda não está
+// sendo atualizada a cada opção usada, algumas alteram a barra de
+// status e a mesma não volta" - some actions (F2 compile, F5 copy,
+// F7 mkdir, etc.) set a one-off status message that never reverted,
+// because the only place that ever reset it back to statusHelp was
+// Enter/Backspace (navigating a directory). Arrow-key navigation
+// within a panel never goes through FileManager.Capture at all -
+// Up/Down/PageUp/PageDown aren't in its switch, so tview.Table's own
+// InputHandler processes them directly - meaning a stale action
+// message could sit on screen indefinitely once the user just moved
+// the selection with the keyboard instead of pressing Enter/
+// Backspace. Fixed with a SetSelectionChangedFunc on each panel
+// (registered in NewFileManager), confirmed here by directly calling
+// tview.Table's own Select (the same call arrow-key navigation
+// ultimately makes) rather than simulating a real keypress.
+func TestSelectingADifferentRowResetsTheStatusBar(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"a.txt", "b.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Leave a stale action message on the status bar, exactly like F2
+	// (compile) or F7 (mkdir) would.
+	fm.setStatus(" compilado: a.amx + a.bmx")
+	if status := fm.status.GetText(true); status != " compilado: a.amx + a.bmx" {
+		t.Fatalf("setup: status = %q, want the stale compile message", status)
+	}
+
+	// Simulate arrow-key navigation: Table.Select is exactly what
+	// Up/Down ultimately call (table.go's own InputHandler), and
+	// Select always fires SetSelectionChangedFunc regardless of
+	// whether it's a real keypress or a direct call.
+	fm.current().table.Select(1, 0)
+
+	if status := fm.status.GetText(true); status != statusHelp {
+		t.Fatalf("status after moving the selection = %q, want it reset to the shortcut list %q", status, statusHelp)
+	}
+}
