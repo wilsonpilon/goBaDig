@@ -314,6 +314,31 @@ func TestCompileCommandWritesAzxAndPNextToTheSourceFile(t *testing.T) {
 	}
 }
 
+// TestCompileCommandWritesAzsAndTapNextToTheSourceFile mirrors
+// TestCompileCommandWritesAmxAndBmxNextToTheSourceFile for the ZX
+// Spectrum side of compileByExtension's dispatch.
+func TestCompileCommandWritesAzsAndTapNextToTheSourceFile(t *testing.T) {
+	dir := t.TempDir()
+	dzsPath := filepath.Join(dir, "programa.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeCompile(dzsPath)
+
+	if !strings.Contains(out.String(), "Convertido") {
+		t.Fatalf("executeCompile(%s) output missing success confirmation; got: %s", dzsPath, out.String())
+	}
+	for _, ext := range []string{".azs", ".tap"} {
+		path := strings.TrimSuffix(dzsPath, ".dzs") + ext
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %s to exist: %v", path, err)
+		}
+	}
+}
+
 func TestCompileCommandWithoutAnArgumentShowsUsage(t *testing.T) {
 	var out bytes.Buffer
 	state := &consoleState{out: &out}
@@ -385,6 +410,32 @@ func TestExecuteCommandBuildsTheZX81FileEvenWhenTheEmulatorIsMissing(t *testing.
 	pPath := strings.TrimSuffix(dzxPath, ".dzx") + ".p"
 	if _, err := os.Stat(pPath); err != nil {
 		t.Fatalf("expected the .p file to still have been built at %s: %v", pPath, err)
+	}
+}
+
+// TestExecuteCommandBuildsTheZXSpectrumFileEvenWhenTheEmulatorIsMissing
+// mirrors TestExecuteCommandBuildsTheDiskEvenWhenTheEmulatorIsMissing
+// for the ZX Spectrum side - there is no disk to build, just the
+// ".tap" file itself, from the real zxspectrum.CompileFile step.
+func TestExecuteCommandBuildsTheZXSpectrumFileEvenWhenTheEmulatorIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dzsPath := filepath.Join(dir, "programa.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute(dzsPath)
+
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeExecute with no emulator on PATH: want an error reported, got: %s", out.String())
+	}
+	tapPath := strings.TrimSuffix(dzsPath, ".dzs") + ".tap"
+	if _, err := os.Stat(tapPath); err != nil {
+		t.Fatalf("expected the .tap file to still have been built at %s: %v", tapPath, err)
 	}
 }
 

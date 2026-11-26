@@ -227,3 +227,55 @@ func TestRunExecuteBuildsTheZX81FileEvenWhenTheEmulatorIsMissing(t *testing.T) {
 		t.Fatalf("expected the .p file to still have been built at %s: %v", pPath, err)
 	}
 }
+
+// TestRunCompilesABareZXSpectrumFileArgument mirrors
+// TestRunCompilesABareFileArgument for the ZX Spectrum side of
+// compileByExtension's dispatch.
+func TestRunCompilesABareZXSpectrumFileArgument(t *testing.T) {
+	dir := t.TempDir()
+	dzsPath := filepath.Join(dir, "programa.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handled, code := Run([]string{dzsPath})
+	if !handled {
+		t.Fatalf("Run(%v): expected handled=true", dzsPath)
+	}
+	if code != 0 {
+		t.Fatalf("Run(%v): expected exit code 0, got %d", dzsPath, code)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "programa.azs")); err != nil {
+		t.Fatalf("expected programa.azs to exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "programa.tap")); err != nil {
+		t.Fatalf("expected programa.tap to exist: %v", err)
+	}
+}
+
+// TestRunExecuteBuildsTheZXSpectrumFileEvenWhenTheEmulatorIsMissing
+// mirrors TestRunExecuteBuildsTheDiskEvenWhenTheEmulatorIsMissing for
+// the ZX Spectrum side - there is no disk to build, just the ".tap"
+// file itself.
+func TestRunExecuteBuildsTheZXSpectrumFileEvenWhenTheEmulatorIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dzsPath := filepath.Join(dir, "programa.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handled, code := Run([]string{"--execute", dzsPath})
+	if !handled {
+		t.Fatalf("Run(--execute %s): expected handled=true", dzsPath)
+	}
+	if code == 0 {
+		t.Fatalf("Run(--execute %s) with no emulator on PATH: expected a non-zero exit code", dzsPath)
+	}
+	tapPath := strings.TrimSuffix(dzsPath, ".dzs") + ".tap"
+	if _, err := os.Stat(tapPath); err != nil {
+		t.Fatalf("expected the .tap file to still have been built at %s: %v", tapPath, err)
+	}
+}

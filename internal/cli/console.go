@@ -343,13 +343,13 @@ func (s *consoleState) printOptions(category string) error {
 }
 
 // executeCompile implements the console's own "compile
-// <arquivo.dmx|arquivo.dzx>" command - the interactive-mode
+// <arquivo.dmx|arquivo.dzx|arquivo.dzs>" command - the interactive-mode
 // counterpart to "goBaDig <arquivo.dmx>" at the non-interactive
 // command line (ver cli.go's own runCompile), both wrapping the same
 // compileByExtension dispatch (dialect.go).
 func (s *consoleState) executeCompile(path string) {
 	if path == "" {
-		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx|arquivo.dzx>")
+		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx|arquivo.dzx|arquivo.dzs>")
 		return
 	}
 	classicPath, binaryPath, err := compileByExtension(path)
@@ -361,14 +361,14 @@ func (s *consoleState) executeCompile(path string) {
 }
 
 // executeExecute implements the console's own "execute
-// <arquivo.dmx|arquivo.dzx>" - the user's own "edit/badig/execute"
-// workflow vocabulary: compile, build whatever ready-to-run artifact
-// its own dialect needs and open it in a real emulator. Counterpart
-// to cli.go's own runExecute (--execute), both wrapping
-// runInEmulatorByExtension (dialect.go).
+// <arquivo.dmx|arquivo.dzx|arquivo.dzs>" - the user's own
+// "edit/badig/execute" workflow vocabulary: compile, build whatever
+// ready-to-run artifact its own dialect needs and open it in a real
+// emulator. Counterpart to cli.go's own runExecute (--execute), both
+// wrapping runInEmulatorByExtension (dialect.go).
 func (s *consoleState) executeExecute(path string) {
 	if path == "" {
-		fmt.Fprintln(s.out, "uso: execute <arquivo.dmx|arquivo.dzx>")
+		fmt.Fprintln(s.out, "uso: execute <arquivo.dmx|arquivo.dzx|arquivo.dzs>")
 		return
 	}
 	artifactPath, err := runInEmulatorByExtension(path)

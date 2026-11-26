@@ -59,8 +59,8 @@ func HelpText() string {
 
 USO:
     goBaDig [opcao]
-    goBaDig <arquivo.dmx|arquivo.dzx>
-    goBaDig --execute <arquivo.dmx|arquivo.dzx>
+    goBaDig <arquivo.dmx|arquivo.dzx|arquivo.dzs>
+    goBaDig --execute <arquivo.dmx|arquivo.dzx|arquivo.dzs>
 
 OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --help         mostra esta ajuda e sai
@@ -75,14 +75,16 @@ OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --execute      compila e abre num emulador real, pronto pra
                    testar: MSX gera um disco .dsk de teste (o
                    programa compilado como AUTOEXEC.BAS) e abre no
-                   openMSX; ZX81 gera o .p direto e abre no EightyOne
-                   (os dois emuladores precisam estar no PATH)
+                   openMSX; ZX81 gera o .p direto e abre no EightyOne;
+                   ZX Spectrum gera o .tap direto e abre no EightyOne
+                   tambem (os emuladores precisam estar no PATH)
 
 Passar um arquivo Dignified (<arquivo.dmx> pro MSX, <arquivo.dzx> pro
-ZX81) direto, sem nenhuma opcao, converte ele: gera a listagem Classic
-numerada (<arquivo.amx>/<arquivo.azx>) e o binario tokenizado
-(<arquivo.bmx>/<arquivo.p>), no mesmo diretorio do arquivo de entrada.
-ZX Spectrum ainda nao tem motor de conversao proprio implementado.
+ZX81, <arquivo.dzs> pro ZX Spectrum) direto, sem nenhuma opcao,
+converte ele: gera a listagem Classic numerada
+(<arquivo.amx>/<arquivo.azx>/<arquivo.azs>) e o binario tokenizado
+(<arquivo.bmx>/<arquivo.p>/<arquivo.tap>), no mesmo diretorio do
+arquivo de entrada.
 
 Sem opcoes, mostra um banner curto (nao entra no modo console).
 
@@ -159,11 +161,12 @@ func compileFileArg(args []string) (string, bool) {
 }
 
 // runCompile implements `goBaDig <arquivo.dmx>`/`goBaDig
-// <arquivo.dzx>`: the first real "do something to a user's file"
-// command in the project (every piece it calls - msx.CompileFile/
-// zx81.CompileFile, each wrapping its own core.Run/Tokenize - already
-// existed and was validated on its own; this is just the CLI entry
-// point to it, dispatching by extension - ver dialect.go).
+// <arquivo.dzx>`/`goBaDig <arquivo.dzs>`: the first real "do something
+// to a user's file" command in the project (every piece it calls -
+// msx.CompileFile/zx81.CompileFile/zxspectrum.CompileFile, each
+// wrapping its own core.Run/Tokenize - already existed and was
+// validated on its own; this is just the CLI entry point to it,
+// dispatching by extension - ver dialect.go).
 func runCompile(path string) int {
 	classicPath, binaryPath, err := compileByExtension(path)
 	if err != nil {
@@ -189,13 +192,13 @@ func executeFileArg(args []string) (string, bool) {
 }
 
 // runExecute implements `goBaDig --execute <arquivo.dmx>`/`goBaDig
-// --execute <arquivo.dzx>` - the user's own "edit/badig/execute"
-// workflow vocabulary: compile, build whatever ready-to-run artifact
-// its own dialect needs (an MSX test disk with AUTOEXEC.BAS, or just
-// a ZX81 ".p" file directly - ver dialect.go) and open it in a real
-// emulator so the user can try the program right away, same as
-// goBaDig's own earlier "compilar" step already does for just the
-// text/binary output files.
+// --execute <arquivo.dzx>`/`goBaDig --execute <arquivo.dzs>` - the
+// user's own "edit/badig/execute" workflow vocabulary: compile, build
+// whatever ready-to-run artifact its own dialect needs (an MSX test
+// disk with AUTOEXEC.BAS, or just a ZX81 ".p"/Spectrum ".tap" file
+// directly - ver dialect.go) and open it in a real emulator so the
+// user can try the program right away, same as goBaDig's own earlier
+// "compilar" step already does for just the text/binary output files.
 func runExecute(path string) int {
 	artifactPath, err := runInEmulatorByExtension(path)
 	if err != nil {

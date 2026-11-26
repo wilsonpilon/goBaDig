@@ -39,6 +39,21 @@ func TestCompileByExtensionDispatchesByFileExtension(t *testing.T) {
 	if want := filepath.Join(dir, "hello.p"); binaryPath != want {
 		t.Fatalf("binaryPath = %q, want %q", binaryPath, want)
 	}
+
+	dzsPath := filepath.Join(dir, "hello.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	classicPath, binaryPath, err = compileByExtension(dzsPath)
+	if err != nil {
+		t.Fatalf("compileByExtension(.dzs): %v", err)
+	}
+	if want := filepath.Join(dir, "hello.azs"); classicPath != want {
+		t.Fatalf("classicPath = %q, want %q", classicPath, want)
+	}
+	if want := filepath.Join(dir, "hello.tap"); binaryPath != want {
+		t.Fatalf("binaryPath = %q, want %q", binaryPath, want)
+	}
 }
 
 func TestCompileByExtensionRejectsAnUnknownExtension(t *testing.T) {
@@ -78,6 +93,17 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.p")); err != nil {
 		t.Fatalf("expected the ZX81 .p file to still have been built: %v", err)
+	}
+
+	dzsPath := filepath.Join(dir, "hello.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runInEmulatorByExtension(dzsPath); err == nil {
+		t.Fatal("runInEmulatorByExtension(.dzs) with no emulator on PATH: want error, got nil")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "hello.tap")); err != nil {
+		t.Fatalf("expected the ZX Spectrum .tap file to still have been built: %v", err)
 	}
 }
 
