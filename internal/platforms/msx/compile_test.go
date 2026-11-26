@@ -76,8 +76,8 @@ func TestCompileFileWritesTheAmxAndBmxNextToTheSourceFile(t *testing.T) {
 	// at 10/20, LineStep=10) - CRLF line endings, matching the real
 	// badig.py's own output on Windows (ver CompileFile's doc
 	// comment).
-	wantAmx := "10 'Converted with Basic Dignified\r\n" +
-		"20 'https://github.com/farique1/basic-dignified\r\n" +
+	wantAmx := "10 'Converted by goBaDig 2026\r\n" +
+		"20 'https://github.com/wilsonpilon/goBaDig\r\n" +
 		"30 zz=0\r\n" +
 		"40 print zz\r\n"
 	if string(amxContent) != wantAmx {
@@ -89,8 +89,8 @@ func TestCompileFileWritesTheAmxAndBmxNextToTheSourceFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantBmx, err := Tokenize([]string{
-		"10 'Converted with Basic Dignified",
-		"20 'https://github.com/farique1/basic-dignified",
+		"10 'Converted by goBaDig 2026",
+		"20 'https://github.com/wilsonpilon/goBaDig",
 		"30 zz=0",
 		"40 print zz",
 	})

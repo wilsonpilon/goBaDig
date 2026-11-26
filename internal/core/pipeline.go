@@ -1866,13 +1866,16 @@ func resolveInclude(ctx *CompileContext, tokens []Token, i int, instr Token, quo
 	return nestedTokens[1:contentEnd], i, nil
 }
 
-// remHeaderLine1/2 are support/badig_settings.py's own header1/header2
-// (lines 68-69) - fixed, shared across every dialect (not
+// remHeaderLine1/2 were originally support/badig_settings.py's own
+// header1/header2 (lines 68-69) verbatim; changed by the user
+// (2026-11-27) to point at this project instead of the original
+// Python one, since goBaDig is its own independent port, not a
+// wrapper around badig.py. Fixed, shared across every dialect (not
 // platform-specific), used by pass4Numbering's own KindProgram case
 // when CompileSettings.RemHeader is set.
 const (
-	remHeaderLine1 = "Converted with Basic Dignified"
-	remHeaderLine2 = "https://github.com/farique1/basic-dignified"
+	remHeaderLine1 = "Converted by goBaDig 2026"
+	remHeaderLine2 = "https://github.com/wilsonpilon/goBaDig"
 )
 
 // pass4Numbering replaces the generic runPass(platform.Parser.Pass4)

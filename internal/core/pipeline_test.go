@@ -324,8 +324,8 @@ func TestPass4InsertsRemHeaderWhenEnabled(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	want := []string{
-		"10 'Converted with Basic Dignified",
-		"20 'https://github.com/farique1/basic-dignified",
+		"10 'Converted by goBaDig 2026",
+		"20 'https://github.com/wilsonpilon/goBaDig",
 		"30 PRINT 1",
 	}
 	if strings.Join(result.Code, "|") != strings.Join(want, "|") {

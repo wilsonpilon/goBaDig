@@ -14,7 +14,7 @@ type CompileSettings struct {
 	// RemHeader mirrors self.stg.rem_header (support/badig_settings.py:46,
 	// default True in Python; a plain -rh CLI flag toggles it off,
 	// support/badig_settings.py:432) - whether pass4Numbering inserts
-	// the 2-line "Converted with Basic Dignified" REM header
+	// the 2-line "Converted by goBaDig 2026" REM header
 	// (insert_rem_header, badig.py:1289-1303/1643-1645).
 	//
 	// Deliberately NOT defaulting to true here the way Python does:

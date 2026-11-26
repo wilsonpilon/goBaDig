@@ -34,8 +34,8 @@ func TestCompileFileWritesTheAzxAndPNextToTheSourceFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantAzx := "10 REM Converted with Basic Dignified\r\n" +
-		"20 REM https://github.com/farique1/basic-dignified\r\n" +
+	wantAzx := "10 REM Converted by goBaDig 2026\r\n" +
+		"20 REM https://github.com/wilsonpilon/goBaDig\r\n" +
 		"30 let z=0\r\n" +
 		"40 print z\r\n"
 	if string(azxContent) != wantAzx {
@@ -47,8 +47,8 @@ func TestCompileFileWritesTheAzxAndPNextToTheSourceFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantP, err := Tokenize([]string{
-		"10 REM Converted with Basic Dignified",
-		"20 REM https://github.com/farique1/basic-dignified",
+		"10 REM Converted by goBaDig 2026",
+		"20 REM https://github.com/wilsonpilon/goBaDig",
 		"30 let z=0",
 		"40 print z",
 	})

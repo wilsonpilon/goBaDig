@@ -34,8 +34,8 @@ func TestCompileFileWritesTheAzsAndTapNextToTheSourceFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantAzs := "10 REM Converted with Basic Dignified\r\n" +
-		"20 REM https://github.com/farique1/basic-dignified\r\n" +
+	wantAzs := "10 REM Converted by goBaDig 2026\r\n" +
+		"20 REM https://github.com/wilsonpilon/goBaDig\r\n" +
 		"30 LET counter=0\r\n" +
 		"40 PRINT counter\r\n"
 	if string(azsContent) != wantAzs {
@@ -47,8 +47,8 @@ func TestCompileFileWritesTheAzsAndTapNextToTheSourceFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	program, err := Tokenize(
-		"10 REM Converted with Basic Dignified\n"+
-			"20 REM https://github.com/farique1/basic-dignified\n"+
+		"10 REM Converted by goBaDig 2026\n"+
+			"20 REM https://github.com/wilsonpilon/goBaDig\n"+
 			"30 LET counter=0\n"+
 			"40 PRINT counter\n",
 		"48")
