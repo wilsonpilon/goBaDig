@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
-Estado: **v1.36.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.37.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -53,13 +53,16 @@ diferente do ZX81), `DEF FN`/slots ocultos de 6 bytes, e
 empacotamento `.tap`/`.tzx` (100% mecânico) — validado contra os
 vetores de ouro reais do `test_zxspectrum.py`; o `Description`/`Lexer`
 do dialeto (vocabulário clássico, `GO TO`/`GO SUB` com espaço
-variável, apóstrofo como separador real de `PRINT`); e agora o
-`Parser` também — **o primeiro arquivo `.dzs` Spectrum já compila de
-ponta a ponta** (Lex→Parse→Generate), validado extensivamente contra
-o `badig.py` real (atribuição composta, `PRINT AT`, `GOTO`/`GOSUB`,
-maiúscula incondicional de palavra reservada). Falta ainda:
-`compile`/`execute` no CLI (próxima Etapa, ver Bloco 4 abaixo)** —
-histórico completo de cada um
+variável, apóstrofo como separador real de `PRINT`); o `Parser` — **o
+primeiro arquivo `.dzs` Spectrum já compilou de ponta a ponta**; e
+agora a validação de ponta a ponta contra os **9 exemplos reais já
+existentes no projeto**, batendo byte a byte (texto E `.tap`
+tokenizado) contra o `badig.py` real — achou e corrigiu 2 bugs reais
+(maiúscula/`GOTO`→`GO TO` e `LET` implícito checando só por `Kind`,
+nunca por VALOR, perdendo os tokens sintéticos que `FUNC`/`RET`
+compartilhado do core emite). Falta ainda: `compile`/`execute` no CLI
+(próxima e última Etapa, ver Bloco 4 abaixo)** — histórico completo de
+cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
 
@@ -2982,6 +2985,47 @@ ainda não chamam nenhum desses comandos.
   palavra reservada e o que vem depois, outro já parte do próprio
   conteúdo preservado) — diferente da convenção mais simples de
   MSX/ZX81 (REM como um blob só).
+
+  **Etapa 4 (validação de ponta a ponta), feita em 2026-11-26**: os 9
+  exemplos reais já existentes no projeto
+  (`badig/examples/zxspectrum/{hello,data,fn,colours,functions,
+  native,streams,graphics,play128}.DZS` — não escritos pra esta
+  rodada, já estavam no repositório) rodados pelo pipeline inteiro
+  (`Lex→Parse→Generate→Tokenize→MakeTap`) batem **byte a byte**, tanto
+  no `.AZS` renderizado quanto no `.tap` tokenizado, contra a saída
+  real do `badig.py` (confirmado rodando `python` de verdade nesta
+  máquina) — `graphics.DZS` só com a linha `REMX 1000,32` removida
+  (mesma decisão de escopo já tomada pro ZX81: `REMX` fora de alcance),
+  `play128.DZS` tokenizado com `model="128"`. Dois bugs reais achados e
+  corrigidos por essa validação (nenhum nos testes unitários isolados,
+  só apareceram com exemplos reais que combinam `FUNC`/`RET` com as
+  regras do próprio dialeto): a maiúscula incondicional e a
+  normalização `GOTO`→`GO TO` (Pass5, acima) checavam `tok.Kind` em
+  vez do VALOR do token — core's compartilhado `pass2Functions`/
+  `pass2Labels` emitem seus próprios `gosub`/`return`/`goto` sintéticos
+  como `core.KindSynthetic`, nunca `KindJump`/`KindInstruction` deste
+  pacote, então ficavam minúsculos sem forçar (`gosub 130`/`return`
+  em vez de `GO SUB 130`/`RETURN`) — corrigido pra checar por VALOR
+  (igual o próprio Python faz, `tk.uval in c_reserved_kw`, nunca por
+  "tipo de token"); e `atStatementStart` (usado tanto pelo `LET`
+  implícito quanto pela atribuição composta) checava `prev.Kind ==
+  KindSeparator`, mas o `":"` sintético que `pass2Functions` insere
+  entre os passos de uma chamada de `FUNC` TAMBÉM é `KindSynthetic` —
+  corrigido pra checar `prev.String() == ":"` por valor também.
+  `functions.DZS` (que combina os dois: `.double(score)` expande pra
+  `GO SUB`+`RETURN` sintéticos, E a atribuição de retorno
+  `answer=result` precisa do próprio `LET` implícito depois do `:`
+  sintético) foi exatamente o exemplo que revelou os dois.
+
+  3 testes comitados (`TestEndToEndRealHelloExample`/
+  `...FunctionsExample`/`...FnExample`, conteúdo embutido como string
+  Go, sem depender de arquivo em disco — mesmo princípio 100%-em-
+  memória já usado o projeto inteiro, cobrindo os 3 exemplos
+  estruturalmente mais distintos: programa simples com label/`LET`
+  implícito/`GOTO`, atribuição composta + `FUNC`/`RET`, e `DEF FN`/
+  `FN`) + 1 scratch (`zz_scratch_e2e_test.go`, não comitado, lendo os
+  9 arquivos reais de uma cópia local e comparando `.AZS`/`.tap`
+  contra a saída do Python real).
 - [x] Portar tokenizer Spectrum, incluindo encoding de número Sinclair
   (usar `math/big.Rat` para precisão, validar contra os 69 testes Python
   como golden-master). — **A**, **1** — **feito em 2026-11-26**

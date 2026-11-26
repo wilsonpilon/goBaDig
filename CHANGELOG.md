@@ -35,6 +35,48 @@ exata do pacote.
 
 ---
 
+## [1.37.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-validation** (build 0)
+
+**Validação de ponta a ponta ZX Spectrum** (Bloco 4, Etapa 4 de 5) —
+os 9 exemplos reais já existentes no projeto
+(`badig/examples/zxspectrum/*.DZS`) rodados pelo pipeline inteiro
+(Lex→Parse→Generate→Tokenize→MakeTap) batem byte a byte, tanto no
+`.AZS` quanto no `.tap`, contra a saída real do `badig.py`.
+
+### Corrigido
+
+- Maiúscula incondicional de palavra reservada e a normalização
+  `GOTO`/`GOSUB`→`GO TO`/`GO SUB` (Pass5) checavam `tok.Kind` em vez
+  do valor do token — os tokens sintéticos que o `pass2Functions`/
+  `pass2Labels` compartilhados do core emitem (`gosub`/`return`/
+  `goto`, para `FUNC`/`RET` e labels de loop) nunca carregam o Kind
+  deste pacote, então ficavam sem forçar.
+- `LET` implícito e a validação de atribuição composta checavam
+  `prev.Kind == KindSeparator`, mas o `":"` sintético que
+  `pass2Functions` insere entre os passos de uma chamada é
+  `core.KindSynthetic` — ambos corrigidos pra checar por VALOR
+  (mesmo princípio do `tk.uval in c_reserved_kw` do Python original,
+  nunca por "tipo de token").
+
+### Adicionado
+
+- 3 testes de exemplo real comitados (`TestEndToEndRealHelloExample`/
+  `...FunctionsExample`/`...FnExample`).
+
+### Verificado
+
+- Os 9 exemplos reais (`hello`/`data`/`fn`/`colours`/`functions`/
+  `native`/`streams`/`graphics`/`play128`) batem byte a byte contra o
+  `badig.py` real, texto e `.tap` tokenizado.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
+### O que não mudou / ainda falta
+
+- `REMX` continua fora de escopo.
+- Nenhum comando `compile`/`execute` pro Spectrum ainda — última
+  Etapa do roteiro, ver `OUTLINE.md`, Bloco 4.
+
 ## [1.36.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-parser** (build 0)
 
 **Parser ZX Spectrum** (Bloco 4, Etapa 3 de 5) — fecha o motor

@@ -151,9 +151,12 @@ o Description/Lexer/Parser do dialeto). **`v1.35.0`** porta o
 `Description`/`Lexer` do dialeto (vocabulário clássico, `GO TO`/
 `GO SUB` com espaço variável, apóstrofo como separador real de
 `PRINT`). **`v1.36.0`** porta o `Parser` — o primeiro arquivo `.dzs`
-real já compila de ponta a ponta (Lex→Parse→Generate), ainda sem
-nenhum comando `compile`/`execute` novo pro usuário em nenhuma das
-três releases do módulo Spectrum até aqui.
+real já compila de ponta a ponta (Lex→Parse→Generate).
+**`v1.37.0`** valida isso contra os 9 exemplos reais já existentes no
+projeto, byte a byte (texto E `.tap` tokenizado) contra o `badig.py`
+original — nenhuma das quatro releases ganhou um comando novo pro
+usuário ainda (`compile`/`execute` pro Spectrum ficam pra uma
+próxima etapa).
 
 ## 4. Compilar a partir do código-fonte
 
