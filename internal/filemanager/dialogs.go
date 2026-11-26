@@ -159,7 +159,21 @@ func (fm *FileManager) createProject(name, parent, dialectID string) {
 		return
 	}
 	path := filepath.Join(parent, name)
-	if err := fm.store.CreateProject(name, path, dialectID); err != nil {
+	err := fm.store.CreateProject(name, path, dialectID)
+	// Reload the active panel either way, even on error below: store.
+	// CreateProject's own os.MkdirAll runs BEFORE its database insert,
+	// so a failure at the database step (most commonly a duplicate
+	// project name - "name" is that table's primary key, and it
+	// persists across restarts in the user's real settings.db, so
+	// reusing a name from a past session fails here too) still leaves
+	// a real, newly-created directory on disk that this panel hadn't
+	// shown yet. Previously this returned before ever reloading,
+	// leaving that directory invisible until the whole program was
+	// restarted (reported bug: "às vezes dá erro e não mostra os
+	// arquivos... mas entrando e saindo do programa o diretório está
+	// lá").
+	_ = fm.current().load(parent)
+	if err != nil {
 		fm.setStatus(fmt.Sprintf(" erro ao criar projeto: %v", err))
 		return
 	}

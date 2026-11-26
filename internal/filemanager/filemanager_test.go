@@ -3,6 +3,7 @@ package filemanager
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -262,6 +263,66 @@ func TestCreateProjectCreatesItsOwnSubfolderInsideTheParent(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].Name() != "MeuJogo" {
 		t.Fatalf("parent directory = %v, want only the MeuJogo subfolder", entries)
+	}
+}
+
+// TestCreateProjectStillShowsTheDirectoryWhenTheDatabaseStepFails is
+// a regression test reported directly by the user: "ao criar um
+// projeto novo, às vezes dá erro e não mostra os arquivos no file
+// manager, mas entrando e saindo do programa o diretório está lá".
+//
+// Root cause: config.Store.CreateProject runs os.MkdirAll BEFORE its
+// database insert - a failure at the database step (most commonly a
+// duplicate project name, since "name" is that table's primary key
+// and persists across restarts in the user's real settings.db) still
+// leaves a real, newly-created directory on disk. The file manager's
+// own createProject used to return as soon as store.CreateProject
+// failed, without ever reloading the panel - so that directory
+// stayed invisible in the CURRENT session until the whole program was
+// restarted (which lists the real filesystem fresh, revealing it was
+// there all along). Reproduced here with a duplicate name, the
+// simplest real way to trigger the database step's own failure.
+func TestCreateProjectStillShowsTheDirectoryWhenTheDatabaseStepFails(t *testing.T) {
+	store := newTestStore(t)
+	parent := t.TempDir()
+	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
+
+	fm.createProject("MeuJogo", parent, options.CategoryMSX)
+	if status := fm.status.GetText(true); strings.Contains(status, "erro") {
+		t.Fatalf("first createProject: unexpected error status %q", status)
+	}
+
+	// Move the panel away to an UNRELATED directory - one that
+	// genuinely doesn't contain "MeuJogo" - before recreating with the
+	// same name. If createProject's own reload doesn't fire on the
+	// error path below, the panel stays on this unrelated listing
+	// instead of reflecting "parent" (where MeuJogo actually is), so
+	// this test can tell the difference; reloading "parent" directly
+	// here first would make both the buggy and fixed code look the
+	// same, since the panel would already be showing MeuJogo before
+	// the second createProject call even ran.
+	elsewhere := t.TempDir()
+	if err := fm.current().load(elsewhere); err != nil {
+		t.Fatal(err)
+	}
+
+	// store.CreateProject's database insert fails (duplicate primary
+	// key), but MeuJogo's own directory already exists from the first
+	// call above.
+	fm.createProject("MeuJogo", parent, options.CategoryMSX)
+
+	status := fm.status.GetText(true)
+	if !strings.Contains(status, "erro") {
+		t.Fatalf("second createProject with a duplicate name: want an error status, got %q", status)
+	}
+	found := false
+	for _, e := range fm.current().entries {
+		if e.name == "MeuJogo" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("MeuJogo not found in the reloaded panel after the duplicate-name error: %+v", fm.current().entries)
 	}
 }
 
