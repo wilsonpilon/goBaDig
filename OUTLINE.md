@@ -2591,6 +2591,21 @@ ainda não chamam nenhum desses comandos.
   default real do Python). **Fechou os dois últimos gaps conhecidos**
   contra a saída real do `badig.py`: `CGK173.dmx` inteiro agora bate
   byte a byte, ZERO diferenças. 4 testes novos em `core`. — **B**, **1**
+
+  **Texto do cabeçalho trocado pra apontar pro goBaDig (2026-11-27,
+  v1.43.0)**, pedido explícito do usuário: `remHeaderLine1`/
+  `remHeaderLine2` (`internal/core/pipeline.go`) deixam de ser as
+  mesmas do `support/badig_settings.py` original ("Converted with
+  Basic Dignified" / link pro `farique1/basic-dignified`) e passam a
+  ser "Converted by goBaDig 2026" /
+  `https://github.com/wilsonpilon/goBaDig` — divergência DELIBERADA
+  da saída real do `badig.py` a partir de agora (zero diferença deixa
+  de valer só pra essas duas linhas; o resto do arquivo continua
+  batendo byte a byte). Dois testes de validação pessoal, não
+  rastreados pelo git (`internal/platforms/msx/
+  zz_scratch_cgk173_test.go`, comparavam byte a byte contra referências
+  reais do `badig.py`), marcados com `t.Skip` nesse ponto específico -
+  a referência é de antes dessa mudança.
 - [ ] `Settings`/`Expose` MSX (`-cp`/`-tg`) — só fazem sentido quando o
   `Parser` ler essas flags. — **B**, **2**
 - [ ] Portar DignifieR MSX como parser manual (sem lookahead de regex). — **A**, **2**

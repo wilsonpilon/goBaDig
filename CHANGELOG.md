@@ -35,6 +35,45 @@ exata do pacote.
 
 ---
 
+## [1.43.0] — 2026-11-27 — bloco **NEW**, feature **rem-header-branding** (build 0)
+
+**Cabeçalho REM aponta pro goBaDig, não mais pro projeto Python
+original**, pedido explícito do usuário: "a linhas 10 e 20 com o rem
+indicando o projeto precisa mudar a primeira linha deve ser REM
+Converted by goBaDig 2026 e a segunda linha deve mostra o link do
+gobadig no github".
+
+### Alterado
+
+- `internal/core/pipeline.go`'s `remHeaderLine1`/`remHeaderLine2`
+  (inseridas nas linhas 10/20 de todo programa convertido quando
+  `RemHeader` está ativo - o padrão) deixam de ser as mesmas do
+  `support/badig_settings.py` original ("Converted with Basic
+  Dignified" / link pro `farique1/basic-dignified`) e passam a ser
+  **"Converted by goBaDig 2026"** e
+  **`https://github.com/wilsonpilon/goBaDig`** — goBaDig é um port
+  independente, não um wrapper do projeto original, então o cabeçalho
+  agora reflete isso. Compartilhado entre as três plataformas (MSX,
+  ZX81, ZX Spectrum); cada uma usa seu próprio caractere de comentário
+  (`'` no MSX, `REM` em ZX81/ZX Spectrum) — confirmado rodando o CLI
+  de verdade nos três dialetos.
+
+### Verificado
+
+- `internal/core/pipeline_test.go` e os testes `compile_test.go` das
+  três plataformas atualizados pro texto novo.
+- Dois testes de validação pessoal, não rastreados pelo git
+  (`internal/platforms/msx/zz_scratch_cgk173_test.go`), comparavam
+  byte a byte contra a saída real do `badig.py` original — agora
+  pulados (`t.Skip`) de propósito nesse ponto específico: essa saída
+  de referência é de ANTES dessa mudança de marca, e a divergência no
+  cabeçalho é esperada e desejada a partir de agora.
+- `goBaDig <arquivo>` rodado de verdade nos três dialetos
+  (`.dmx`/`.dzx`/`.dzs`), conferindo o `.amx`/`.azx`/`.azs` resultante
+  à mão.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.42.1] — 2026-11-26 — bloco **NEW**, feature **fm-control-center** (build 1)
 
 **Duas correções**, reportadas diretamente pelo usuário depois de usar
