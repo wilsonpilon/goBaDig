@@ -7,6 +7,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/wilsonpilon/goBaDig/internal/chrome"
 )
 
 // TestSetupOptionsPanelsRenderTheRightCategory confirms each new Setup
@@ -74,7 +76,7 @@ func TestSetupOptionsPanelsRenderTheRightCategory(t *testing.T) {
 	press(tcell.KeyEnter, 0, tcell.ModNone) // select "MSX"
 
 	contents := waitForText("CONVERT_PRINT")
-	for _, want := range []string{"MSX", "CONVERT_PRINT", "EMULATOR_MACHINE", closeBoxGlyph} {
+	for _, want := range []string{"MSX", "CONVERT_PRINT", "EMULATOR_MACHINE", chrome.CloseBoxGlyph} {
 		if !strings.Contains(contents, want) {
 			t.Fatalf("MSX options panel missing %q; screen contents:\n%s", want, contents)
 		}

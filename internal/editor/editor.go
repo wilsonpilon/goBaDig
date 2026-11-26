@@ -151,6 +151,16 @@ func (e *Editor) openInitialFile(name string) error {
 	return nil
 }
 
+// OpenFile loads path into the editor's current window, exactly like
+// the startup path argument does (see runEditor) - used by
+// internal/filemanager's "edit" action to hand an already-selected
+// file straight to an already-running embedded editor instance,
+// without going through the interactive file.open dialog (the caller
+// already knows which file).
+func (e *Editor) OpenFile(path string) error {
+	return e.openInitialFile(path)
+}
+
 func (e *Editor) Input() tview.Primitive { return e.area }
 
 func (e *Editor) build() {

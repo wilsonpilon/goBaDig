@@ -1,0 +1,255 @@
+package filemanager
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+
+	"github.com/wilsonpilon/goBaDig/internal/config"
+	"github.com/wilsonpilon/goBaDig/internal/options"
+)
+
+func newTestStore(t *testing.T) *config.Store {
+	t.Helper()
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return store
+}
+
+func keyEvent(key tcell.Key) *tcell.EventKey {
+	return tcell.NewEventKey(key, 0, tcell.ModNone)
+}
+
+func TestNewFileManagerStartsBothPanelsAtTheWorkingDirectory(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	wantDir, _ := filepath.Abs(wd)
+	if fm.panels[0].dir != wantDir || fm.panels[1].dir != wantDir {
+		t.Fatalf("panels = (%q, %q), want both %q", fm.panels[0].dir, fm.panels[1].dir, wantDir)
+	}
+	if fm.active != 0 {
+		t.Fatalf("active = %d, want 0", fm.active)
+	}
+}
+
+func TestTabSwitchesTheActivePanel(t *testing.T) {
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if got := fm.Capture(keyEvent(tcell.KeyTab)); got != nil {
+		t.Fatalf("Capture(Tab) = %v, want nil (consumed)", got)
+	}
+	if fm.active != 1 {
+		t.Fatalf("active = %d, want 1 after Tab", fm.active)
+	}
+	fm.Capture(keyEvent(tcell.KeyTab))
+	if fm.active != 0 {
+		t.Fatalf("active = %d, want 0 after a second Tab", fm.active)
+	}
+}
+
+func TestEnterDescendsIntoADirectoryAndBackspaceGoesBackUp(t *testing.T) {
+	parent := t.TempDir()
+	child := filepath.Join(parent, "child")
+	if err := os.Mkdir(child, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if err := fm.current().load(parent); err != nil {
+		t.Fatal(err)
+	}
+	fm.current().table.Select(indexOf(t, fm.current(), "child"), 0)
+
+	fm.Capture(keyEvent(tcell.KeyEnter))
+	wantChild, _ := filepath.Abs(child)
+	if fm.current().dir != wantChild {
+		t.Fatalf("after Enter on child, dir = %q, want %q", fm.current().dir, wantChild)
+	}
+
+	fm.Capture(keyEvent(tcell.KeyBackspace2))
+	wantParent, _ := filepath.Abs(parent)
+	if fm.current().dir != wantParent {
+		t.Fatalf("after Backspace, dir = %q, want %q", fm.current().dir, wantParent)
+	}
+}
+
+func indexOf(t *testing.T, p *panel, name string) int {
+	t.Helper()
+	for i, e := range p.entries {
+		if e.name == name {
+			return i
+		}
+	}
+	t.Fatalf("entry %q not found in panel listing %v", name, p.entries)
+	return -1
+}
+
+func TestEscClosesTheFileManager(t *testing.T) {
+	closed := false
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, func() { closed = true })
+	fm.Capture(keyEvent(tcell.KeyEsc))
+	if !closed {
+		t.Fatal("Esc did not call onClose")
+	}
+}
+
+func TestEditSelectedCallsOnOpenInEditorWithTheSelectedPath(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "hello.dmx")
+	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var opened string
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), func(path string) { opened = path }, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.current().table.Select(indexOf(t, fm.current(), "hello.dmx"), 0)
+	fm.Capture(keyEvent(tcell.KeyF4))
+	want, _ := filepath.Abs(file)
+	if opened != want {
+		t.Fatalf("onOpenInEditor called with %q, want %q", opened, want)
+	}
+}
+
+func TestF2CompilesTheSelectedFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "hello.dmx")
+	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.current().table.Select(indexOf(t, fm.current(), "hello.dmx"), 0)
+	fm.Capture(keyEvent(tcell.KeyF2))
+
+	if _, err := os.Stat(filepath.Join(dir, "hello.bmx")); err != nil {
+		t.Fatalf("expected the compiled .bmx artifact to exist: %v", err)
+	}
+	if status := fm.status.GetText(true); status == statusHelp {
+		t.Fatalf("status was not updated after compiling, still %q", status)
+	}
+}
+
+func TestF9ReportsAnErrorWhenNoEmulatorIsOnPathButStillBuildsTheArtifact(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir()
+	file := filepath.Join(dir, "hello.dmx")
+	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.current().table.Select(indexOf(t, fm.current(), "hello.dmx"), 0)
+	fm.Capture(keyEvent(tcell.KeyF9))
+
+	if _, err := os.Stat(filepath.Join(dir, "hello.dsk")); err != nil {
+		t.Fatalf("expected the MSX test disk to still have been built: %v", err)
+	}
+	status := fm.status.GetText(true)
+	if status == statusHelp {
+		t.Fatal("status was not updated after F9 with no emulator on PATH")
+	}
+}
+
+func TestF7CreatesADirectoryInTheActivePanel(t *testing.T) {
+	dir := t.TempDir()
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.mkdir("novapasta")
+	if info, err := os.Stat(filepath.Join(dir, "novapasta")); err != nil || !info.IsDir() {
+		t.Fatalf("expected novapasta to have been created as a directory: %v", err)
+	}
+}
+
+func TestCopySelectedCopiesAFileToTheOtherPanel(t *testing.T) {
+	dirA := t.TempDir()
+	dirB := t.TempDir()
+	file := filepath.Join(dirA, "hello.dmx")
+	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if err := fm.panels[0].load(dirA); err != nil {
+		t.Fatal(err)
+	}
+	if err := fm.panels[1].load(dirB); err != nil {
+		t.Fatal(err)
+	}
+	fm.panels[0].table.Select(indexOf(t, fm.panels[0], "hello.dmx"), 0)
+	fm.copySelected()
+
+	if _, err := os.Stat(filepath.Join(dirB, "hello.dmx")); err != nil {
+		t.Fatalf("expected hello.dmx to have been copied into dirB: %v", err)
+	}
+	if _, err := os.Stat(file); err != nil {
+		t.Fatalf("expected the original file in dirA to remain after copy: %v", err)
+	}
+}
+
+func TestMoveSelectedMovesAFileAfterConfirmation(t *testing.T) {
+	dirA := t.TempDir()
+	dirB := t.TempDir()
+	file := filepath.Join(dirA, "hello.dmx")
+	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	if err := fm.panels[0].load(dirA); err != nil {
+		t.Fatal(err)
+	}
+	if err := fm.panels[1].load(dirB); err != nil {
+		t.Fatal(err)
+	}
+	fm.panels[0].table.Select(indexOf(t, fm.panels[0], "hello.dmx"), 0)
+	fm.moveSelected()
+	if !fm.dialogOpen {
+		t.Fatal("moveSelected did not open a confirmation dialog")
+	}
+	if _, err := os.Stat(file); err != nil {
+		t.Fatal("expected the source file to still exist before confirmation")
+	}
+}
+
+func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
+	store := newTestStore(t)
+	projectDir := filepath.Join(t.TempDir(), "MeuJogo")
+	fm := NewFileManager(tview.NewApplication(), store, nil, nil)
+	fm.createProject("MeuJogo", projectDir, options.CategoryMSX, false)
+
+	projects, err := store.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projects) != 1 || projects[0].Name != "MeuJogo" {
+		t.Fatalf("ListProjects() = %+v, want one project named MeuJogo", projects)
+	}
+	wantDir, _ := filepath.Abs(projectDir)
+	if fm.current().dir != wantDir {
+		t.Fatalf("active panel dir = %q, want %q (jumped to the new project)", fm.current().dir, wantDir)
+	}
+}
+
+func TestCreateProjectWithStarterFileWritesTheRightExtension(t *testing.T) {
+	store := newTestStore(t)
+	projectDir := filepath.Join(t.TempDir(), "Jogo81")
+	fm := NewFileManager(tview.NewApplication(), store, nil, nil)
+	fm.createProject("Jogo81", projectDir, options.CategoryZX81, true)
+
+	if _, err := os.Stat(filepath.Join(projectDir, "Jogo81.dzx")); err != nil {
+		t.Fatalf("expected a Jogo81.dzx starter file: %v", err)
+	}
+}

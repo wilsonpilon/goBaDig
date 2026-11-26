@@ -13,8 +13,10 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
+	"github.com/wilsonpilon/goBaDig/internal/chrome"
 	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/editor"
+	"github.com/wilsonpilon/goBaDig/internal/filemanager"
 	"github.com/wilsonpilon/goBaDig/internal/options"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
@@ -96,16 +98,17 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	pages := tview.NewPages()
 	colors := paletteFor(activeTheme)
 	menus := []menuDef{
-		{icon: iconFile, label: "File", items: []menuItem{{iconExit, "Exit", func() { app.Stop() }}}},
-		{icon: iconEdit, label: "Editor", items: []menuItem{{iconEdit, "Open", nil}}},
-		{icon: iconSetup, label: "Setup", items: []menuItem{
-			{iconInstall, "Install", nil},
-			{iconSetup, "Basic Dignified", nil},
-			{iconSetup, "MSX", nil},
-			{iconSetup, "ZX81", nil},
-			{iconSetup, "ZX Spectrum", nil},
+		{icon: chrome.IconFile, label: "File", items: []menuItem{{chrome.IconExit, "Exit", func() { app.Stop() }}}},
+		{icon: chrome.IconEdit, label: "Editor", items: []menuItem{{chrome.IconEdit, "Open", nil}}},
+		{icon: chrome.IconSetup, label: "Setup", items: []menuItem{
+			{chrome.IconInstall, "Install", nil},
+			{chrome.IconSetup, "Basic Dignified", nil},
+			{chrome.IconSetup, "MSX", nil},
+			{chrome.IconSetup, "ZX81", nil},
+			{chrome.IconSetup, "ZX Spectrum", nil},
 		}},
-		{icon: iconHelp, label: "Help", items: []menuItem{{iconAbout, "About", nil}}},
+		{icon: chrome.IconHelp, label: "Help", items: []menuItem{{chrome.IconAbout, "About", nil}}},
+		{icon: chrome.IconFolder, label: "Files", items: []menuItem{{chrome.IconFolder, "Open", nil}}},
 	}
 	activeMenu := 0
 	menuOpen := false
@@ -145,7 +148,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	}
 	setDesktop := func() {
 		themeLine := "Tema TUI: " + activeTheme.Name
-		rule := strings.Repeat(string(bannerRule), len([]rune(themeLine)))
+		rule := strings.Repeat(string(chrome.BannerRule), len([]rune(themeLine)))
 		desk.SetLines("goBaDig", rule, "Basic Dignified Suite", "", themeLine)
 	}
 	titleBar.SetText(fmt.Sprintf(" ▣ goBaDig v%s  -  BASIC Development Environment", version.Version))
@@ -188,25 +191,41 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		modal.SetTextColor(colors.dialogFg)
 		modal.SetButtonBackgroundColor(colors.highlight)
 		modal.SetButtonTextColor(colors.desktopFg)
-		attachShadow(modal.Box)
+		chrome.AttachShadow(modal.Box)
 		dialogOpen = true
 		dialogFocus = modal
 		pages.AddPage("about", modal, true, true)
 		app.SetFocus(modal)
 	}
 	var showError func(context string, err error)
+	closeFileManager := func() {
+		pages.SwitchToPage("app")
+		app.SetFocus(pages)
+	}
+	fm := filemanager.NewFileManager(app, store, func(path string) {
+		if err := ed.OpenFile(path); err != nil {
+			showError("Nao foi possivel abrir o arquivo no editor", err)
+			return
+		}
+		openEditor()
+	}, closeFileManager)
+	pages.AddPage("filemanager", fm, true, false)
+	openFileManager := func() {
+		pages.SwitchToPage("filemanager")
+		app.SetFocus(fm)
+	}
 	showThemePicker := func() {
 		options := make([]string, len(themes))
 		selected := 0
 		for i, item := range themes {
-			options[i] = fmt.Sprintf("[%s]%s[-] %s", item.Palette.Primary, iconSwatch, item.Name)
+			options[i] = fmt.Sprintf("[%s]%s[-] %s", item.Palette.Primary, chrome.IconSwatch, item.Name)
 			if item.ID == activeTheme.ID {
 				selected = i
 			}
 		}
 		form := tview.NewForm()
 		form.SetBorder(true).SetBorderColor(colors.border)
-		windowChrome(form.Box, iconInstall, "Install TUI Theme", colors.dialogFg)
+		chrome.WindowChrome(form.Box, chrome.IconInstall, "Install TUI Theme", colors.dialogFg)
 		form.SetBackgroundColor(colors.dialogBg)
 		form.SetFieldBackgroundColor(tcell.ColorWhite)
 		form.SetFieldTextColor(tcell.ColorBlack)
@@ -280,7 +299,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		modal.SetTextColor(colors.dialogFg)
 		modal.SetButtonBackgroundColor(colors.highlight)
 		modal.SetButtonTextColor(colors.desktopFg)
-		attachShadow(modal.Box)
+		chrome.AttachShadow(modal.Box)
 		dialogFocus = modal
 		pages.AddPage("dialog-error", modal, true, true)
 		app.SetFocus(modal)
@@ -318,7 +337,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 
 			form := tview.NewForm()
 			form.SetBorder(true).SetBorderColor(colors.border)
-			windowChrome(form.Box, iconSetup, title, colors.dialogFg)
+			chrome.WindowChrome(form.Box, chrome.IconSetup, title, colors.dialogFg)
 			form.SetBackgroundColor(colors.dialogBg)
 			form.SetFieldBackgroundColor(tcell.ColorWhite)
 			form.SetFieldTextColor(tcell.ColorBlack)
@@ -402,6 +421,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	menus[2].items[3].action = showOptionsPanel(options.CategoryZX81, "ZX81")
 	menus[2].items[4].action = showOptionsPanel(options.CategoryZXSpectrum, "ZX Spectrum")
 	menus[3].items[0].action = showAbout
+	menus[4].items[0].action = openFileManager
 
 	var openMenu func(i int)
 	openMenu = func(i int) {
@@ -441,7 +461,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		// width band - SetHighlightFullLine(true) is tview's own
 		// knob for exactly this ("Norton/PC Tools"-style solid bars).
 		list.SetHighlightFullLine(true)
-		windowChrome(list.Box, m.icon, m.label, colors.menuFg)
+		chrome.WindowChrome(list.Box, m.icon, m.label, colors.menuFg)
 		for _, it := range m.items {
 			action := it.action
 			list.AddItem(visibleLabel(it.icon, it.label), "", 0, func() {
@@ -472,6 +492,9 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if name, _ := pages.GetFrontPage(); name == "editor" {
 			return ed.Capture(event)
+		}
+		if name, _ := pages.GetFrontPage(); name == "filemanager" {
+			return fm.Capture(event)
 		}
 		if dialogOpen {
 			return event

@@ -7,6 +7,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/wilsonpilon/goBaDig/internal/chrome"
 )
 
 // TestSetupInstallDialogIsVisible is a regression test for a bug where
@@ -58,8 +60,8 @@ func TestSetupInstallDialogIsVisible(t *testing.T) {
 	if !strings.Contains(contents, "Install TUI Theme") {
 		t.Fatalf("Install dialog title not found on screen; dialog is invisible.\nScreen contents:\n%s", contents)
 	}
-	if !strings.Contains(contents, closeBoxGlyph) {
-		t.Fatalf("Install dialog close box %q not found on screen; dialog is invisible.\nScreen contents:\n%s", closeBoxGlyph, contents)
+	if !strings.Contains(contents, chrome.CloseBoxGlyph) {
+		t.Fatalf("Install dialog close box %q not found on screen; dialog is invisible.\nScreen contents:\n%s", chrome.CloseBoxGlyph, contents)
 	}
 
 	done := make(chan struct{})
