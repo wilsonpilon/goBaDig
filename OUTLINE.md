@@ -3418,6 +3418,31 @@ ainda não chamam nenhum desses comandos.
   confirmando que **Files > Open** abre o gerenciador e `Esc` fecha de
   volta pro desktop.
 
+  **Correção de bug + visual (2026-11-26, v1.41.1)**, reportada
+  diretamente pelo usuário: o esquema de cores fixo (amarelo sobre
+  preto) "parecia um programa de 1979" e, pior, alguns diretórios
+  apareciam com letra preta sobre fundo preto - navegáveis, mas
+  invisíveis. **Causa raiz**: nenhum `table.SetSelectedStyle` era
+  configurado nos painéis (`tview.Table`) - sem isso, `tview.Table`
+  cai no fallback de inverter a cor da linha selecionada combinando o
+  texto da célula com o `BackgroundColor` dela (nunca definido
+  explicitamente), uma combinação sem garantia de contraste. Mesma
+  classe de bug já vista uma vez antes neste projeto (`tview.List` no
+  dropdown do menu Setup, ver nota acima sobre
+  `TestSetupMenuUnselectedItemsAreNotBlackOnBlack`), agora em
+  `tview.Table`. Corrigido com `SetSelectedStyle` explícito (fundo =
+  cor de seleção do tema, texto = branco fixo - mesma escolha já
+  comprovada nos dropdowns de menu da própria TUI) **e** trocando o
+  esquema fixo pelo tema ativo da TUI: novo `internal/filemanager.
+  Colors` (com `DefaultColors()` pra testes sem tema), mapeado do
+  tema ativo em `internal/tui/tui.go`'s `filemanagerColorsFor`, e um
+  novo `FileManager.SetColors` chamado pelo mesmo botão "Apply" que
+  já reaplica o tema no resto da TUI. Teste de regressão novo
+  (`internal/tui/filemanager_colors_test.go`,
+  `TestFileManagerEntriesAreNotBlackOnBlack`), mesma técnica de
+  varredura de tela inteira da `TestSetupMenuUnselectedItemsAreNot
+  BlackOnBlack` - confirmado capaz de pegar a classe de bug.
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e

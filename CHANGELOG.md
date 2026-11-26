@@ -35,6 +35,44 @@ exata do pacote.
 
 ---
 
+## [1.41.1] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 1)
+
+**Correção de bug + visual**, reportada diretamente pelo usuário: o
+gerenciador de arquivos tinha um esquema de cores fixo (amarelo sobre
+preto, "parecendo um programa de 1979"), diferente do resto do
+programa, e pior - **alguns diretórios apareciam com letra preta
+sobre fundo preto**, invisíveis (navegáveis, mas não visíveis).
+
+### Corrigido
+
+- **Causa raiz do texto invisível**: nenhum `table.SetSelectedStyle`
+  era configurado nos painéis (`tview.Table`); sem isso,
+  `tview.Table` cai no fallback de "inverter" a cor da linha
+  selecionada combinando o texto da célula com o `BackgroundColor`
+  dela (nunca definido explicitamente) - combinação sem garantia
+  nenhuma de contraste. Corrigido chamando `SetSelectedStyle`
+  explicitamente com um par de cores garantido (fundo = cor de
+  seleção do tema, texto = branco fixo — mesma escolha já comprovada
+  nos dropdowns de menu da própria TUI).
+- **Visual**: o gerenciador de arquivos agora usa o tema ativo da TUI
+  (`internal/theme`) em vez de um esquema fixo próprio - painéis,
+  diálogos e a barra de atalhos acompanham `Setup > Install` em tempo
+  real (novo `FileManager.SetColors`, chamado pelo mesmo botão
+  "Apply" que já reaplica o tema no resto da TUI). Novo
+  `internal/filemanager.Colors` (com `DefaultColors()` pra testes sem
+  tema) mapeado em `internal/tui/tui.go`'s `filemanagerColorsFor`.
+
+### Verificado
+
+- Novo teste de regressão `internal/tui/filemanager_colors_test.go`
+  (`TestFileManagerEntriesAreNotBlackOnBlack`), mesma técnica de
+  varredura de tela inteira já usada em
+  `TestSetupMenuUnselectedItemsAreNotBlackOnBlack` - confirmado
+  capaz de pegar a classe de bug (testado removendo o
+  `SetSelectedStyle` de propósito e revertendo).
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.41.0] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 0)
 
 **Gerenciador de arquivos de dois painéis na TUI** — pedido do
