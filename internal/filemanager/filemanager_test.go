@@ -31,7 +31,7 @@ func TestNewFileManagerStartsBothPanelsAtTheWorkingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	wantDir, _ := filepath.Abs(wd)
 	if fm.panels[0].dir != wantDir || fm.panels[1].dir != wantDir {
 		t.Fatalf("panels = (%q, %q), want both %q", fm.panels[0].dir, fm.panels[1].dir, wantDir)
@@ -42,7 +42,7 @@ func TestNewFileManagerStartsBothPanelsAtTheWorkingDirectory(t *testing.T) {
 }
 
 func TestTabSwitchesTheActivePanel(t *testing.T) {
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if got := fm.Capture(keyEvent(tcell.KeyTab)); got != nil {
 		t.Fatalf("Capture(Tab) = %v, want nil (consumed)", got)
 	}
@@ -61,7 +61,7 @@ func TestEnterDescendsIntoADirectoryAndBackspaceGoesBackUp(t *testing.T) {
 	if err := os.Mkdir(child, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if err := fm.current().load(parent); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func indexOf(t *testing.T, p *panel, name string) int {
 
 func TestEscClosesTheFileManager(t *testing.T) {
 	closed := false
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, func() { closed = true })
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, func() { closed = true })
 	fm.Capture(keyEvent(tcell.KeyEsc))
 	if !closed {
 		t.Fatal("Esc did not call onClose")
@@ -107,7 +107,7 @@ func TestEditSelectedCallsOnOpenInEditorWithTheSelectedPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	var opened string
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), func(path string) { opened = path }, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), func(path string) { opened = path }, nil)
 	if err := fm.current().load(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestF2CompilesTheSelectedFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if err := fm.current().load(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestF9ReportsAnErrorWhenNoEmulatorIsOnPathButStillBuildsTheArtifact(t *test
 	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if err := fm.current().load(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestF9ReportsAnErrorWhenNoEmulatorIsOnPathButStillBuildsTheArtifact(t *test
 
 func TestF7CreatesADirectoryInTheActivePanel(t *testing.T) {
 	dir := t.TempDir()
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if err := fm.current().load(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestCopySelectedCopiesAFileToTheOtherPanel(t *testing.T) {
 	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if err := fm.panels[0].load(dirA); err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestMoveSelectedMovesAFileAfterConfirmation(t *testing.T) {
 	if err := os.WriteFile(file, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fm := NewFileManager(tview.NewApplication(), newTestStore(t), nil, nil)
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
 	if err := fm.panels[0].load(dirA); err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestMoveSelectedMovesAFileAfterConfirmation(t *testing.T) {
 func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
 	store := newTestStore(t)
 	projectDir := filepath.Join(t.TempDir(), "MeuJogo")
-	fm := NewFileManager(tview.NewApplication(), store, nil, nil)
+	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
 	fm.createProject("MeuJogo", projectDir, options.CategoryMSX, false)
 
 	projects, err := store.ListProjects()
@@ -246,7 +246,7 @@ func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
 func TestCreateProjectWithStarterFileWritesTheRightExtension(t *testing.T) {
 	store := newTestStore(t)
 	projectDir := filepath.Join(t.TempDir(), "Jogo81")
-	fm := NewFileManager(tview.NewApplication(), store, nil, nil)
+	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
 	fm.createProject("Jogo81", projectDir, options.CategoryZX81, true)
 
 	if _, err := os.Stat(filepath.Join(projectDir, "Jogo81.dzx")); err != nil {

@@ -31,13 +31,33 @@ type panel struct {
 	dir     string
 	entries []entry
 	table   *tview.Table
+	colors  Colors
 }
 
-func newPanel() *panel {
+func newPanel(colors Colors) *panel {
 	table := tview.NewTable().SetSelectable(true, false)
 	table.SetBorder(true)
-	table.SetBackgroundColor(tcell.ColorBlack)
-	return &panel{table: table}
+	p := &panel{table: table, colors: colors}
+	p.applyColors(colors)
+	return p
+}
+
+// applyColors restyles the panel in place - called once at
+// construction and again whenever the active theme changes
+// (internal/tui calls FileManager.SetColors after Setup > Install).
+// Explicitly setting the table's own SetSelectedStyle is what fixes
+// the black-on-black bug described on the Colors type: without it,
+// tview.Table falls back to inverting a selected cell's foreground
+// with its (never set here) per-cell BackgroundColor, which isn't
+// guaranteed to produce a readable combination.
+func (p *panel) applyColors(colors Colors) {
+	p.colors = colors
+	p.table.SetBackgroundColor(colors.PanelBackground)
+	p.table.SetBorderColor(colors.InactiveBorder)
+	p.table.SetSelectedStyle(tcell.StyleDefault.
+		Background(colors.SelectionBg).
+		Foreground(colors.SelectionFg))
+	p.render()
 }
 
 // load reads dir's contents into the panel and renders them. On
@@ -105,20 +125,21 @@ func (p *panel) render() {
 		if !e.modTime.IsZero() {
 			date = e.modTime.Format("2006-01-02 15:04")
 		}
-		p.table.SetCell(row, 0, tview.NewTableCell(name).SetExpansion(1).SetTextColor(entryColor(e)))
-		p.table.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight).SetTextColor(entryColor(e)))
-		p.table.SetCell(row, 2, tview.NewTableCell(date).SetTextColor(entryColor(e)))
+		color := p.entryColor(e)
+		p.table.SetCell(row, 0, tview.NewTableCell(name).SetExpansion(1).SetTextColor(color))
+		p.table.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight).SetTextColor(color))
+		p.table.SetCell(row, 2, tview.NewTableCell(date).SetTextColor(color))
 	}
 	if len(p.entries) > 0 {
 		p.table.Select(0, 0)
 	}
 }
 
-func entryColor(e entry) tcell.Color {
+func (p *panel) entryColor(e entry) tcell.Color {
 	if e.isDir {
-		return tcell.ColorYellow
+		return p.colors.DirectoryText
 	}
-	return tcell.ColorWhite
+	return p.colors.FileText
 }
 
 // selected returns the entry currently highlighted in the panel.

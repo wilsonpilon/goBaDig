@@ -7,9 +7,15 @@
 //
 // Modeled on internal/editor's own shape: FileManager embeds
 // *tview.Pages (its "main" page plus any dialog overlay), is built
-// with NewFileManager(app, store, onOpenInEditor, onClose), and
-// exposes a Capture method for internal/tui's input-routing switch -
-// the same three-point wiring already used for the editor.
+// with NewFileManager(app, store, colors, onOpenInEditor, onClose),
+// and exposes a Capture method for internal/tui's input-routing
+// switch - the same three-point wiring already used for the editor.
+//
+// Unlike the embedded WibEdit editor (which keeps its own, theme-
+// independent chrome), the file manager renders with the TUI's
+// active theme (see Colors) - internal/tui passes the current
+// palette in at construction and calls SetColors again whenever the
+// user picks a new theme via Setup > Install.
 package filemanager
 
 import (
@@ -38,19 +44,21 @@ type FileManager struct {
 	panels     [2]*panel
 	active     int
 	status     *tview.TextView
+	colors     Colors
 	dialogOpen bool
 }
 
 const statusHelp = " Tab Painel  Enter/Backspace Navega  F2 Compila  F4 Edita  F5 Copia  F6 Move  F7 Dir  F8 Apaga  F9 Executa  Ctrl+N Projeto  Ctrl+P Projetos  Esc Fecha"
 
 // NewFileManager builds a ready-to-show file manager starting both
-// panels at the current working directory. onOpenInEditor is called
-// with the path of a file the user chose to edit (F4) - the caller
-// (internal/tui) is expected to hand it to the already-embedded
-// WibEdit editor and switch pages to it, exactly like the Editor menu
-// already does. onClose is called when the user asks to leave the
-// file manager (Esc/F10).
-func NewFileManager(app *tview.Application, store *config.Store, onOpenInEditor func(path string), onClose func()) *FileManager {
+// panels at the current working directory. colors is the palette to
+// render with (see Colors) - pass DefaultColors() where no theme is
+// available. onOpenInEditor is called with the path of a file the
+// user chose to edit (F4) - the caller (internal/tui) is expected to
+// hand it to the already-embedded WibEdit editor and switch pages to
+// it, exactly like the Editor menu already does. onClose is called
+// when the user asks to leave the file manager (Esc/F10).
+func NewFileManager(app *tview.Application, store *config.Store, colors Colors, onOpenInEditor func(path string), onClose func()) *FileManager {
 	if onOpenInEditor == nil {
 		onOpenInEditor = func(string) {}
 	}
@@ -63,9 +71,10 @@ func NewFileManager(app *tview.Application, store *config.Store, onOpenInEditor 
 		store:          store,
 		onOpenInEditor: onOpenInEditor,
 		onClose:        onClose,
+		colors:         colors,
 	}
-	fm.panels[0] = newPanel()
-	fm.panels[1] = newPanel()
+	fm.panels[0] = newPanel(colors)
+	fm.panels[1] = newPanel(colors)
 	start, err := os.Getwd()
 	if err != nil {
 		start = "."
@@ -74,8 +83,6 @@ func NewFileManager(app *tview.Application, store *config.Store, onOpenInEditor 
 	_ = fm.panels[1].load(start)
 
 	fm.status = tview.NewTextView().SetDynamicColors(true)
-	fm.status.SetBackgroundColor(tcell.ColorBlue)
-	fm.status.SetTextColor(tcell.ColorWhite)
 	fm.setStatus(statusHelp)
 
 	body := tview.NewFlex().
@@ -85,8 +92,26 @@ func NewFileManager(app *tview.Application, store *config.Store, onOpenInEditor 
 		AddItem(body, 0, 1, true).
 		AddItem(fm.status, 1, 0, false)
 	fm.AddPage("main", root, true, true)
+	fm.applyColors(colors)
 	fm.setActive(0)
 	return fm
+}
+
+// SetColors restyles an already-built file manager - called by
+// internal/tui right after the user applies a new theme in
+// Setup > Install, so the file manager stays consistent with the
+// rest of the TUI without needing to be reopened.
+func (fm *FileManager) SetColors(colors Colors) {
+	fm.applyColors(colors)
+	fm.panels[0].applyColors(colors)
+	fm.panels[1].applyColors(colors)
+	fm.setActive(fm.active)
+}
+
+func (fm *FileManager) applyColors(colors Colors) {
+	fm.colors = colors
+	fm.status.SetBackgroundColor(colors.StatusBg)
+	fm.status.SetTextColor(colors.StatusFg)
 }
 
 func (fm *FileManager) setStatus(text string) {
@@ -97,9 +122,9 @@ func (fm *FileManager) setActive(i int) {
 	fm.active = i
 	for idx, p := range fm.panels {
 		if idx == i {
-			p.table.SetBorderColor(tcell.ColorYellow)
+			p.table.SetBorderColor(fm.colors.ActiveBorder)
 		} else {
-			p.table.SetBorderColor(tcell.ColorWhite)
+			p.table.SetBorderColor(fm.colors.InactiveBorder)
 		}
 	}
 	fm.app.SetFocus(fm.panels[i].table)

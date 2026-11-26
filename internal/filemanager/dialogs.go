@@ -12,16 +12,6 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/options"
 )
 
-// Fixed color scheme for this component's own dialogs - the file
-// manager doesn't integrate with the TUI's active theme, same
-// precedent as the embedded WibEdit editor (its own chrome is also
-// independent of internal/theme).
-const (
-	dialogFg     = tcell.ColorWhite
-	dialogBg     = tcell.ColorNavy
-	dialogBorder = tcell.ColorSilver
-)
-
 // projectExtensions maps each known project dialect to the source
 // file extension internal/dialect dispatches on, for the optional
 // starter file a new project can be created with.
@@ -40,15 +30,16 @@ var projectDialectLabels = []struct {
 	{options.CategoryZXSpectrum, "ZX Spectrum"},
 }
 
-func newDialogWindow(form *tview.Form, icon, title string, rows int) *tview.Grid {
+func (fm *FileManager) newDialogWindow(form *tview.Form, icon, title string, rows int) *tview.Grid {
+	colors := fm.colors
 	form.SetBorder(true)
-	form.SetBorderColor(dialogBorder)
-	chrome.WindowChrome(form.Box, icon, title, dialogFg)
-	form.SetBackgroundColor(dialogBg)
+	form.SetBorderColor(colors.DialogBorder)
+	chrome.WindowChrome(form.Box, icon, title, colors.DialogText)
+	form.SetBackgroundColor(colors.DialogBackground)
 	form.SetFieldBackgroundColor(tcell.ColorWhite)
 	form.SetFieldTextColor(tcell.ColorBlack)
-	form.SetLabelColor(dialogFg)
-	form.SetButtonBackgroundColor(dialogBorder)
+	form.SetLabelColor(colors.DialogText)
+	form.SetButtonBackgroundColor(colors.DialogBorder)
 	form.SetButtonTextColor(tcell.ColorBlack)
 	form.SetButtonsAlign(tview.AlignRight)
 	// SetBackgroundColor on Grid must stay on its own statement - see
@@ -58,7 +49,12 @@ func newDialogWindow(form *tview.Form, icon, title string, rows int) *tview.Grid
 	// children.
 	window := tview.NewGrid().SetRows(0, rows, 0).SetColumns(0, 60, 0).
 		AddItem(form, 1, 1, 1, 1, 0, 0, true)
-	window.SetBackgroundColor(tcell.ColorBlack)
+	// Fixed blue backdrop around the centered form, matching the
+	// margin color internal/tui's own showThemePicker/
+	// showOptionsPanel dialogs use (colors.desktopBg there) - that
+	// margin is the TUI's desktop color, which is itself fixed, not
+	// theme-driven (see paletteFor in tui.go).
+	window.SetBackgroundColor(tcell.ColorBlue)
 	return window
 }
 
@@ -78,10 +74,11 @@ func (fm *FileManager) closeDialog(name string) {
 // confirms - used for the two actions that change or remove existing
 // files (move, delete).
 func (fm *FileManager) confirm(text string, onYes func()) {
+	colors := fm.colors
 	modal := tview.NewModal().SetText(text).AddButtons([]string{"Sim", "Nao"})
-	modal.SetBackgroundColor(dialogBg)
-	modal.SetTextColor(dialogFg)
-	modal.SetButtonBackgroundColor(dialogBorder)
+	modal.SetBackgroundColor(colors.DialogBackground)
+	modal.SetTextColor(colors.DialogText)
+	modal.SetButtonBackgroundColor(colors.DialogBorder)
 	modal.SetButtonTextColor(tcell.ColorBlack)
 	chrome.AttachShadow(modal.Box)
 	modal.SetDoneFunc(func(_ int, label string) {
@@ -103,7 +100,7 @@ func (fm *FileManager) promptMkdir() {
 	})
 	form.AddButton("Cancelar", func() { fm.closeDialog("mkdir") })
 	form.SetCancelFunc(func() { fm.closeDialog("mkdir") })
-	window := newDialogWindow(form, chrome.IconFolder, "Novo Diretorio", 7)
+	window := fm.newDialogWindow(form, chrome.IconFolder, "Novo Diretorio", 7)
 	fm.openDialog("mkdir", window, form)
 }
 
@@ -138,7 +135,7 @@ func (fm *FileManager) promptNewProject() {
 	})
 	form.AddButton("Cancelar", func() { fm.closeDialog("new-project") })
 	form.SetCancelFunc(func() { fm.closeDialog("new-project") })
-	window := newDialogWindow(form, chrome.IconFile, "Novo Projeto", 11)
+	window := fm.newDialogWindow(form, chrome.IconFile, "Novo Projeto", 11)
 	fm.openDialog("new-project", window, form)
 }
 
@@ -175,15 +172,16 @@ func (fm *FileManager) promptProjectList() {
 		return
 	}
 
+	colors := fm.colors
 	list := tview.NewList().ShowSecondaryText(true)
 	list.SetBorder(true)
-	list.SetBorderColor(dialogBorder)
-	chrome.WindowChrome(list.Box, chrome.IconFolder, "Projetos", dialogFg)
-	list.SetBackgroundColor(dialogBg)
-	list.SetMainTextColor(dialogFg)
-	list.SetSecondaryTextColor(tcell.ColorSilver)
-	list.SetSelectedBackgroundColor(dialogBorder)
-	list.SetSelectedTextColor(tcell.ColorBlack)
+	list.SetBorderColor(colors.DialogBorder)
+	chrome.WindowChrome(list.Box, chrome.IconFolder, "Projetos", colors.DialogText)
+	list.SetBackgroundColor(colors.DialogBackground)
+	list.SetMainTextColor(colors.DialogText)
+	list.SetSecondaryTextColor(colors.DialogBorder)
+	list.SetSelectedBackgroundColor(colors.SelectionBg)
+	list.SetSelectedTextColor(colors.SelectionFg)
 	for _, project := range projects {
 		p := project
 		list.AddItem(p.Name, fmt.Sprintf("%s - %s", p.Dialect, p.Path), 0, func() {
@@ -199,6 +197,6 @@ func (fm *FileManager) promptProjectList() {
 	rows := min(len(projects)+6, 20)
 	window := tview.NewGrid().SetRows(0, rows, 0).SetColumns(0, 60, 0).
 		AddItem(list, 1, 1, 1, 1, 0, 0, true)
-	window.SetBackgroundColor(tcell.ColorBlack)
+	window.SetBackgroundColor(tcell.ColorBlue)
 	fm.openDialog("project-list", window, list)
 }

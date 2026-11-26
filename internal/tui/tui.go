@@ -60,6 +60,29 @@ func paletteFor(item theme.Theme) palette {
 	}
 }
 
+// filemanagerColorsFor maps the active theme onto internal/filemanager's
+// own Colors type, so the file manager renders with the same palette
+// as the rest of the TUI's dialogs (see paletteFor above) instead of
+// a fixed scheme of its own. The status bar stays fixed Silver/Black,
+// matching the TUI's own top menu bar/bottom status bar, which are
+// themselves never theme-driven either (menuBg/menuFg above).
+func filemanagerColorsFor(item theme.Theme) filemanager.Colors {
+	return filemanager.Colors{
+		PanelBackground:  tcell.GetColor(item.Palette.Surface),
+		FileText:         tcell.GetColor(item.Palette.Foreground),
+		DirectoryText:    tcell.GetColor(item.Palette.Primary),
+		InactiveBorder:   tcell.GetColor(item.Palette.Foreground),
+		ActiveBorder:     tcell.GetColor(item.Palette.Primary),
+		SelectionBg:      tcell.GetColor(item.Palette.Selection),
+		SelectionFg:      tcell.ColorWhite,
+		DialogBackground: tcell.GetColor(item.Palette.Surface),
+		DialogText:       tcell.GetColor(item.Palette.Foreground),
+		DialogBorder:     tcell.GetColor(item.Palette.Primary),
+		StatusBg:         tcell.ColorSilver,
+		StatusFg:         tcell.ColorBlack,
+	}
+}
+
 // Run opens the TUI and blocks until the user exits (File > Exit).
 func Run() (runErr error) {
 	return run(nil, nil)
@@ -202,7 +225,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		pages.SwitchToPage("app")
 		app.SetFocus(pages)
 	}
-	fm := filemanager.NewFileManager(app, store, func(path string) {
+	fm := filemanager.NewFileManager(app, store, filemanagerColorsFor(activeTheme), func(path string) {
 		if err := ed.OpenFile(path); err != nil {
 			showError("Nao foi possivel abrir o arquivo no editor", err)
 			return
@@ -262,6 +285,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 			applyPalette()
 			renderBar()
 			setDesktop()
+			fm.SetColors(filemanagerColorsFor(item))
 			closeDialog()
 		})
 		form.AddButton("Cancel", closeDialog)
