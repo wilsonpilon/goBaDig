@@ -35,6 +35,40 @@ exata do pacote.
 
 ---
 
+## [1.44.0] — 2026-11-27 — bloco **NEW**, feature **fm-status-reset** (build 0)
+
+**Correção de bug**, reportada diretamente pelo usuário: "a linha de
+status ainda não está sendo atualizada a cada opção usada, algumas
+alteram a barra de status e a mesma não volta".
+
+### Corrigido
+
+- **Causa raiz**: `F2` (compilar), `F5` (copiar), `F7` (criar
+  diretório) e outras ações deixavam uma mensagem de status "presa"
+  na tela — o único lugar que reconduzia a barra de volta pro texto
+  de atalhos era `Enter`/`Backspace` (navegar diretório). Navegação
+  por setas dentro de um painel nunca passa por
+  `FileManager.Capture`: `Up`/`Down`/`PageUp`/`PageDown` não estão no
+  seu `switch`, então o próprio `InputHandler` do `tview.Table`
+  processa essas teclas direto — uma mensagem de ação ficava na tela
+  indefinidamente assim que o usuário só movia a seleção pelo
+  teclado, sem usar `Enter`/`Backspace`.
+- Corrigido com um `SetSelectionChangedFunc` em cada painel (ligado
+  em `NewFileManager`), que reconduz a barra pro texto de atalhos
+  sempre que a seleção muda — incluindo as mudanças de seleção que
+  as próprias ações já disparam via `reload()`/`load()`: a chamada
+  final de `setStatus` de cada ação sempre roda DEPOIS do seu próprio
+  `reload`/`load`, então sobrescreve esse reset de volta pra mensagem
+  certa da ação.
+
+### Verificado
+
+- Novo `internal/filemanager/filemanager_test.go`
+  (`TestSelectingADifferentRowResetsTheStatusBar`) — confirmado capaz
+  de pegar o bug revertendo o fix de propósito.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.43.0] — 2026-11-27 — bloco **NEW**, feature **rem-header-branding** (build 0)
 
 **Cabeçalho REM aponta pro goBaDig, não mais pro projeto Python

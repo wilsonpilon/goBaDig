@@ -3589,6 +3589,30 @@ ainda não chamam nenhum desses comandos.
      (`TestCreateProjectCreatesItsOwnSubfolderInsideTheParent`)
      confirma que a pasta pai fica limpa.
 
+  **Barra de status "presa" numa mensagem antiga (2026-11-27,
+  v1.44.0)**, reportada pelo usuário: "a linha de status ainda não
+  está sendo atualizada a cada opção usada, algumas alteram a barra
+  de status e a mesma não volta". Causa raiz: `F2`/`F5`/`F7` e
+  outras ações deixavam a mensagem de status presa na tela - o único
+  lugar que reconduzia pro texto de atalhos era `Enter`/`Backspace`.
+  Navegação por setas dentro de um painel nunca passa por
+  `FileManager.Capture` (`Up`/`Down`/`PageUp`/`PageDown` não estão no
+  seu `switch`) - o próprio `InputHandler` do `tview.Table` processa
+  essas teclas direto, então uma mensagem de ação ficava presa
+  indefinidamente assim que o usuário só movia a seleção pelo
+  teclado. Corrigido com `SetSelectionChangedFunc` em cada painel
+  (ligado em `NewFileManager`): reconduz a barra pro texto de
+  atalhos sempre que a seleção muda, incluindo as mudanças que as
+  próprias ações já disparam via `reload()`/`load()` - a chamada
+  final de `setStatus` de cada ação sempre roda DEPOIS do seu
+  `reload`/`load`, então sobrescreve esse reset de volta pra mensagem
+  certa da ação. `enterSelected`/`goUp` perderam sua própria chamada
+  explícita de `setStatus(statusHelp)` no caminho de sucesso (virou
+  redundante - o `load()` que já fazem dispara o mesmo reset sozinho),
+  mantendo só a do caminho de erro. Teste novo
+  (`TestSelectingADifferentRowResetsTheStatusBar`) confirmado capaz
+  de pegar o bug revertendo o fix de propósito.
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
