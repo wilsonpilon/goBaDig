@@ -35,6 +35,32 @@ exata do pacote.
 
 ---
 
+## [1.40.0] — 2026-11-26 — bloco **NEW**, feature **dialect-package** (build 0)
+
+**Refatoração interna, sem mudança de comportamento pro usuário** —
+extrai o dispatch de dialeto (`compileByExtension`/
+`runInEmulatorByExtension`/`emulatorBackends`/`resolveBackend`), até
+aqui privado ao pacote `internal/cli`, pro novo pacote exportado
+`internal/dialect` (`CompileByExtension`/`RunInEmulatorByExtension`/
+`EmulatorBackends`/`ResolveBackend`). Preparação direta para o
+gerenciador de arquivos de dois painéis (próxima release): a TUI
+precisa chamar esse mesmo dispatch sem passar a depender de
+`internal/cli`, que também carrega parsing de flags de linha de
+comando — isso sim específico da CLI, sem nada a ver com a TUI.
+
+### Alterado
+
+- `internal/cli/dialect.go`/`dialect_test.go` → `internal/dialect/
+  dialect.go`/`dialect_test.go`, com tudo exportado.
+- `internal/cli/cli.go`/`console.go` passam a chamar
+  `dialect.CompileByExtension`/`dialect.RunInEmulatorByExtension`.
+
+### Verificado
+
+- Mesma cobertura de testes, migrada sem alteração de comportamento.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.39.0] — 2026-11-26 — bloco **NEW**, feature **emulator-backends** (build 0)
 
 **Seleção de emulador alternativo** — pedido do usuário depois de

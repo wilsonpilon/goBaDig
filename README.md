@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.39.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.40.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), e o **ciclo MSX
 > completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou

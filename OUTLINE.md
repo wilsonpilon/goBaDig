@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
-Estado: **v1.39.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -3231,19 +3231,29 @@ ainda não chamam nenhum desses comandos.
 - [x] **Seleção de emulador alternativo** (`--emulator <nome>` no CLI,
   `execute <arquivo> [emulador]` no console) — **feito em 2026-11-26**,
   pedido do usuário depois de perceber que MSX/ZX81/ZX Spectrum agora
-  têm mais de um backend instalado nesta máquina. `internal/cli/
-  dialect.go`'s `emulatorBackends` (mapa extensão→lista de nomes
-  válidos, primeiro = padrão) + `resolveBackend` (valida, rejeita um
-  nome válido pra OUTRA extensão). `--emulator` pode vir antes OU
-  depois de `--execute`/do nome do arquivo (`emulatorArg` lê o valor
-  dos args originais; `stripEmulatorFlag` remove a flag+valor ANTES
-  de qualquer outra detecção de argumento posicional rodar — bug real
-  encontrado e corrigido nesta mesma rodada: sem o strip,
-  `--execute --emulator zesarux prog.dzs` confundia "zesarux" com o
-  nome do arquivo, já que `--execute` sempre pegava literalmente o
-  próximo token). Backends por plataforma: MSX = `openmsx` (padrão),
-  `fmsx`, `bluemsx+`; ZX81/ZX Spectrum = `eightyone` (padrão),
-  `zesarux`. — **B**, **2**
+  têm mais de um backend instalado nesta máquina. `emulatorBackends`
+  (mapa extensão→lista de nomes válidos, primeiro = padrão) +
+  `resolveBackend` (valida, rejeita um nome válido pra OUTRA
+  extensão). `--emulator` pode vir antes OU depois de `--execute`/do
+  nome do arquivo (`emulatorArg` lê o valor dos args originais;
+  `stripEmulatorFlag` remove a flag+valor ANTES de qualquer outra
+  detecção de argumento posicional rodar — bug real encontrado e
+  corrigido nesta mesma rodada: sem o strip, `--execute --emulator
+  zesarux prog.dzs` confundia "zesarux" com o nome do arquivo, já que
+  `--execute` sempre pegava literalmente o próximo token). Backends
+  por plataforma: MSX = `openmsx` (padrão), `fmsx`, `bluemsx+`;
+  ZX81/ZX Spectrum = `eightyone` (padrão), `zesarux`. — **B**, **2**
+
+  **Extraído pro pacote `internal/dialect` em 2026-11-26** (v1.40.0,
+  sem mudança de comportamento): `compileByExtension`/
+  `runInEmulatorByExtension`/`emulatorBackends`/`resolveBackend`
+  viviam em `internal/cli/dialect.go`, privados ao pacote `cli` — a
+  TUI não conseguia chamar esse dispatch sem passar a depender de
+  `internal/cli` (que também carrega parsing de flags, algo específico
+  da CLI). Agora `internal/dialect/dialect.go`, tudo exportado
+  (`CompileByExtension`/`RunInEmulatorByExtension`/`EmulatorBackends`/
+  `ResolveBackend`) — preparação direta pro gerenciador de arquivos,
+  ver Bloco 6 abaixo.
 
 ### Bloco 6 — TUI (tview/tcell)
 
