@@ -150,8 +150,10 @@ Classic ASCII já numerado → bytes tokenizados, mais empacotamento
 o Description/Lexer/Parser do dialeto). **`v1.35.0`** porta o
 `Description`/`Lexer` do dialeto (vocabulário clássico, `GO TO`/
 `GO SUB` com espaço variável, apóstrofo como separador real de
-`PRINT`) — ainda falta o `Parser`, nenhum comando novo pro usuário em
-nenhuma das duas releases.
+`PRINT`). **`v1.36.0`** porta o `Parser` — o primeiro arquivo `.dzs`
+real já compila de ponta a ponta (Lex→Parse→Generate), ainda sem
+nenhum comando `compile`/`execute` novo pro usuário em nenhuma das
+três releases do módulo Spectrum até aqui.
 
 ## 4. Compilar a partir do código-fonte
 

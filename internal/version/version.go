@@ -5,10 +5,10 @@ package version
 // Version follows the project's own X.Y.Z scheme (see CHANGELOG.md),
 // not SemVer: X is a named block of finished work, Y a named feature
 // within that block, Z a build counter within that feature.
-const Version = "1.35.0"
+const Version = "1.36.0"
 
 // Block is the BASIC-command name attached to X.
 const Block = "NEW"
 
 // Feature is the short name attached to Y.
-const Feature = "zxspectrum-lexer"
+const Feature = "zxspectrum-parser"

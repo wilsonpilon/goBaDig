@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
-Estado: **v1.35.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.36.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -51,11 +51,14 @@ portado (`internal/platforms/zxspectrum`) — encoding de número
 Sinclair via `math/big` (aritmética racional exata, não `float64`,
 diferente do ZX81), `DEF FN`/slots ocultos de 6 bytes, e
 empacotamento `.tap`/`.tzx` (100% mecânico) — validado contra os
-vetores de ouro reais do `test_zxspectrum.py`; e agora o
-`Description`/`Lexer` do dialeto também (vocabulário clássico, `GO
-TO`/`GO SUB` com espaço variável, apóstrofo como separador real de
-`PRINT`) — ainda SEM `Parser` Spectrum (próxima Etapa do roteiro, ver
-Bloco 4 abaixo), nenhum `.dzs` compila de ponta a ponta ainda)** —
+vetores de ouro reais do `test_zxspectrum.py`; o `Description`/`Lexer`
+do dialeto (vocabulário clássico, `GO TO`/`GO SUB` com espaço
+variável, apóstrofo como separador real de `PRINT`); e agora o
+`Parser` também — **o primeiro arquivo `.dzs` Spectrum já compila de
+ponta a ponta** (Lex→Parse→Generate), validado extensivamente contra
+o `badig.py` real (atribuição composta, `PRINT AT`, `GOTO`/`GOSUB`,
+maiúscula incondicional de palavra reservada). Falta ainda:
+`compile`/`execute` no CLI (próxima Etapa, ver Bloco 4 abaixo)** —
 histórico completo de cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
@@ -2898,12 +2901,66 @@ ainda não chamam nenhum desses comandos.
 
 ### Bloco 4 — Módulo ZX Spectrum
 
-- [ ] Portar `Description`/`Lexer`/`Parser` Spectrum (LET implícito,
+- [x] Portar `Description`/`Lexer`/`Parser` Spectrum (LET implícito,
   PRINT AT, TRUE/FALSE=1/0, DATA com expressões, DEF FN/FN com slots
   ocultos de 6 bytes). — **A**, **1** — **Description+Lexer feitos em
   2026-11-26** (`internal/platforms/zxspectrum/{description,lexer}.go`,
-  v1.35.0, Etapa 2 de 5). `Parser` (Etapa 3) ainda pendente desta
-  entrada — ver mais abaixo quando fechar.
+  v1.35.0, Etapa 2 de 5); **Parser feito em 2026-11-26**
+  (`internal/platforms/zxspectrum/parser.go`, v1.36.0, Etapa 3 de 5) —
+  **o primeiro arquivo `.dzs` real já compila de ponta a ponta**
+  (Lex→Parse→Generate).
+
+  **Desvio de arquitetura necessário, descoberto implementando o
+  Parser** (mesmo tipo de achado que `BuiltinDefine.Expand` revelou
+  pro ZX81): `internal/core/pipeline.go`'s `runPass` só dá a cada hook
+  de pass acesso ao slice de ENTRADA original daquela pass, nunca a
+  uma saída que o PRÓPRIO pass já tenha construído até aquele ponto —
+  diferente do Python original, cujo `last_tok()` sempre reflete a
+  saída JÁ ACUMULADA pelo pass atual, incluindo qualquer inserção
+  sintética que o mesmo pass já tenha feito mais atrás. Isso importa
+  porque `pass_5` do Python insere `LET` implícito E expande
+  atribuição composta (`x+=5*2`) NA MESMA PASS, com a segunda
+  dependendo de inspecionar a inserção da primeira. Duas adaptações,
+  nenhuma mudança no `core` em si:
+  1. O "LET" implícito moveu de `Pass5` (onde o Python está) para
+     `Generate` — mesmo lugar que o `Parser` do ZX81 já usa
+     (`zx81/parser.go`) — já que sua condição de disparo (identificador
+     logo depois de número de linha, `:` ou `THEN`) é autocontida: não
+     precisa saber se um `LET` foi "de verdade" inserido antes, só
+     reavaliar a MESMA condição no lugar certo.
+  2. A expansão de atribuição composta usa um campo de estado na
+     própria instância do `Parser` (`closeParenAt`, "onde inserir o `)`
+     de fechamento, mais adiante na mesma passada") — porque, diferente
+     do `x+=5` do MSX (RHS de 1 token só, nunca precisa disso), o RHS
+     do Spectrum pode ser uma EXPRESSÃO INTEIRA (`x+=5*2`), varrida até
+     o próximo `NEWLINE`/`EOF`/separador — a leitura de validação (RHS
+     vazio, aninhamento, string só aceita `+=`) acontece direto sobre o
+     slice de entrada (sem precisar "consumir" nada), mas o FECHAMENTO
+     do parênteses só pode acontecer numa chamada POSTERIOR, daí o
+     estado.
+
+  Validação extensiva rodando o `badig.py` real (não só os testes
+  automatizados, mesma disciplina já usada nas Etapas 1/2): `PRINT AT`
+  com 1 argumento (splice literal "PRINT AT 5;", sem default por
+  coordenada — confirma a diferença do ZX81 já suspeitada na pesquisa);
+  atribuição composta (`x+=5*2`→`x=x+(5*2)`, `x++`→`x=x+(1)`, string só
+  aceita `+=`, `++`/`--` rejeita RHS, aninhamento rejeitado, exige
+  precedido de `LET`/posição de início de statement — as 4 mensagens de
+  erro batem caractere a caractere); `GOTO`/`GO  TO`/`GOSUB`/`GO SUB`
+  sempre virando `GO TO`/`GO SUB` com exatamente 1 espaço,
+  independente de como foi escrito; `TRUE`/`FALSE`→`1`/`0`; toda
+  palavra reservada sempre maiúscula incondicional (`sin`/`cos`/`let`/
+  `if`/`rem` todos viram maiúsculo); colisão de nome de variável com
+  `cat`/`format`/`move`/`erase` (comandos de disco reais da ROM que
+  este módulo não suporta, mas cuja colisão ainda precisa ser
+  rejeitada) rejeitada com a mensagem exata; `~` removido sem efeito
+  de aliasing (diferente de MSX/ZX81); `DECLARE` substitui o alias e
+  mantém o sufixo `$`; nomes de string precisam ser EXATAMENTE 1 letra
+  + `$` (não 2 letras + `$` — ponto de atenção real: "2 chars
+  terminados em `$`" na pesquisa original significava o comprimento
+  TOTAL da string incluindo o `$`, não 2 letras antes dele); array/
+  FOR-control precisam de exatamente 1 letra; escalar comum aceita
+  qualquer comprimento.
 
   **Correção de premissa confirmada pela pesquisa ANTES de portar**: a
   frase "alocação por categoria" (como no cabeçalho original desta

@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.35.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.36.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), e o **ciclo MSX
 > completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou
@@ -24,13 +24,11 @@ para VSCode cobrindo os três dialetos.
 > `goBaDig programa.dzx`/`goBaDig --execute programa.dzx` já
 > funcionam de verdade, abrindo no EightyOne (confirmado com um
 > processo real rodando nesta máquina) — ciclo ZX81 completo via
-> CLI. O módulo **ZX Spectrum** começou: o tokenizer
-> (`internal/platforms/zxspectrum`, texto já numerado → bytes
-> tokenizados, mais empacotamento `.tap`/`.tzx`) e agora o
-> `Description`/`Lexer` do dialeto (vocabulário clássico, `GO TO`/
-> `GO SUB` com espaço variável, apóstrofo como separador real de
-> `PRINT`) já estão portados e validados contra o Python real — ainda
-> sem `Parser`, nenhum `.dzs` compila de ponta a ponta ainda. Ver
+> CLI. O módulo **ZX Spectrum** avançou bastante: tokenizer,
+> `Description`/`Lexer` e agora o `Parser` também —
+> **o primeiro arquivo `.dzs` já compila de ponta a ponta**
+> (Lex→Parse→Generate), validado contra o `badig.py` real. Falta
+> ainda `compile`/`execute` no CLI pro Spectrum. Ver
 > [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o

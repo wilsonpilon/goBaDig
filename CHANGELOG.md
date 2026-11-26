@@ -35,6 +35,41 @@ exata do pacote.
 
 ---
 
+## [1.36.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-parser** (build 0)
+
+**Parser ZX Spectrum** (Bloco 4, Etapa 3 de 5) — fecha o motor
+Lex→Parse→Generate: o primeiro arquivo `.dzs` real já compila de
+ponta a ponta. Transcrito de `badig_zxspectrum.py`'s
+`Parser(MSXParser)`.
+
+### Adicionado
+
+- `zxspectrum.Parser`/`zxspectrum.NewParser` (`core.Parser`): `LET`
+  implícito (linha nova, `:` ou `THEN`), `PRINT AT` (macro simples,
+  sem `Expand`), atribuição composta (`+=`/`-=`/`*=`/`/=`/`^=`/`++`/
+  `--`, RHS completo entre parênteses), `TRUE`/`FALSE`→`1`/`0`,
+  normalização `GOTO`/`GOSUB`→`GO TO`/`GO SUB`, maiúscula
+  incondicional de palavra reservada, limite de linha 9999.
+- 23 testes automatizados novos.
+
+### Verificado
+
+- Validação extensiva rodando o `badig.py` real (não só os testes
+  automatizados): todos os casos de atribuição composta, `PRINT AT`
+  com 1 argumento, `GOTO`/`GOSUB`, maiúscula de palavra reservada,
+  colisão com palavra reservada da ROM, e as 4 mensagens de erro de
+  atribuição composta batem exato.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
+### O que não mudou / ainda falta
+
+- `REMX` continua fora de escopo (mesma decisão do ZX81).
+- Nenhum comando `compile`/`execute` pro Spectrum ainda — próxima
+  Etapa.
+- Roteiro completo das próximas etapas documentado em `OUTLINE.md`,
+  Bloco 4.
+
 ## [1.35.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-lexer** (build 0)
 
 **Description/Lexer ZX Spectrum** (Bloco 4, Etapa 2 de 5) — vocabulário
