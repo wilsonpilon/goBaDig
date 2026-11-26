@@ -3478,6 +3478,38 @@ ainda não chamam nenhum desses comandos.
   uma linha NÃO selecionada, contra o tema realmente ativo e
   persistido nesta máquina.
 
+  **Terceira correção, a causa raiz de verdade (2026-11-26, v1.41.3)**:
+  o usuário mandou uma captura de tela (`images/erro-filemanager.png`)
+  depois da v1.41.2 mostrando que o nome de quase todo diretório
+  aparecia EM BRANCO - só a data da linha ficava visível. As duas
+  correções anteriores miraram cor porque o relato original ("preto
+  com preto") parecia um problema de contraste, mas NUNCA foi cor
+  nenhuma. **Causa raiz real**: o `tview` trata qualquer trecho
+  `[...]` como uma tentativa de tag de estilo `[cor]`/`["região"]`
+  sempre que o caractere logo depois do `[` é letra, dígito, `#`, `:`
+  ou `-` - casado e CONSUMIDO (zero caracteres visíveis), quer a "cor"
+  dentro resolva pra algo real ou não. O formato `"[" + nome + "]"`
+  usado pelos diretórios (estilo Norton Commander) colidia direto com
+  isso: `"[..]"` sobrevivia por acidente (o caractere depois do `[` é
+  `.`, inválido como início de tag), mas `"[cmd]"`, `"[docs]"`,
+  `"[internal]"` - qualquer diretório real começando com letra ou
+  dígito - desaparecia por completo. Confirmado isolando uma cópia
+  local do `rivo/tview` com instrumentação via `replace` temporário em
+  `go.mod` (mesma técnica já usada uma vez neste projeto, pro bug do
+  `SetBackgroundColor` em `Grid` do Setup > Install) até provar que
+  `printWithStyle` retornava zero caracteres impressos pra `"[aaa]"` e
+  todos os 4 pra `"[..]"`. Corrigido com `tview.Escape` (a própria
+  ferramenta documentada do `tview` pra esse caso exato) em
+  `internal/filemanager/panel.go`'s novo `entryLabel`, no título do
+  painel, na barra de status (mensagens de erro citam caminhos) e na
+  lista de projetos salvos. **Lição registrada**: um teste que só lê
+  `cell.Style`/`cell.Color` direto (como os dois anteriores) não pega
+  um bug de TEXTO ausente - só um teste que renderiza de verdade numa
+  `tcell.SimulationScreen` e procura o texto completo na tela pega
+  essa classe de problema (`internal/filemanager/panel_test.go`,
+  `TestMultipleDirectoryEntriesAreActuallyVisibleOnScreen` - confirmado
+  capaz de reproduzir exatamente a captura de tela do usuário).
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e

@@ -35,6 +35,52 @@ exata do pacote.
 
 ---
 
+## [1.41.3] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 3)
+
+**Correção de bug real**, reportada pelo usuário com uma captura de
+tela depois da v1.41.2 (`images/erro-filemanager.png`): o nome de
+quase todo diretório no gerenciador de arquivos aparecia em branco —
+só a data da linha ficava visível. As duas correções anteriores
+(v1.41.1/v1.41.2) miraram num problema de COR porque o primeiro
+relato ("preto com preto") parecia um problema de contraste — mas o
+problema nunca foi cor nenhuma.
+
+### Corrigido
+
+- **Causa raiz real**: o `tview` trata qualquer trecho `[...]` como
+  uma tentativa de tag de estilo `[cor]`/`["região"]` sempre que o
+  caractere logo depois do `[` é letra, dígito, `#`, `:` ou `-` —
+  casado e CONSUMIDO (zero caracteres visíveis), quer a "cor" dentro
+  resolva pra algo real ou não. O formato `"[" + nome + "]"` usado
+  pelos diretórios (estilo Norton Commander, igual o Midnight
+  Commander/`mc`) colidia direto com isso: `"[..]"` sobrevivia por
+  acidente (o caractere depois do `[` é `.`, que não é válido como
+  início de tag), mas `"[cmd]"`, `"[docs]"`, `"[internal]"` — qualquer
+  diretório real começando com letra ou dígito — desaparecia por
+  completo. Confirmado isolando uma cópia local do `rivo/tview` com
+  instrumentação (mesma técnica já usada uma vez neste projeto, pro
+  bug do `SetBackgroundColor` em `Grid`): `printWithStyle` realmente
+  retornava zero caracteres impressos pra `"[aaa]"`, e todos os 4 pra
+  `"[..]"`.
+- Corrigido com `tview.Escape` (a própria ferramenta documentada do
+  `tview` pra esse caso exato) em `internal/filemanager/panel.go`'s
+  novo `entryLabel` (nome do arquivo/diretório) e no título do painel
+  (caminho do diretório), e também na barra de status (mensagens de
+  erro frequentemente citam o caminho que falhou) e na lista de
+  projetos salvos (nome/pasta do projeto, digitados pelo usuário).
+
+### Verificado
+
+- Novo `internal/filemanager/panel_test.go`
+  (`TestMultipleDirectoryEntriesAreActuallyVisibleOnScreen`) —
+  renderiza uma tela simulada de verdade com diretórios de nomes
+  comuns (`cmd`, `docs`, `internal`, `aaa`, `resource`) e confirma que
+  o rótulo completo de cada um aparece na tela; confirmado capaz de
+  reproduzir exatamente a captura de tela do usuário ao reverter o
+  fix de propósito.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.41.2] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 2)
 
 **Correção de bug**, reportada diretamente pelo usuário depois da
