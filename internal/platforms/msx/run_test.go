@@ -67,3 +67,17 @@ func TestRunInEmulatorReturnsAnErrorWhenOpenmsxIsNotOnPath(t *testing.T) {
 		t.Fatal("RunInEmulator with an empty PATH: want error, got nil")
 	}
 }
+
+func TestRunInFMSXReturnsAnErrorWhenFmsxIsNotOnPath(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if err := RunInFMSX("whatever.dsk"); err == nil {
+		t.Fatal("RunInFMSX with an empty PATH: want error, got nil")
+	}
+}
+
+func TestRunInBlueMSXReturnsAnErrorWhenBlueMSXIsNotOnPath(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if err := RunInBlueMSX("whatever.dsk"); err == nil {
+		t.Fatal("RunInBlueMSX with an empty PATH: want error, got nil")
+	}
+}

@@ -78,3 +78,45 @@ func RunInEmulator(diskPath string) error {
 	}
 	return nil
 }
+
+// RunInFMSX launches fMSX with diskPath inserted as drive A - same
+// flag shape as openMSX's own "-diska" (confirmed reading fMSX's own
+// documentation, fMSX.html's "Command Line Options": "-diska
+// <filename> - Set disk image used for drive A:"), and confirmed by
+// actually launching fMSX this way on this machine. An alternative to
+// openMSX requested by the user (2026-11-26), alongside blueMSX+
+// below - ZEsarUX was considered too (it has an MSX1 mode) but
+// deliberately left out: the user judged it not worth adding for MSX
+// specifically, since it only covers MSX1, unlike openMSX/fMSX/
+// blueMSX+ which all support MSX2/MSX2+.
+func RunInFMSX(diskPath string) error {
+	exePath, err := exec.LookPath("fmsx")
+	if err != nil {
+		return fmt.Errorf("fmsx not found in PATH: %w", err)
+	}
+	cmd := exec.Command(exePath, "-diska", diskPath)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start fmsx: %w", err)
+	}
+	return nil
+}
+
+// RunInBlueMSX launches blueMSX+ with diskPath as its one argument -
+// blueMSX+'s own "smart" single-file-open form (confirmed reading its
+// own embedded usage text: "blueMSX+ <file> - Open one media file...
+// the form used for a double clicked file", and by actually launching
+// it this way on this machine) - no "-diska"-style flag needed or
+// accepted for this form. Specifically the "+" fork the user asked
+// for (blueMSX+.exe), not the older plain blueMSX.exe also commonly
+// installed alongside it.
+func RunInBlueMSX(diskPath string) error {
+	exePath, err := exec.LookPath("bluemsx+")
+	if err != nil {
+		return fmt.Errorf("bluemsx+ not found in PATH: %w", err)
+	}
+	cmd := exec.Command(exePath, diskPath)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start bluemsx+: %w", err)
+	}
+	return nil
+}

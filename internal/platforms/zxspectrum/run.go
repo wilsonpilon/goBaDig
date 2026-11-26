@@ -77,3 +77,24 @@ func RunInEmulator(tapPath string) error {
 	}
 	return nil
 }
+
+// RunInZEsarUX launches ZEsarUX with tapPath loaded as its tape - an
+// alternative to EightyOne requested by the user (2026-11-26), and
+// much simpler to integrate: no INI profile at all, just two flags.
+// Confirmed reading zesarux.exe's own `--help` text and by actually
+// launching it this way on this machine: `--machine 48k` selects the
+// 48K Spectrum model, `--tape <file>` accepts `.tap` directly. Always
+// the 48K profile, same deliberate scope limit as RunInEmulator's own
+// doc comment. Does not wait for the emulator to exit, same as
+// RunInEmulator.
+func RunInZEsarUX(tapPath string) error {
+	exePath, err := exec.LookPath("zesarux")
+	if err != nil {
+		return fmt.Errorf("zesarux not found in PATH: %w", err)
+	}
+	cmd := exec.Command(exePath, "--machine", "48k", "--tape", tapPath)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start zesarux: %w", err)
+	}
+	return nil
+}

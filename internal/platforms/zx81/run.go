@@ -30,3 +30,27 @@ func RunInEmulator(pPath string) error {
 	}
 	return nil
 }
+
+// RunInZEsarUX launches ZEsarUX with pPath loaded as its ZX81 tape -
+// an alternative to EightyOne requested by the user (2026-11-26).
+// Confirmed reading zesarux.exe's own `--help` text and by actually
+// launching it this way on this machine: `--machine ZX81` selects the
+// ZX81 model, `--tape <file>` accepts `.p` directly (listed under
+// ZX81's own supported tape formats, alongside `.81`/`.z81` - a `.p`
+// is ALSO listed as a valid `--snap` target, since it is really a
+// full memory image rather than a true cassette recording, but
+// `--tape` is what was confirmed to work end to end here). No
+// machine/settings customization beyond that yet - same deferred
+// scope as RunInEmulator's own doc comment. Does not wait for the
+// emulator to exit, same as RunInEmulator.
+func RunInZEsarUX(pPath string) error {
+	exePath, err := exec.LookPath("zesarux")
+	if err != nil {
+		return fmt.Errorf("zesarux not found in PATH: %w", err)
+	}
+	cmd := exec.Command(exePath, "--machine", "ZX81", "--tape", pPath)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start zesarux: %w", err)
+	}
+	return nil
+}

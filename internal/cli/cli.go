@@ -61,6 +61,7 @@ USO:
     goBaDig [opcao]
     goBaDig <arquivo.dmx|arquivo.dzx|arquivo.dzs>
     goBaDig --execute <arquivo.dmx|arquivo.dzx|arquivo.dzs>
+    goBaDig --execute --emulator <nome> <arquivo.dmx|arquivo.dzx|arquivo.dzs>
 
 OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --help         mostra esta ajuda e sai
@@ -78,6 +79,10 @@ OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
                    openMSX; ZX81 gera o .p direto e abre no EightyOne;
                    ZX Spectrum gera o .tap direto e abre no EightyOne
                    tambem (os emuladores precisam estar no PATH)
+    --emulator     escolhe outro emulador pro --execute, em vez do
+                   padrao de cada plataforma: MSX aceita "openmsx"
+                   (padrao), "fmsx" ou "bluemsx+"; ZX81 e ZX Spectrum
+                   aceitam "eightyone" (padrao) ou "zesarux"
 
 Passar um arquivo Dignified (<arquivo.dmx> pro MSX, <arquivo.dzx> pro
 ZX81, <arquivo.dzs> pro ZX Spectrum) direto, sem nenhuma opcao,
@@ -105,13 +110,24 @@ func Banner() string {
 // returns handled=false when the caller (main) still needs to
 // launch an interactive mode (TUI/GUI).
 func Run(args []string) (handled bool, exitCode int) {
+	// "--emulator <name>" is read from the ORIGINAL args (it must be,
+	// since stripEmulatorFlag below removes it) and then stripped out
+	// of the slice every OTHER piece of parsing sees from here on -
+	// otherwise "goBaDig --execute --emulator zesarux prog.dzs" would
+	// have executeFileArg (below) mistake "--emulator"'s own VALUE
+	// ("zesarux") for the file to execute, since that flag can appear
+	// on either side of --execute's own filename (ver emulatorArg's
+	// own doc comment).
+	emulator := emulatorArg(args)
+	args = stripEmulatorFlag(args)
+
 	// --execute is checked before Parse even runs: unlike a bare
 	// positional file (compileFileArg, below, matched only once
 	// Parse has found no other flag), --execute needs its own
 	// explicit flag plus the filename right after it, which Parse's
 	// own single-token flag matching has no way to carry.
 	if path, ok := executeFileArg(args); ok {
-		return true, runExecute(path)
+		return true, runExecute(path, emulator)
 	}
 	switch Parse(args) {
 	case ModeHelp:
@@ -191,6 +207,47 @@ func executeFileArg(args []string) (string, bool) {
 	return "", false
 }
 
+// emulatorArg finds the backend name right after an "--emulator"/
+// "-emulator" flag, anywhere in args ("" if absent) - unlike
+// executeFileArg, this can appear before OR after --execute and its
+// own filename (`goBaDig --emulator zesarux --execute prog.dzs` and
+// `goBaDig --execute prog.dzs --emulator zesarux` both work), since
+// it is an independent modifier, not --execute's own required
+// argument. Added 2026-11-26 at the user's own request, so `execute`
+// can pick a non-default emulator (ver dialect.go's own
+// emulatorBackends).
+func emulatorArg(args []string) string {
+	for i, a := range args {
+		if a == "--emulator" || a == "-emulator" {
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// stripEmulatorFlag removes "--emulator"/"-emulator" and the value
+// right after it from args, if present - so file-argument detection
+// (executeFileArg/compileFileArg) never mistakes that VALUE for the
+// file to execute/compile, regardless of where "--emulator" appears
+// relative to "--execute" or the filename itself. Run calls this
+// before any other parsing sees args, after already reading the
+// emulator name out with emulatorArg (which must run on the
+// UNSTRIPPED args - it is what this function then removes).
+func stripEmulatorFlag(args []string) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--emulator" || args[i] == "-emulator" {
+			i++ // also skip its own value, if any
+			continue
+		}
+		out = append(out, args[i])
+	}
+	return out
+}
+
 // runExecute implements `goBaDig --execute <arquivo.dmx>`/`goBaDig
 // --execute <arquivo.dzx>`/`goBaDig --execute <arquivo.dzs>` - the
 // user's own "edit/badig/execute" workflow vocabulary: compile, build
@@ -199,8 +256,10 @@ func executeFileArg(args []string) (string, bool) {
 // directly - ver dialect.go) and open it in a real emulator so the
 // user can try the program right away, same as goBaDig's own earlier
 // "compilar" step already does for just the text/binary output files.
-func runExecute(path string) int {
-	artifactPath, err := runInEmulatorByExtension(path)
+// backend selects an explicit `--emulator` name ("" for each
+// dialect's own default - ver dialect.go's own emulatorBackends).
+func runExecute(path, backend string) int {
+	artifactPath, err := runInEmulatorByExtension(path, backend)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
 		return 1

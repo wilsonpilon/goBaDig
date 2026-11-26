@@ -439,6 +439,47 @@ func TestExecuteCommandBuildsTheZXSpectrumFileEvenWhenTheEmulatorIsMissing(t *te
 	}
 }
 
+// TestExecuteCommandHonorsAnExplicitEmulatorArgument confirms the
+// console's own "execute <file> <emulator>" form (added 2026-11-26)
+// reaches runInEmulatorByExtension end to end - same no-real-
+// emulator-window PATH override as every other test here.
+func TestExecuteCommandHonorsAnExplicitEmulatorArgument(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	dir := t.TempDir()
+	dzsPath := filepath.Join(dir, "programa.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute(dzsPath + " zesarux")
+
+	if !strings.Contains(out.String(), "erro") {
+		t.Fatalf("executeExecute with no emulator on PATH: want an error reported, got: %s", out.String())
+	}
+	if _, err := os.Stat(strings.TrimSuffix(dzsPath, ".dzs") + ".tap"); err != nil {
+		t.Fatalf("expected the .tap file to still have been built: %v", err)
+	}
+}
+
+func TestExecuteCommandRejectsAnUnknownEmulatorArgument(t *testing.T) {
+	dir := t.TempDir()
+	dmxPath := filepath.Join(dir, "programa.dmx")
+	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeExecute(dmxPath + " zesarux")
+
+	if !strings.Contains(out.String(), "erro") || !strings.Contains(out.String(), "unknown --emulator") {
+		t.Fatalf("executeExecute(%q): want an 'unknown --emulator' error, got: %s", dmxPath+" zesarux", out.String())
+	}
+}
+
 func TestExecuteCommandWithoutAnArgumentShowsUsage(t *testing.T) {
 	var out bytes.Buffer
 	state := &consoleState{out: &out}

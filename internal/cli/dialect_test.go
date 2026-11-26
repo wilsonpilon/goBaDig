@@ -77,7 +77,7 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dmxPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dmxPath); err == nil {
+	if _, err := runInEmulatorByExtension(dmxPath, ""); err == nil {
 		t.Fatal("runInEmulatorByExtension(.dmx) with no emulator on PATH: want error, got nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.dsk")); err != nil {
@@ -88,7 +88,7 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dzxPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dzxPath); err == nil {
+	if _, err := runInEmulatorByExtension(dzxPath, ""); err == nil {
 		t.Fatal("runInEmulatorByExtension(.dzx) with no emulator on PATH: want error, got nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.p")); err != nil {
@@ -99,7 +99,7 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runInEmulatorByExtension(dzsPath); err == nil {
+	if _, err := runInEmulatorByExtension(dzsPath, ""); err == nil {
 		t.Fatal("runInEmulatorByExtension(.dzs) with no emulator on PATH: want error, got nil")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hello.tap")); err != nil {
@@ -108,8 +108,59 @@ func TestRunInEmulatorByExtensionDispatchesByFileExtension(t *testing.T) {
 }
 
 func TestRunInEmulatorByExtensionRejectsAnUnknownExtension(t *testing.T) {
-	_, err := runInEmulatorByExtension("programa.txt")
+	_, err := runInEmulatorByExtension("programa.txt", "")
 	if err == nil || !strings.Contains(err.Error(), "unrecognized dialect") {
 		t.Fatalf("runInEmulatorByExtension(.txt): want an 'unrecognized dialect' error, got %v", err)
+	}
+}
+
+// TestRunInEmulatorByExtensionHonorsAnExplicitBackend confirms each
+// dialect's own alternative backends (dialect.go's emulatorBackends)
+// are reachable, and that the artifact still gets built even when
+// that specific backend can't be found on PATH - same no-emulator-
+// on-PATH pattern as TestRunInEmulatorByExtensionDispatchesByFileExtension.
+// Added 2026-11-26 at the user's own request (ZEsarUX for ZX81/
+// Spectrum, fMSX/blueMSX+ for MSX).
+func TestRunInEmulatorByExtensionHonorsAnExplicitBackend(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir()
+
+	cases := []struct {
+		ext, backend, artifact string
+	}{
+		{".dmx", "fmsx", "hello.dsk"},
+		{".dmx", "bluemsx+", "hello.dsk"},
+		{".dzx", "zesarux", "hello.p"},
+		{".dzs", "zesarux", "hello.tap"},
+	}
+	for _, c := range cases {
+		path := filepath.Join(dir, "hello"+c.ext)
+		if err := os.WriteFile(path, []byte("print 1\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := runInEmulatorByExtension(path, c.backend); err == nil {
+			t.Fatalf("runInEmulatorByExtension(%s, %q) with no emulator on PATH: want error, got nil", c.ext, c.backend)
+		}
+		if _, err := os.Stat(filepath.Join(dir, c.artifact)); err != nil {
+			t.Fatalf("%s/%s: expected %s to still have been built: %v", c.ext, c.backend, c.artifact, err)
+		}
+	}
+}
+
+func TestRunInEmulatorByExtensionRejectsAnUnknownBackend(t *testing.T) {
+	dir := t.TempDir()
+	dzsPath := filepath.Join(dir, "hello.dzs")
+	if err := os.WriteFile(dzsPath, []byte("print 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runInEmulatorByExtension(dzsPath, "nope"); err == nil || !strings.Contains(err.Error(), "unknown --emulator") {
+		t.Fatalf(`runInEmulatorByExtension(.dzs, "nope"): want an "unknown --emulator" error, got %v`, err)
+	}
+
+	// A backend valid for a DIFFERENT dialect is still rejected - each
+	// dialect's own list is exactly what it supports, not shared
+	// vocabulary.
+	if _, err := runInEmulatorByExtension(dzsPath, "fmsx"); err == nil || !strings.Contains(err.Error(), "unknown --emulator") {
+		t.Fatalf(`runInEmulatorByExtension(.dzs, "fmsx"): want an "unknown --emulator" error, got %v`, err)
 	}
 }
