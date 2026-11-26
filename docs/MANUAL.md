@@ -143,7 +143,12 @@ comandos `compile`/`execute` (até aqui hard-coded pro MSX) pra
 escolher o dialeto pela extensão do arquivo — `goBaDig programa.dzx`
 e `goBaDig --execute programa.dzx` já funcionam de verdade, abrindo
 no EightyOne. Ciclo ZX81 completo via CLI, igual ao MSX — ver seção 6
-pro detalhamento.
+pro detalhamento. **`v1.34.0`** começa o módulo **ZX Spectrum**: só o
+tokenizer por enquanto (`internal/platforms/zxspectrum`, texto
+Classic ASCII já numerado → bytes tokenizados, mais empacotamento
+`.tap`/`.tzx`) — nenhum arquivo `.dzs` Spectrum compila ainda (falta
+o Description/Lexer/Parser do dialeto), sem nenhum comando novo pro
+usuário nesta release.
 
 ## 4. Compilar a partir do código-fonte
 

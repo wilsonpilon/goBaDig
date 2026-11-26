@@ -5,8 +5,8 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-24.
-Estado: **v1.33.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
+Estado: **v1.34.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -46,7 +46,14 @@ no EightyOne (confirmado com um processo real rodando nesta máquina)
 (ver Bloco 3 abaixo; `remx`/renumeração de listagem numerada
 deliberadamente adiados, documentados lá), tudo confirmado contra o
 Python real e o EightyOne real — ciclo ZX81 completo via CLI, igual
-ao MSX)** — histórico completo de cada um
+ao MSX), e agora o módulo **ZX Spectrum** (Bloco 4) começou: tokenizer
+portado (`internal/platforms/zxspectrum`) — encoding de número
+Sinclair via `math/big` (aritmética racional exata, não `float64`,
+diferente do ZX81), `DEF FN`/slots ocultos de 6 bytes, e
+empacotamento `.tap`/`.tzx` (100% mecânico) — validado contra os
+vetores de ouro reais do `test_zxspectrum.py`; ainda SEM
+Description/Lexer/Parser Spectrum (próxima Etapa do roteiro, ver
+Bloco 4 abaixo)** — histórico completo de cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
 
@@ -2891,11 +2898,71 @@ ainda não chamam nenhum desses comandos.
 - [ ] Portar `Description`/`Lexer`/`Parser` Spectrum (alocação por
   categoria, LET implícito, PRINT AT, TRUE/FALSE=1/0, DATA com expressões,
   DEF FN/FN com slots ocultos de 6 bytes). — **A**, **1**
-- [ ] Portar tokenizer Spectrum, incluindo encoding de número Sinclair
+- [x] Portar tokenizer Spectrum, incluindo encoding de número Sinclair
   (usar `math/big.Rat` para precisão, validar contra os 69 testes Python
-  como golden-master). — **A**, **1**
+  como golden-master). — **A**, **1** — **feito em 2026-11-26**
+  (`internal/platforms/zxspectrum/{tokenizer,tape}.go`, v1.34.0 - Etapa 1
+  de 5 do roteiro deste Bloco, mesmo padrão do Bloco 3/ZX81). Ainda SEM
+  Description/Lexer/Parser Spectrum (próxima Etapa) - este tokenizer só
+  converte texto Classic ASCII **já numerado** em bytes tokenizados; nada
+  ainda chama ele a partir do CLI/console. `.tap`/`.tzx` (empacotamento de
+  fita, item separado abaixo) também portados nesta rodada, junto -
+  100% mecânico (`tape.go`), sem motivo pra separar numa Etapa própria.
+
+  **Ponto flutuante Sinclair via `math/big` (Rat/Int), NÃO `float64`**:
+  diferente do ZX81 (que usa `math.Frexp`/IEEE754 porque o Python
+  original também usa `float64` ali), o Spectrum real usa
+  `decimal.Decimal`+`fractions.Fraction` (aritmética racional EXATA) -
+  replicado com `big.Rat` (auto-reduz numerador/denominador, essencial:
+  o algoritmo original depende da fração já REDUZIDA, não só do valor).
+  Confirmado à mão, byte a byte, contra os vetores reais de
+  `test_zxspectrum.py` (`0.1`→`7d4ccccccd`, `65536`→`9100000000`, etc.)
+  - bias de expoente **+129** (não +128 como o ZX81 - ROM diferente).
+  Achado de robustez: a checagem rápida de faixa (`decimal.adjusted()`
+  no Python, replicada com `big.Int` puro, sem nunca calcular `10^E`
+  primeiro) precisa rodar ANTES de montar a fração de verdade, exatamente
+  na mesma ordem do Python - só assim um literal com expoente
+  astronômico (`1e999999999999999999999999`, vetor real de teste) falha
+  rápido em vez de tentar computar uma potência de 10 gigantesca.
+
+  **Diferença estrutural mais importante do módulo** (confirmada pela
+  pesquisa ANTES de portar, ver nota no topo deste Bloco): Spectrum
+  **não tem alocador de variável nenhum** (diferente de MSX/ZX81) -
+  nomes nativos de qualquer tamanho são válidos; só existe
+  `ValidateIdentifier` (validação por categoria: string precisa de 2
+  chars terminados em `$`, array/FOR-control precisa de 1 char, escalar
+  comum aceita qualquer tamanho) - fica pra Pass4 do Parser (próxima
+  Etapa) chamar, já que não envolve `core.VariableAllocator`.
+
+  **REMX deliberadamente FORA de escopo nesta Etapa** (mesma decisão já
+  tomada pro ZX81, Bloco 3): diferente do ZX81 (onde o tokenizer
+  reconhece `remx` como prefixo especial de uma linha já numerada),
+  aqui `parse_remx`/REMX inteiro vive só no nível do Parser Dignified
+  (`Pass1` + uma reinserção pós-`generate()` que contorna a numeração
+  normal) - não há superfície alguma de tokenizer pra portar aqui.
+  Revisitar junto com o Parser (Etapa 3), se um programa real precisar.
+
+  Portados também (funções puras do tokenizer original, usadas por
+  `DEF FN`/`FN`/comandos nativos): `FnDefinition` (slot oculto de 6
+  bytes por parâmetro, marcador `0x0E`+5 zeros - mecanismo real de
+  runtime da ROM, não um truque deste projeto), `ValidateFnCall`
+  (sintaxe de uma chamada `FN nome(args)`, parênteses balanceados),
+  `validateCommandArguments` (contagem/forma de argumento dos comandos
+  nativos como `OUT`/`PLAY`/`OPEN #`/etc.).
+
+  Verificado: os 19 testes Go novos (`internal/platforms/zxspectrum`,
+  golden vectors transcritos de `TokenizerTests`/`TapeTests` do
+  `test_zxspectrum.py` real, 68 casos no total no Python) passam -
+  únicas 2 discrepâncias encontradas rodando os testes foram no PRÓPRIO
+  vetor transcrito à mão (um espaço esquecido em 2 lugares), não na
+  implementação; corrigido no teste, não no código. `go build`/`go
+  vet`/`gofmt`/`go test ./...` limpos no repo inteiro.
 - [ ] REMX com fill configurável. — **B**, **2**
-- [ ] Empacotamento TAP e TZX (100% mecânico). — **B**, **1**
+- [x] Empacotamento TAP e TZX (100% mecânico). — **B**, **1** —
+  **feito em 2026-11-26** (`internal/platforms/zxspectrum/tape.go`,
+  v1.34.0, junto com o tokenizer acima — sem motivo pra separar numa
+  Etapa própria, é mecânico de verdade: checksum XOR, header/data block,
+  TZX só reempacota os mesmos blocos do TAP).
 - [ ] Portar DignifieR Spectrum (AZS→DZS). — **M**, **2**
 - [ ] Integração EightyOne/Spectaculator 48K básica. — **M**, **1**
 - [ ] Integração ZEsarUX como backend adicional; ZRCP já avaliado como

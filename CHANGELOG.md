@@ -35,6 +35,49 @@ exata do pacote.
 
 ---
 
+## [1.34.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-tokenizer** (build 0)
+
+**Tokenizer ZX Spectrum** (Bloco 4, Etapa 1 de 5) — primeira peça do
+módulo ZX Spectrum: `internal/platforms/zxspectrum` converte texto
+Classic ASCII já numerado em bytes tokenizados, igual ao que o
+tokenizer MSX/ZX81 fizeram antes de qualquer Description/Lexer/Parser.
+Ainda sem Description/Lexer/Parser Spectrum (nenhum `.dzs` Dignified
+ainda compila) — ver Etapas 2-5 no roteiro, `OUTLINE.md`, Bloco 4.
+
+### Adicionado
+
+- `zxspectrum.Tokenize(source, model string) ([]byte, error)`
+  (`model` é `"48"` ou `"128"`).
+- `zxspectrum.EncodeNumber`/`EncodeText`, `FnDefinition`,
+  `ValidateFnCall`, `ValidateIdentifier` (exportadas; usadas também
+  pelo futuro Parser, Etapa 3).
+- `zxspectrum.MakeTap`/`MakeTzx` (`tape.go`) — empacotamento de fita,
+  100% mecânico.
+- 19 testes automatizados, portados dos vetores de ouro reais do
+  próprio `test_zxspectrum.py` do projeto Python original
+  (`TokenizerTests`/`TapeTests`).
+
+### Verificado
+
+- Todos os 19 testes Go passam, confirmados byte a byte contra os
+  vetores reais do `test_zxspectrum.py` (ponto flutuante Sinclair,
+  slots ocultos de `DEF FN`, escapes gráficos/UDG, `.tap`/`.tzx`).
+- Ponto flutuante Sinclair codificado com `math/big` (aritmética
+  racional exata), não `float64` — diferente do ZX81, que usa
+  `float64`/IEEE754 porque o Python original também usa `float64` ali;
+  o Spectrum real usa `decimal.Decimal`+`fractions.Fraction`.
+
+### O que não mudou / ainda falta
+
+- Nenhum Description/Lexer/Parser Spectrum ainda — nenhum arquivo
+  `.dzs` Dignified compila de verdade.
+- `REMX` deliberadamente fora de escopo nesta Etapa (mesma decisão já
+  tomada pro ZX81, Bloco 3) — vive só no nível do Parser, não do
+  tokenizer, pro Spectrum.
+- Nenhum comando `compile`/`execute` pro Spectrum ainda.
+- Roteiro completo das próximas etapas documentado em `OUTLINE.md`,
+  Bloco 4.
+
 ## [1.33.0] — 2026-11-24 — bloco **NEW**, feature **zx81-execute** (build 0)
 
 **Comando `compile`/`execute` pro ZX81** (Bloco 3, Etapa 5 de 5 —

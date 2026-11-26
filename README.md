@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.33.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.34.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), e o **ciclo MSX
 > completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou
@@ -24,7 +24,12 @@ para VSCode cobrindo os três dialetos.
 > `goBaDig programa.dzx`/`goBaDig --execute programa.dzx` já
 > funcionam de verdade, abrindo no EightyOne (confirmado com um
 > processo real rodando nesta máquina) — ciclo ZX81 completo via
-> CLI. ZX Spectrum ainda não tem motor de conversão próprio. Ver
+> CLI. O módulo **ZX Spectrum** começou: o tokenizer
+> (`internal/platforms/zxspectrum`, texto já numerado → bytes
+> tokenizados, mais empacotamento `.tap`/`.tzx`) já está portado e
+> validado byte a byte contra o Python real, mas ainda sem
+> Description/Lexer/Parser do dialeto — nenhum `.dzs` compila de
+> ponta a ponta ainda. Ver
 > [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
