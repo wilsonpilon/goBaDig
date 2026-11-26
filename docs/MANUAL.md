@@ -162,7 +162,11 @@ Spectrum completo via CLI, igual MSX e ZX81 — ver seção 6 pro
 detalhamento. **`v1.41.0`** traz o **gerenciador de arquivos de dois
 painéis** na TUI (menu `Files > Open`), com navegação local, compilar/
 executar direto de um painel e criação/listagem de projetos — ver
-seções 5 e 6.
+seções 5 e 6. **`v1.42.0`** consolida esse menu em **`File > File
+Manager`** e faz dele o centro de controle do programa: criar arquivo
+(`F3`) e criar projeto (`Ctrl+N`, agora sempre com um `main<ext>`
+inicial) abrem direto no editor, e arquivos de interesse (fonte,
+listagem clássica, artefato compilado) ganham cor e ícone próprios.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -236,22 +240,34 @@ goBaDig será construída; ainda não está ligado a nada específico de
 BASIC (sem realce de sintaxe ou abertura direta de `.bas`/fontes das 3
 plataformas).
 
-Na TUI, o menu **`Files > Open`** (desde a `v1.41.0`) abre um
-**gerenciador de arquivos de dois painéis**, estilo Norton Commander,
-com navegação local e os atalhos (mostrados na própria barra de
-status): `Tab` troca o painel ativo; `Enter`/`Backspace` entra/sai de
-um diretório; `F2` **compila** o arquivo selecionado (mesmo dispatch
-por extensão do CLI); `F9` **executa** no emulador padrão daquela
-plataforma; `F4` abre o arquivo selecionado no WibEdit já embutido;
-`F5` copia e `F6` move (arquivo ou diretório) pro painel oposto
-(`F6` pede confirmação); `F7` cria um diretório; `F8` apaga um
-arquivo ou diretório vazio (também com confirmação); `Ctrl+N` cria um
-**projeto** novo (nome, pasta - criada se não existir -, dialeto, com
-a opção de já gerar um arquivo-fonte inicial vazio) e `Ctrl+P` lista
-os projetos já salvos, pulando o painel ativo direto pra pasta
+Na TUI, o menu **`File > File Manager`** (desde a `v1.41.0`, menu
+consolidado na `v1.42.0` - era um menu `Files` separado) abre o
+**gerenciador de arquivos de dois painéis**, estilo Norton Commander
+e, desde a `v1.42.0`, pensado como o **centro de controle do
+programa**: dá pra criar, editar, compilar e executar um programa
+inteiro sem sair dele. Navegação local e os atalhos (mostrados na
+própria barra de status): `Tab` troca o painel ativo; `Enter`/
+`Backspace` entra/sai de um diretório; `F2` **compila** o arquivo
+selecionado (mesmo dispatch por extensão do CLI); `F3` cria um
+**arquivo** vazio no painel ativo (a extensão escolhe o dialeto) e já
+abre no WibEdit; `F4` abre o arquivo selecionado no WibEdit; `F5`
+copia e `F6` move (arquivo ou diretório) pro painel oposto (`F6` pede
+confirmação); `F7` cria um diretório; `F8` apaga um arquivo ou
+diretório vazio (também com confirmação); `F9` **executa** no
+emulador padrão daquela plataforma; `Ctrl+N` cria um **projeto** novo
+(nome, pasta - criada se não existir -, dialeto; já gera `main<ext>`
+- `main.dmx`/`main.dzx`/`main.dzs` - e abre no editor) e `Ctrl+P`
+lista os projetos já salvos, pulando o painel ativo direto pra pasta
 escolhida. `Esc`/`F10` fecha o gerenciador e volta pro desktop.
 Operações de arquivo são só locais nesta versão (nenhuma integração
 com um `.DSK` montado ainda).
+
+Arquivos de interesse ganham cor forte e um ícone próprio no painel,
+pra reconhecer de relance qual é qual: fonte BADIG Dignified
+(`.dmx`/`.dzx`/`.dzs`, ícone `◆`), listagem ASCII clássica
+(`.amx`/`.azx`/`.azs`, ícone `≡`), artefato compilado ou empacotado
+pronto pra rodar num emulador (`.bmx`/`.p`/`.tap`/`.tzx`/`.dsk`, ícone
+`▣`).
 
 Na TUI, há um **desktop clássico inspirado no Turbo Pascal 6, QuickBasic
 e Norton Editor 2.0**: fundo azul, barra de título, menu suspenso,

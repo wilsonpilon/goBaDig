@@ -3510,6 +3510,38 @@ ainda não chamam nenhum desses comandos.
   `TestMultipleDirectoryEntriesAreActuallyVisibleOnScreen` - confirmado
   capaz de reproduzir exatamente a captura de tela do usuário).
 
+- [x] **Gerenciador de arquivos vira o centro de controle do programa**
+  (2026-11-26, v1.42.0), pedido explícito do usuário depois de usar a
+  v1.41.3: "o File Manager agora vai ser o centro de controle total
+  do programa". Menu de topo "Files" separado removido - o
+  gerenciador agora abre por **`File > File Manager`** (primeiro item
+  do menu `File`, antes de "Exit"); `menus[0]` ganhou um segundo item,
+  os outros índices (`Editor`/`Setup`/`Help`) não mudaram. Novo `F3`
+  **Criar Arquivo** (arquivo vazio no painel ativo, nomeado pelo
+  usuário - a extensão escolhe o dialeto -, recusa sobrescrever,
+  aberto na hora no WibEdit). `Ctrl+N` **Criar Projeto** revisado: o
+  arquivo inicial deixa de ser opcional (checkbox removida) e passa a
+  se chamar sempre `main<ext>` (não mais `<nome do projeto><ext>`) -
+  nome fixo e previsível, também aberto na hora no editor. **Arquivos
+  de interesse ganham cor forte + ícone próprio**: fonte BADIG
+  Dignified (`.dmx`/`.dzx`/`.dzs`, ícone `◆`), listagem ASCII clássica
+  (`.amx`/`.azx`/`.azs`, ícone `≡`), artefato compilado/empacotado
+  (`.bmx`/`.p`/`.tap`/`.tzx`/`.dsk`, ícone `▣`) - cada categoria usa
+  uma cor do tema ativo que nenhuma outra parte da TUI já usava
+  (`Palette.Hover`/`Palette.Error`, ambas deliberadamente vívidas em
+  todo tema curado), pra garantir contraste forte em qualquer tema;
+  `SourceText` divide `Primary` com `DirectoryText` de propósito - a
+  notação `[nome]` já distingue diretório de arquivo. Fecha o ciclo
+  completo pedido pelo usuário inteiramente pelo gerenciador: criar →
+  editar → salvar/sair → compilar (`F2`) → executar (`F9`). Teste
+  novo (`internal/tui/new_file_test.go`,
+  `TestF3CreatesAFileAndOpensItInTheEditor`) dirige o diálogo de
+  verdade por teclas simuladas, não uma chamada Go direta - achado
+  nesse processo: `Enter` com um `InputField` em foco não envia o
+  formulário na hora, são 3 `Enter`s (campo → foco no botão → clique)
+  pra concluir, não 1 - registrado como lição de teste pra qualquer
+  diálogo futuro deste tipo.
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e

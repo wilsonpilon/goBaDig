@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.41.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.42.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit, e um **gerenciador de
 > arquivos de dois painéis** com projetos), e o **ciclo MSX
@@ -21,9 +21,10 @@ para VSCode cobrindo os três dialetos.
 > --execute <arquivo.dmx>` (ou `execute <arquivo.dmx>`) compila,
 > empacota o resultado num disco `.dsk` de teste e abre no openMSX de
 > verdade, pra testar na hora. A GUI ainda não chama nenhum desses
-> comandos; a TUI já chama, pelo novo gerenciador de arquivos (`Files
-> > Open`, `F2` compila/`F9` executa, `Ctrl+N`/`Ctrl+P` cria/lista
-> projetos). O módulo **ZX81** chegou no mesmo ponto que o MSX:
+> comandos; a TUI já chama, pelo gerenciador de arquivos (`File > File
+> Manager`, `F2` compila/`F3` cria arquivo/`F9` executa, `Ctrl+N`/
+> `Ctrl+P` cria/lista projetos). O módulo **ZX81** chegou no mesmo
+> ponto que o MSX:
 > `goBaDig programa.dzx`/`goBaDig --execute programa.dzx` já
 > funcionam de verdade, abrindo no EightyOne (confirmado com um
 > processo real rodando nesta máquina) — ciclo ZX81 completo via
@@ -83,8 +84,9 @@ cada formato de mídia/fita/disco.
   Basic Dignified`/`MSX`/`ZX81`/`ZX Spectrum`), e um editor de texto
   completo integrado (`Editor > Open`, portado do WibEdit) como base
   da futura IDE, e um gerenciador de arquivos de dois painéis estilo
-  Norton Commander (`Files > Open`) que já compila/executa pelo mesmo
-  dispatch do CLI e cria/lista projetos.
+  Norton Commander (`File > File Manager`) que é o centro de controle
+  do programa: cria arquivo/projeto, edita, compila e executa, tudo
+  sem sair dele.
 - **GUI**: interface gráfica (`Fyne`), mesma ideia da TUI, para quem
   prefere mouse.
 - **VSIX único**: uma extensão VSCode só, cobrindo os três dialetos,
