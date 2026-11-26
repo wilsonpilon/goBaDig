@@ -207,3 +207,120 @@ func TestEndToEndLineNumberBeyond9999IsRejected(t *testing.T) {
 func TestEndToEndRemxIsRejectedAsNotImplementedYet(t *testing.T) {
 	runLinesExpectError(t, "REMX 100,4")
 }
+
+// --- Etapa 4: real examples, badig/examples/zxspectrum/ ---
+//
+// Each of the following mirrors one real .DZS file from the project's
+// own local reference (badig/ - gitignored, so its own text is
+// embedded here directly, no file read), minus its own leading "##"
+// Dignified-comment header line (cosmetic, produces no token either
+// way) - confirmed BYTE FOR BYTE against the real badig.py (not just
+// these unit tests): both the rendered Classic listing (.AZS) AND the
+// tokenized .tap this package's own Tokenize/MakeTap produce from it
+// match the real Python's own output exactly, for ALL 9 real examples
+// in that directory (hello/data/fn/colours/functions/native/streams/
+// graphics/play128 - graphics' only with its "REMX 1000,32" line
+// removed, same deferred-scope decision as ZX81's own real-example
+// tests; play128 tokenized with model="128"). These three were picked
+// to commit as the most structurally distinct: the simplest full
+// program (labels/implicit LET/GOTO), compound assignment + FUNC/RET,
+// and DEF FN/FN. RemHeader is left at its default (false) here, same
+// as runLines everywhere else in this file - the real header/REM-
+// numbering shift this produces vs. the real file's own output
+// (RemHeader=true) was manually re-derived from the confirmed-correct
+// run, not guessed.
+
+// TestEndToEndRealHelloExample mirrors badig/examples/zxspectrum/hello.DZS.
+func TestEndToEndRealHelloExample(t *testing.T) {
+	got := runLines(t,
+		"REM FIRST SPECTRUM MILESTONE",
+		"CLS",
+		"LET counter=1",
+		"{again}",
+		`PRINT "SPECTRUM ";counter`,
+		"LET counter=counter+1",
+		"IF counter<=3 THEN GO TO {again}",
+		`PRINT "DONE"`,
+		"STOP",
+	)
+	assertCode(t, got, []string{
+		"10 REM  FIRST SPECTRUM MILESTONE",
+		"20 CLS",
+		"30 LET counter=1",
+		`40 PRINT "SPECTRUM ";counter`,
+		"50 LET counter=counter+1",
+		"60 IF counter<=3 THEN GO TO 40",
+		`70 PRINT "DONE"`,
+		"80 STOP",
+	})
+}
+
+// TestEndToEndRealFunctionsExample mirrors
+// badig/examples/zxspectrum/functions.DZS - exercises `*=`/`++` compound
+// assignment, a Dignified FUNC/RET call (core-level, shared machinery),
+// and `[?](row,col)` PRINT AT with both coordinates given.
+func TestEndToEndRealFunctionsExample(t *testing.T) {
+	got := runLines(t,
+		"REM DIGNIFIED CONVENIENCES",
+		"CLS",
+		"score=2",
+		"score*=1+2",
+		"score++",
+		"IF score=7 THEN score+=3",
+		`[?](2,0) "SCORE ";score`,
+		"answer=.double(score)",
+		"PRINT answer",
+		"STOP",
+		"FUNC .double(value)",
+		"    result=value*2",
+		"RET result",
+	)
+	assertCode(t, got, []string{
+		"10 REM  DIGNIFIED CONVENIENCES",
+		"20 CLS",
+		"30 LET score=2",
+		"40 LET score=score*(1+2)",
+		"50 LET score=score+(1)",
+		"60 IF score=7 THEN LET score=score+(3)",
+		`70 PRINT AT 2,0;"SCORE ";score`,
+		"80 LET value=score:GO SUB 110:LET answer=result",
+		"90 PRINT answer",
+		"100 STOP",
+		"110 LET result=value*2",
+		"120 RETURN",
+	})
+}
+
+// TestEndToEndRealFnExample mirrors badig/examples/zxspectrum/fn.DZS -
+// exercises DEF FN (numeric, string-named, no-arg, and one calling
+// another FN internally) and FN calls, including a nested one.
+func TestEndToEndRealFnExample(t *testing.T) {
+	got := runLines(t,
+		"CLS",
+		"DEF FN f(x,a$)=x+LEN a$",
+		`DEF FN s$(a$)=a$+"!"`,
+		"DEF FN z()=42",
+		`DEF FN g(x)=FN f(x,"AB")*2`,
+		"x=99",
+		`PRINT "FN NUMERIC ";FN f(3,"AB")`,
+		`PRINT "FN STRING ";FN s$("SPECTRUM")`,
+		`PRINT "FN NO ARGS ";FN z()`,
+		`PRINT "FN NESTED ";FN g(3)`,
+		`PRINT "GLOBAL X ";x`,
+		"STOP",
+	)
+	assertCode(t, got, []string{
+		"10 CLS",
+		"20 DEF FN f(x,a$)=x+LEN a$",
+		`30 DEF FN s$(a$)=a$+"!"`,
+		"40 DEF FN z()=42",
+		`50 DEF FN g(x)=FN f(x,"AB")*2`,
+		"60 LET x=99",
+		`70 PRINT "FN NUMERIC ";FN f(3,"AB")`,
+		`80 PRINT "FN STRING ";FN s$("SPECTRUM")`,
+		`90 PRINT "FN NO ARGS ";FN z()`,
+		`100 PRINT "FN NESTED ";FN g(3)`,
+		`110 PRINT "GLOBAL X ";x`,
+		"120 STOP",
+	})
+}

@@ -130,7 +130,17 @@ func (*Parser) Pass4(ctx *core.CompileContext, tokens []core.Token, index int) (
 // Spectrum-specific addition vs. ZX81, which only checks line-start/
 // THEN), or immediately after "THEN".
 func atStatementStart(prev core.Token) bool {
-	if prev.Kind == core.KindLineNumber || prev.Kind == KindSeparator {
+	if prev.Kind == core.KindLineNumber {
+		return true
+	}
+	// Checked by VALUE, not Kind=KindSeparator - core's own shared
+	// function-call expansion (pass2Functions) splices in its own
+	// ":" between a call's param-assignments/GOSUB/return-assignment
+	// as Kind=core.KindSynthetic, never this package's own
+	// KindSeparator (confirmed by a real example, functions.DZS,
+	// whose synthetic "...;GO SUB 130:answer=result" needs its OWN
+	// implicit LET exactly like any other statement boundary).
+	if prev.String() == ":" {
 		return true
 	}
 	return strings.EqualFold(prev.String(), "then")
@@ -167,37 +177,43 @@ func (p *Parser) Pass5(_ *core.CompileContext, tokens []core.Token, index int) (
 	if tok.Kind == KindInstruction && tok.String() == "?" {
 		return core.Replace, []core.Token{{Kind: KindInstruction, Value: "PRINT", Pos: tok.Pos}}, nil
 	}
-	if tok.Kind == KindJump {
-		// Confirmed empirically: EVERY spelling - "GOTO", "GO TO", "GO  TO"
-		// - renders as "GO TO" with exactly one space; same for GOSUB.
-		switch normalizeKeywordSpacing(tok.String()) {
-		case "GOTO", "GO TO":
-			return core.Replace, []core.Token{{Kind: KindJump, Value: "GO TO", Pos: tok.Pos}}, nil
-		case "GOSUB", "GO SUB":
-			return core.Replace, []core.Token{{Kind: KindJump, Value: "GO SUB", Pos: tok.Pos}}, nil
-		}
-	}
 
-	// Every OTHER reserved keyword (plain instructions, functions,
-	// operators, jumps not already handled above) is forced to its
-	// own UPPERCASE form, UNCONDITIONALLY - confirmed empirically
-	// (running badig.py: "sin"/"cos"/"let"/"if"/"rem" all render
-	// uppercase regardless of how they were typed) - unlike MSX, this
-	// never depends on a "capitalise_all" setting. Identifiers/strings/
-	// numbers/symbols/comment CONTENT are untouched (comment content
-	// specifically mirrors c_lit_toks' own exclusion - ver lexer.go's
-	// own doc comment on why "REM" is its own separate token from its
-	// content here).
-	switch tok.Kind {
-	case KindInstruction, KindJump, KindOperator, KindFunction:
-		upper := strings.ToUpper(tok.String())
-		if upper != tok.String() {
-			tok.Value = upper
-			return core.Replace, []core.Token{tok}, nil
-		}
+	// GOTO/GOSUB normalization and the generic reserved-keyword
+	// uppercase forcing are both checked by VALUE, not by Kind -
+	// needed because core's own shared machinery (pass2Functions'
+	// `gosub`/`return` for a Dignified function call, badig.py
+	// FunctionCallInstruction/FunctionReturnInstruction; pass2Labels'
+	// `goto` for a loop label's closing `}`, LoopBackInstruction) emits
+	// these as Kind=core.KindSynthetic, never KindJump/KindInstruction -
+	// confirmed by a real example (functions.DZS) rendering "gosub"/
+	// "return" lowercase, unforced, until this was changed from a
+	// Kind-based check to a value-based one.
+	switch normalizeKeywordSpacing(tok.String()) {
+	case "GOTO", "GO TO":
+		return core.Replace, []core.Token{{Kind: tok.Kind, Value: "GO TO", Pos: tok.Pos}}, nil
+	case "GOSUB", "GO SUB":
+		return core.Replace, []core.Token{{Kind: tok.Kind, Value: "GO SUB", Pos: tok.Pos}}, nil
+	}
+	if upper := strings.ToUpper(tok.String()); reservedUpper[upper] && upper != tok.String() {
+		tok.Value = upper
+		return core.Replace, []core.Token{tok}, nil
 	}
 	return core.Continue, nil, nil
 }
+
+// reservedUpper is Description.ReservedKeywords(), uppercased, used by
+// Pass5's generic forcing above - a value-based set rather than a
+// Kind-based switch precisely so it also catches core's own synthetic
+// tokens (ver Pass5's own doc comment), mirroring the original's own
+// `tk.uval in self.des.c_reserved_kw` check, which is ALSO by value,
+// never by any notion of "token kind".
+var reservedUpper = func() map[string]bool {
+	m := map[string]bool{}
+	for _, w := range (description{}).ReservedKeywords() {
+		m[strings.ToUpper(w)] = true
+	}
+	return m
+}()
 
 // expandCompoundAssignment mirrors the C_E_SYMB branch of pass_5
 // (badig_zxspectrum.py:227-258): `x+=5*2` -> `x=x+(5*2)`,
