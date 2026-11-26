@@ -3,6 +3,7 @@ package filemanager
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -79,4 +80,87 @@ func TestRenderUsesTheConfiguredColorsNotTviewDefaults(t *testing.T) {
 	}
 	checkCell(fileRow, colors.FileText, "file entry")
 	checkCell(dirRow, colors.DirectoryText, "directory entry")
+}
+
+// TestMultipleDirectoryEntriesAreActuallyVisibleOnScreen is a
+// regression test for the REAL bug behind the user's report - the
+// previous two "color" fixes (TestRenderUsesTheConfiguredColorsNotTviewDefaults
+// above, and the SetSelectedStyle fix in internal/tui) both read
+// cell.Style/cell.Color directly, which stayed correct the whole time
+// and never caught this: the problem was never a color at all.
+//
+// tview's print functions (used by every Table cell, via
+// printWithStyle -> step -> parseTag) treat any "[...]" substring as
+// an attempted [color]/["region"] style tag whenever the character
+// right after '[' is a letter, digit, '#', ':' or '-' - matched and
+// CONSUMED (producing zero visible characters) whether or not the
+// "color" inside resolves to anything real. This project's own
+// Norton-Commander-style "[name]" directory wrapping (panel.go's
+// entryLabel) collided with that directly: "[..]" happened to survive
+// (the character after '[' is '.', not a valid tag-start character),
+// but "[cmd]", "[docs]", "[internal]" - any real directory starting
+// with a letter or digit - vanished completely. Confirmed by the user
+// screenshotting exactly this (images/erro-filemanager.png, 2026-11-26):
+// only ".." and ".claude" (an escaped-by-accident ".name" pattern)
+// were visible; every other directory in the repo root showed only
+// its date column, the name silently blank.
+//
+// Root-caused by vendoring a local copy of rivo/tview v0.42.0 with a
+// temporary `replace` in go.mod and debug prints inside Table.Draw -
+// confirmed printWithStyle's own (start, end) return values were
+// (0, 0) - zero characters printed - for "[aaa]"-style text, while
+// "[..]" printed all 4. Fixed with tview.Escape (entryLabel), which
+// is the library's own documented tool for this exact situation.
+//
+// This test renders a REAL tcell.SimulationScreen (not just read back
+// cell fields) with several directories whose names are ordinary
+// letters - exactly the pattern that silently vanished - and asserts
+// their full escaped label text is actually present somewhere on
+// screen.
+func TestMultipleDirectoryEntriesAreActuallyVisibleOnScreen(t *testing.T) {
+	dir := t.TempDir()
+	// Deliberately includes names that are valid tview tag starts
+	// (letters right after where "[" would go) - "aaa"/"bbb"/etc. are
+	// even valid 3-digit hex colors, the worst case for this bug.
+	names := []string{"cmd", "docs", "internal", "aaa", "resource"}
+	for _, name := range names {
+		if err := os.Mkdir(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	p := newPanel(DefaultColors())
+	if err := p.load(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	screen := tcell.NewSimulationScreen("")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	screen.SetSize(60, len(p.entries)+4)
+	p.table.SetRect(0, 0, 60, len(p.entries)+4)
+	p.table.Draw(screen)
+	screen.Show()
+
+	cells, width, height := screen.GetContents()
+	var line string
+	for row := 0; row < height; row++ {
+		for col := 0; col < width; col++ {
+			c := cells[row*width+col]
+			if len(c.Runes) > 0 {
+				line += string(c.Runes[0])
+			} else {
+				line += " "
+			}
+		}
+		line += "\n"
+	}
+
+	for _, name := range names {
+		want := "[" + name + "]"
+		if !strings.Contains(line, want) {
+			t.Errorf("directory label %q not found anywhere on screen (silently swallowed as a style tag).\nScreen:\n%s", want, line)
+		}
+	}
 }

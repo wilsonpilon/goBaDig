@@ -112,13 +112,17 @@ func (p *panel) load(dir string) error {
 
 func (p *panel) render() {
 	p.table.Clear()
-	p.table.SetTitle(" " + p.dir + " ")
+	// tview.Escape is required here, not optional: a path/filename is
+	// arbitrary user/filesystem-controlled text, and tview's print
+	// functions (used by both Box titles and Table cells) treat ANY
+	// "[...]" shaped substring as a style/region tag - see the long
+	// comment on entryLabel below for the bug this caused in
+	// practice (directory names silently vanishing).
+	p.table.SetTitle(" " + tview.Escape(p.dir) + " ")
 	for row, e := range p.entries {
-		name := e.name
+		name := entryLabel(e)
 		size := ""
-		if e.isDir {
-			name = "[" + name + "]"
-		} else {
+		if !e.isDir {
 			size = fmt.Sprintf("%d", e.size)
 		}
 		date := ""
@@ -151,6 +155,30 @@ func (p *panel) render() {
 	if len(p.entries) > 0 {
 		p.table.Select(0, 0)
 	}
+}
+
+// entryLabel renders an entry's filename for display: directories get
+// wrapped in "[name]", exactly like Norton Commander. tview.Escape is
+// not optional here - it's the actual fix for a real bug reported
+// by the user ("alguns diretórios... ficam preto com preto", later
+// found to really be a name silently not printing at all, not a
+// color problem): tview's own Print functions (used by every Table
+// cell and Box title in this UI) treat ANY "[...]" substring whose
+// first character is a letter, digit, '#', ':' or '-' as an attempted
+// [color] or ["region"] style tag - matched and CONSUMED whether or
+// not the "color" inside actually resolves to anything, producing no
+// visible text at all. A name like "[..]" survives by accident (the
+// character right after '[' is '.', which isn't a valid tag-start
+// character), but "[cmd]", "[docs]", "[internal]" - or any real
+// directory/file name starting with a letter or digit - vanish
+// completely. tview.Escape wraps the "[...]" sequence in its escaped
+// form so the print functions render it as literal text instead of
+// trying to parse it as a tag.
+func entryLabel(e entry) string {
+	if e.isDir {
+		return tview.Escape("[" + e.name + "]")
+	}
+	return tview.Escape(e.name)
 }
 
 func (p *panel) entryColor(e entry) tcell.Color {

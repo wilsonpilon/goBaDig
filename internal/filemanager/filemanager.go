@@ -114,8 +114,15 @@ func (fm *FileManager) applyColors(colors Colors) {
 	fm.status.SetTextColor(colors.StatusFg)
 }
 
+// setStatus shows text in the status bar. Escaped here, once, for
+// every caller: a status message frequently embeds a path or error
+// text (os errors routinely quote the path that failed), which is
+// arbitrary, uncontrolled text - see entryLabel in panel.go for the
+// bug this exact pattern caused when left unescaped (tview's print
+// functions treat "[...]" as an attempted style tag and silently
+// drop it instead of printing it).
 func (fm *FileManager) setStatus(text string) {
-	fm.status.SetText(text)
+	fm.status.SetText(tview.Escape(text))
 }
 
 func (fm *FileManager) setActive(i int) {

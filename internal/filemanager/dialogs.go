@@ -184,7 +184,10 @@ func (fm *FileManager) promptProjectList() {
 	list.SetSelectedTextColor(colors.SelectionFg)
 	for _, project := range projects {
 		p := project
-		list.AddItem(p.Name, fmt.Sprintf("%s - %s", p.Dialect, p.Path), 0, func() {
+		// tview.Escape: p.Name/p.Path are user-controlled (typed into
+		// the New Project dialog) - see entryLabel in panel.go for
+		// why this isn't optional.
+		list.AddItem(tview.Escape(p.Name), fmt.Sprintf("%s - %s", p.Dialect, tview.Escape(p.Path)), 0, func() {
 			fm.closeDialog("project-list")
 			if err := fm.current().load(p.Path); err != nil {
 				fm.setStatus(fmt.Sprintf(" erro: %v", err))
