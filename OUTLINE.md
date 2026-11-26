@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
-Estado: **v1.37.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.38.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -50,18 +50,18 @@ ao MSX), e agora o módulo **ZX Spectrum** (Bloco 4) começou: tokenizer
 portado (`internal/platforms/zxspectrum`) — encoding de número
 Sinclair via `math/big` (aritmética racional exata, não `float64`,
 diferente do ZX81), `DEF FN`/slots ocultos de 6 bytes, e
-empacotamento `.tap`/`.tzx` (100% mecânico) — validado contra os
-vetores de ouro reais do `test_zxspectrum.py`; o `Description`/`Lexer`
-do dialeto (vocabulário clássico, `GO TO`/`GO SUB` com espaço
-variável, apóstrofo como separador real de `PRINT`); o `Parser` — **o
-primeiro arquivo `.dzs` Spectrum já compilou de ponta a ponta**; e
-agora a validação de ponta a ponta contra os **9 exemplos reais já
-existentes no projeto**, batendo byte a byte (texto E `.tap`
-tokenizado) contra o `badig.py` real — achou e corrigiu 2 bugs reais
-(maiúscula/`GOTO`→`GO TO` e `LET` implícito checando só por `Kind`,
-nunca por VALOR, perdendo os tokens sintéticos que `FUNC`/`RET`
-compartilhado do core emite). Falta ainda: `compile`/`execute` no CLI
-(próxima e última Etapa, ver Bloco 4 abaixo)** — histórico completo de
+empacotamento `.tap`/`.tzx` (100% mecânico); o `Description`/`Lexer`
+do dialeto; o `Parser`; a validação de ponta a ponta contra os 9
+exemplos reais já existentes no projeto, batendo byte a byte (texto E
+`.tap` tokenizado) contra o `badig.py` real; e agora o comando
+`compile`/`execute` também — `goBaDig programa.dzs`/`goBaDig
+--execute programa.dzs` já funcionam de verdade, abrindo no
+EightyOne (confirmado com um processo real rodando nesta máquina) —
+**ROTEIRO COMPLETO DO BLOCO 4 FECHADO (Etapas 1-5), ciclo ZX
+Spectrum completo via CLI, igual MSX e ZX81** (por decisão tomada com
+o usuário, o `execute` do Spectrum NÃO espera o emulador fechar,
+diferente do Python original nesse ponto específico — consistência
+com MSX/ZX81 no Go, ver Bloco 4 abaixo)** — histórico completo de
 cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
@@ -3026,6 +3026,53 @@ ainda não chamam nenhum desses comandos.
   `FN`) + 1 scratch (`zz_scratch_e2e_test.go`, não comitado, lendo os
   9 arquivos reais de uma cópia local e comparando `.AZS`/`.tap`
   contra a saída do Python real).
+
+  **Etapa 5 (comando `compile`/`execute` pro Spectrum), feita em
+  2026-11-26 — ROTEIRO COMPLETO DO BLOCO 4 FECHADO (Etapas 1-5)**:
+  `internal/cli/dialect.go` ganha `.dzs`→Spectrum nos dois
+  dispatchers (`compileByExtension`/`runInEmulatorByExtension`),
+  junto com `.dmx`/`.dzx` já existentes.
+
+  `internal/platforms/zxspectrum/compile.go` (novo):
+  `DefaultCompileSettings` (mesmos defaults compartilhados do MSX/
+  ZX81) e `CompileFile(dzsPath, settings) (azsPath, tapPath string,
+  err error)`, espelhando `msx.CompileFile`/`zx81.CompileFile`: `core.Run`
+  + `Tokenize` (sempre `model="48"` — o modelo 128K fica fora da
+  integração de emulador deste round, decisão de escopo já
+  documentada acima) + `MakeTap` (nome da fita derivado do nome base
+  do arquivo, truncado em 10 chars — `TK_NAME` padrão do original).
+
+  `internal/platforms/zxspectrum/run.go` (novo): `RunInEmulator(tapPath)`
+  — bem mais rico que ZX81/MSX, confirmado lendo `emulator_interface.py`
+  de novo: EightyOne do Spectrum recebe DOIS argumentos posicionais
+  (`[ini, fita]`, não um só), exigindo um perfil INI próprio
+  (`eightyone48.ini`, 11 linhas, embutido como string Go — `TZXMAN`
+  já vem com `FlashLoad`/`AutoStart`/`AutoLoad=1`, exatamente o que
+  este round sempre precisa já que só produz `.tap`). Uma cópia
+  temporária desse INI é escrita a cada chamada (nunca edita o
+  original) e NÃO é apagada depois — como esta função não espera o
+  emulador terminar (decisão abaixo), apagar na hora arriscaria uma
+  corrida com o próprio EightyOne ainda lendo o arquivo ao abrir.
+
+  **Decisão tomada com o usuário antes de implementar**: o
+  `emulator_interface.py` original do Spectrum ESPERA o EightyOne
+  fechar (`process.wait()`, falha se saída for diferente de zero) —
+  diferente de MSX/ZX81 no Go, que já abrem e retornam na hora.
+  Perguntado via `AskUserQuestion`: escolhida a **consistência com
+  MSX/ZX81** (não esperar), não a fidelidade ao Python nesse ponto
+  específico — as três plataformas do `goBaDig --execute` agora têm
+  o MESMO comportamento de CLI, mesmo que o Python original divirja
+  por dialeto.
+
+  Validado de verdade: `goBaDig --execute demo.dzs` (fonte mínima
+  `CLS:PRINT "...":STOP`) gerou `demo.azs`/`demo.tap` corretos e abriu
+  um processo `EightyOne.exe` REAL nesta máquina (confirmado via
+  `Get-Process` — mesmo nível de confirmação já aceito pro MSX/ZX81:
+  processo vivo confirmado, sem confirmação visual de tela neste
+  ambiente). Testes novos: `compile_test.go`/`run_test.go`
+  (`internal/platforms/zxspectrum`), mais os pares `.dzs` dos testes
+  `Run`/console/dialect já existentes pro `.dmx`/`.dzx`
+  (`internal/cli`).
 - [x] Portar tokenizer Spectrum, incluindo encoding de número Sinclair
   (usar `math/big.Rat` para precisão, validar contra os 69 testes Python
   como golden-master). — **A**, **1** — **feito em 2026-11-26**

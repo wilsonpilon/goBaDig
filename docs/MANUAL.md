@@ -154,9 +154,12 @@ o Description/Lexer/Parser do dialeto). **`v1.35.0`** porta o
 real já compila de ponta a ponta (Lex→Parse→Generate).
 **`v1.37.0`** valida isso contra os 9 exemplos reais já existentes no
 projeto, byte a byte (texto E `.tap` tokenizado) contra o `badig.py`
-original — nenhuma das quatro releases ganhou um comando novo pro
-usuário ainda (`compile`/`execute` pro Spectrum ficam pra uma
-próxima etapa).
+original. **`v1.38.0`** generaliza os comandos `compile`/`execute`
+(já existentes pro MSX/ZX81) pra escolher também o Spectrum pela
+extensão do arquivo — `goBaDig programa.dzs` e `goBaDig --execute
+programa.dzs` já funcionam de verdade, abrindo no EightyOne. Ciclo ZX
+Spectrum completo via CLI, igual MSX e ZX81 — ver seção 6 pro
+detalhamento.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -393,20 +396,44 @@ Compila e abre o EightyOne (precisa estar no `PATH`) direto com o
 `.p` — sem nenhum passo de "empacotar num disco": o `.p` já é tudo
 que o EightyOne precisa pra bootar no programa compilado, diferente
 do MSX (que precisa de um disco com `AUTOEXEC.BAS`). No console,
-`execute programa.dzx`. Os dois caminhos (`.dmx`/`.dzx`) escolhem o
-dialeto automaticamente pela extensão do arquivo
-(`internal/cli/dialect.go`) — nenhuma flag `-id` ainda, mas também
-não precisa de uma, já que a extensão já diz tudo.
+`execute programa.dzx`.
+
+E o mesmo ciclo pro ZX Spectrum, trocando a extensão de novo:
+
+```console
+goBaDig programa.dzs
+```
+
+Gera `programa.azs` (listagem Classic numerada) e `programa.tap`
+(fita tokenizada), no mesmo diretório. No console, `compile
+programa.dzs`.
+
+```console
+goBaDig --execute programa.dzs
+```
+
+Compila e abre o EightyOne direto com o `.tap` — diferente de
+MSX/ZX81, o EightyOne do Spectrum recebe TAMBÉM um perfil de
+configuração próprio (gerado automaticamente, cópia temporária, nunca
+edita nenhum arquivo do usuário) como argumento, além da fita. No
+console, `execute programa.dzs`. **Diferença deliberada do Python
+original**: o `badig.py` real espera o EightyOne fechar antes de
+voltar pro prompt pro Spectrum (mas não pro MSX/ZX81) — o `goBaDig`
+não espera em nenhum dos três, por consistência entre as plataformas.
+
+Os três caminhos (`.dmx`/`.dzx`/`.dzs`) escolhem o dialeto
+automaticamente pela extensão do arquivo (`internal/cli/dialect.go`)
+— nenhuma flag `-id` ainda, mas também não precisa de uma, já que a
+extensão já diz tudo.
 
 Erro de conversão (arquivo não encontrado, sintaxe Dignified
 inválida, etc.) imprime a mensagem na saída de erro e sai com código
 diferente de zero (CLI) ou mostra a mensagem no próprio console
 (`--cli`) — nenhum arquivo parcial é deixado pela metade nesse caso.
 
-MSX e ZX81 por enquanto (ZX Spectrum ainda não tem
-`Description`/`Lexer`/`Parser` próprio implementado). TUI e GUI ainda
-não têm nenhum desses comandos — próxima etapa natural depois de ZX
-Spectrum ter seu próprio motor de conversão.
+TUI e GUI ainda não chamam nenhum desses comandos, em nenhuma das
+três plataformas — próxima etapa natural depois do motor de
+conversão das três estar completo.
 
 Exemplos de referência (fonte Dignified real, do projeto Python
 original, úteis para entender a sintaxe enquanto o conversor Go não

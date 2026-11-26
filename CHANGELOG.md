@@ -35,6 +35,45 @@ exata do pacote.
 
 ---
 
+## [1.38.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-execute** (build 0)
+
+**Comando `compile`/`execute` pro ZX Spectrum** (Bloco 4, Etapa 5 de 5
+— roteiro completo) — os comandos já existentes (MSX/ZX81) agora
+também escolhem ZX Spectrum pela extensão do arquivo: `goBaDig
+programa.dzs`/`goBaDig --execute programa.dzs` funcionam de verdade.
+**Ciclo ZX Spectrum completo via CLI, igual MSX e ZX81.**
+
+### Adicionado
+
+- `internal/cli/dialect.go`: `.dzs`→ZX Spectrum nos dois dispatchers
+  (`compileByExtension`/`runInEmulatorByExtension`).
+- `internal/platforms/zxspectrum/compile.go` (`CompileFile`,
+  `DefaultCompileSettings`) e `run.go` (`RunInEmulator`) —
+  `RunInEmulator` precisa de um perfil INI do EightyOne (dois
+  argumentos posicionais, `[ini, fita]`, diferente de MSX/ZX81) —
+  embutido como string Go, uma cópia temporária por chamada.
+- Testes automatizados novos (`compile_test.go`/`run_test.go` no
+  pacote `zxspectrum`, mais os pares `.dzs` dos testes já existentes
+  em `internal/cli`).
+
+### Decidido com o usuário
+
+- O `emulator_interface.py` original do Spectrum espera o EightyOne
+  fechar antes de retornar; MSX/ZX81 no Go não esperam. Escolhida a
+  **consistência entre as três plataformas no Go** (não esperar), não
+  a fidelidade ao Python nesse ponto específico.
+
+### Validado
+
+- Um processo `EightyOne.exe` real, lançado de verdade por `goBaDig
+  --execute`, confirmado rodando nesta máquina.
+
+### O que não mudou / ainda falta
+
+- `REMX` e o modelo 128K na integração de emulador continuam fora de
+  escopo (documentado no `OUTLINE.md`, Bloco 4).
+- TUI/GUI ainda não chamam nenhum desses comandos.
+
 ## [1.37.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-validation** (build 0)
 
 **Validação de ponta a ponta ZX Spectrum** (Bloco 4, Etapa 4 de 5) —
