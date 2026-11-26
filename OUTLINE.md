@@ -3613,6 +3613,29 @@ ainda não chamam nenhum desses comandos.
   (`TestSelectingADifferentRowResetsTheStatusBar`) confirmado capaz
   de pegar o bug revertendo o fix de propósito.
 
+  **Projeto novo "invisível" quando o banco falha (2026-11-27,
+  v1.45.0)**, reportada pelo usuário: "ao criar um projeto novo, às
+  vezes dá erro e não mostra os arquivos no file manager, mas
+  entrando e saindo do programa o diretório está lá". Causa raiz:
+  `config.Store.CreateProject` roda `os.MkdirAll` ANTES de inserir no
+  banco - uma falha no passo do banco (o caso mais comum é um nome de
+  projeto duplicado, já que `name` é a chave primária dessa tabela e
+  persiste entre reinícios no `settings.db` real do usuário) ainda
+  assim deixa um diretório de verdade, recém-criado, no disco. O
+  `createProject` do gerenciador retornava assim que `store.
+  CreateProject` falhava, sem nunca recarregar o painel - esse
+  diretório ficava invisível na sessão atual até o programa inteiro
+  ser reiniciado. Corrigido recarregando o painel ativo sempre, mesmo
+  quando o passo do banco falha. Teste novo
+  (`TestCreateProjectStillShowsTheDirectoryWhenTheDatabaseStepFails`)
+  reproduz com um nome duplicado - a forma mais simples e real de
+  disparar a falha - confirmado capaz de pegar o bug revertendo o fix
+  de propósito (achado um detalhe de isolamento ao escrever o teste:
+  o painel precisa estar navegado pra um diretório DIFERENTE de
+  `parent` antes da segunda chamada, senão um recarregamento manual
+  anterior no próprio teste mascara a ausência do recarregamento
+  dentro de `createProject`).
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e

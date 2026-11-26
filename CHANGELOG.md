@@ -35,6 +35,38 @@ exata do pacote.
 
 ---
 
+## [1.45.0] — 2026-11-27 — bloco **NEW**, feature **fm-project-reload** (build 0)
+
+**Correção de bug**, reportada diretamente pelo usuário: "ao criar um
+projeto novo, às vezes dá erro e não mostra os arquivos no file
+manager, mas entrando e saindo do programa o diretório está lá".
+
+### Corrigido
+
+- **Causa raiz**: `config.Store.CreateProject` roda `os.MkdirAll`
+  ANTES de inserir no banco — uma falha no passo do banco (o caso
+  mais comum é um nome de projeto duplicado, já que `name` é a chave
+  primária dessa tabela e persiste entre reinícios no `settings.db`
+  real do usuário, então reusar um nome de uma sessão anterior também
+  falha aqui) ainda assim deixa um diretório de verdade, recém-criado,
+  no disco. O `createProject` do gerenciador de arquivos retornava
+  assim que `store.CreateProject` falhava, sem nunca recarregar o
+  painel — esse diretório ficava invisível na sessão atual até o
+  programa inteiro ser reiniciado (o que lista o sistema de arquivos
+  de verdade, revelando que ele estava lá o tempo todo).
+- Corrigido recarregando o painel ativo sempre, mesmo quando o passo
+  do banco falha.
+
+### Verificado
+
+- Novo `internal/filemanager/filemanager_test.go`
+  (`TestCreateProjectStillShowsTheDirectoryWhenTheDatabaseStepFails`)
+  — reproduz com um nome duplicado (a forma mais simples e real de
+  disparar a falha no passo do banco); confirmado capaz de pegar o
+  bug revertendo o fix de propósito.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.44.0] — 2026-11-27 — bloco **NEW**, feature **fm-status-reset** (build 0)
 
 **Correção de bug**, reportada diretamente pelo usuário: "a linha de
