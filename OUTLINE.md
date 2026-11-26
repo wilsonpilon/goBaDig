@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
-Estado: **v1.38.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.39.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -61,7 +61,12 @@ EightyOne (confirmado com um processo real rodando nesta máquina) —
 Spectrum completo via CLI, igual MSX e ZX81** (por decisão tomada com
 o usuário, o `execute` do Spectrum NÃO espera o emulador fechar,
 diferente do Python original nesse ponto específico — consistência
-com MSX/ZX81 no Go, ver Bloco 4 abaixo)** — histórico completo de
+com MSX/ZX81 no Go); e agora **seleção de emulador alternativo**
+(`--emulator <nome>`/console `execute <arquivo> [emulador]`), pedido
+do usuário: MSX ganha `fMSX`/`blueMSX+` como alternativas ao openMSX,
+ZX81 e ZX Spectrum ganham o `ZEsarUX` como alternativa ao EightyOne —
+todos os 4 backends novos confirmados abrindo de verdade nesta
+máquina (ver Bloco 5 abaixo)** — histórico completo de
 cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
@@ -2594,7 +2599,19 @@ ainda não chamam nenhum desses comandos.
 - [ ] Monitoramento de execução em tempo real (mapeamento de erro para
   linha Dignified) — avaliar viabilidade multiplataforma em Go (pode ser
   melhor que o Python, que só funciona fora do Windows). — **A**, **3**
-- [ ] Integração fMSX como backend alternativo ao openMSX. — **M**, **2**
+- [x] Integração fMSX como backend alternativo ao openMSX. — **M**, **2**
+  — **feito em 2026-11-26**, pedido do usuário:
+  `msx.RunInFMSX(diskPath)` (`internal/platforms/msx/run.go`) — mesma
+  flag `-diska` do openMSX, confirmado lendo a documentação do fMSX
+  (`fMSX.html`) e lançando de verdade nesta máquina. **blueMSX+
+  também adicionado**, de brinde, não estava neste item original mas
+  foi pedido junto: `msx.RunInBlueMSX(diskPath)` — forma de "um
+  arquivo só" (`blueMSX+ <file>`), confirmada lendo o próprio texto de
+  uso embutido no executável. Seleção de qual backend usar: nova flag
+  `--emulator <nome>`/console `execute <arquivo> [emulador]` — ver
+  Bloco 5 abaixo (`internal/cli/dialect.go`'s `emulatorBackends`).
+  ZEsarUX deliberadamente FORA (só emula MSX1, decisão do usuário —
+  openMSX/fMSX/blueMSX+ cobrem MSX2/MSX2+ também).
 - [ ] Empacotamento `.CAS` (MSX, captura de fita nível BIOS). — **M**, **2**
 - [ ] Empacotamento `.DSK` automático no fluxo de conversão (MSX) —
   a biblioteca de baixo nível (`internal/platforms/msx/dsk`:
@@ -2898,9 +2915,21 @@ ainda não chamam nenhum desses comandos.
   documentada pro MSX).
 - [ ] Suporte a `.81`/`.p81` (variantes do `.p` sem/com nome de arquivo,
   `.p81` podendo guardar múltiplos programas). — **M**, **2**
-- [ ] Integração ZEsarUX e sz81/XZ81 como backends alternativos ao
-  EightyOne; ZRCP já avaliado como viável para monitoramento (Bloco 0),
-  falta implementar: breakpoint em `PC=0008H`, ler `E_PPC`/`ERR_NR`. — **M**, **2**
+- [x] Integração ZEsarUX como backend alternativo ao EightyOne
+  — **feito em 2026-11-26**, pedido do usuário: `zx81.RunInZEsarUX(pPath)`
+  (`internal/platforms/zx81/run.go`) — `--machine ZX81 --tape <arquivo>`,
+  confirmado lendo o `--help` do próprio `zesarux.exe` e lançando de
+  verdade nesta máquina (processo real confirmado via `Get-Process`).
+  Seleção de backend: nova flag `--emulator <nome>`/console `execute
+  <arquivo> [emulador]`, compartilhada com MSX/ZX Spectrum — ver Bloco
+  5 abaixo. **Só a invocação direta, SEM ZRCP** — monitoramento de
+  erro em tempo real via ZRCP (breakpoint em `PC=0008H`, já avaliado
+  viável no Bloco 0) continua não implementado, item separado abaixo.
+  sz81/XZ81 continuam fora (nenhum pedido do usuário por eles). — **M**, **2**
+- [ ] Monitoramento de erro em tempo real via ZRCP (ZEsarUX) —
+  breakpoint em `PC=0008H`, ler `E_PPC`/`ERR_NR` — já avaliado viável
+  no Bloco 0, ainda não implementado (a integração acima só abre o
+  emulador, sem usar o protocolo ZRCP em si). — **A**, **2**
 
 ### Bloco 4 — Módulo ZX Spectrum
 
@@ -3139,10 +3168,23 @@ ainda não chamam nenhum desses comandos.
   Etapa própria, é mecânico de verdade: checksum XOR, header/data block,
   TZX só reempacota os mesmos blocos do TAP).
 - [ ] Portar DignifieR Spectrum (AZS→DZS). — **M**, **2**
-- [ ] Integração EightyOne/Spectaculator 48K básica. — **M**, **1**
-- [ ] Integração ZEsarUX como backend adicional; ZRCP já avaliado como
-  viável para monitoramento (Bloco 0), falta implementar: breakpoint em
-  `PC=0008H`, ler `PPC`/`SUBPPC`/`ERR_NR`. — **M**, **2**
+- [x] Integração EightyOne 48K básica — **feito em 2026-11-26**
+  (Etapa 5, `internal/platforms/zxspectrum/run.go`'s `RunInEmulator`,
+  v1.38.0 — ver acima). Spectaculator continua fora (nenhum pedido do
+  usuário por ele ainda). — **M**, **1**
+- [x] Integração ZEsarUX como backend adicional — **feito em
+  2026-11-26**, pedido do usuário: `zxspectrum.RunInZEsarUX(tapPath)`
+  — `--machine 48k --tape <arquivo>`, confirmado lendo o `--help` do
+  próprio `zesarux.exe` e lançando de verdade nesta máquina. Seleção
+  de backend: nova flag `--emulator <nome>`/console `execute
+  <arquivo> [emulador]`, compartilhada com MSX/ZX81 — ver Bloco 5
+  abaixo. **Só a invocação direta, SEM ZRCP** — monitoramento de erro
+  em tempo real (breakpoint em `PC=0008H`, já avaliado viável no
+  Bloco 0) continua não implementado, item separado abaixo. — **M**, **2**
+- [ ] Monitoramento de erro em tempo real via ZRCP (ZEsarUX) —
+  breakpoint em `PC=0008H`, ler `PPC`/`SUBPPC`/`ERR_NR` — já avaliado
+  viável no Bloco 0, ainda não implementado (a integração acima só
+  abre o emulador, sem usar o protocolo ZRCP em si). — **A**, **2**
 - [ ] Suporte a modelo 128K (tokens SPECTRUM/PLAY). — **M**, **2**
 - [ ] `.DSK` de disco +3 (opcional, baixa prioridade). — **A**, **3**
 - [ ] Investigar/corrigir o bug de freeze do launcher 128K do EightyOne
@@ -3179,8 +3221,29 @@ ainda não chamam nenhum desses comandos.
   `internal/cli/console.go`, com testes (saída e parada em EOF) e
   teste manual via pipe. Comandos reais de conversão chegam com o
   motor (Blocos 1-4). — 2026-11-05.
-- [ ] Detecção automática de plataforma pela extensão do arquivo (com
-  `-id`/flag equivalente como override). — **B**, **2**
+- [x] Detecção automática de plataforma pela extensão do arquivo —
+  `internal/cli/dialect.go`'s `compileByExtension`/
+  `runInEmulatorByExtension`, feito junto com `compile`/`execute` de
+  cada plataforma (Blocos 2/3/4, `.dmx`/`.dzx`/`.dzs`) — item marcado
+  retroativamente, já estava pronto desde a v1.27.0 (`.dmx`), sem
+  nenhuma flag `-id`/override explícita ainda (nunca foi pedida).
+  — **B**, **2**
+- [x] **Seleção de emulador alternativo** (`--emulator <nome>` no CLI,
+  `execute <arquivo> [emulador]` no console) — **feito em 2026-11-26**,
+  pedido do usuário depois de perceber que MSX/ZX81/ZX Spectrum agora
+  têm mais de um backend instalado nesta máquina. `internal/cli/
+  dialect.go`'s `emulatorBackends` (mapa extensão→lista de nomes
+  válidos, primeiro = padrão) + `resolveBackend` (valida, rejeita um
+  nome válido pra OUTRA extensão). `--emulator` pode vir antes OU
+  depois de `--execute`/do nome do arquivo (`emulatorArg` lê o valor
+  dos args originais; `stripEmulatorFlag` remove a flag+valor ANTES
+  de qualquer outra detecção de argumento posicional rodar — bug real
+  encontrado e corrigido nesta mesma rodada: sem o strip,
+  `--execute --emulator zesarux prog.dzs` confundia "zesarux" com o
+  nome do arquivo, já que `--execute` sempre pegava literalmente o
+  próximo token). Backends por plataforma: MSX = `openmsx` (padrão),
+  `fmsx`, `bluemsx+`; ZX81/ZX Spectrum = `eightyone` (padrão),
+  `zesarux`. — **B**, **2**
 
 ### Bloco 6 — TUI (tview/tcell)
 

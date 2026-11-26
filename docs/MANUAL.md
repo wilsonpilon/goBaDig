@@ -426,6 +426,39 @@ automaticamente pela extensão do arquivo (`internal/cli/dialect.go`)
 — nenhuma flag `-id` ainda, mas também não precisa de uma, já que a
 extensão já diz tudo.
 
+### Escolhendo outro emulador
+
+Cada plataforma tem um emulador padrão (openMSX, EightyOne), mas
+`--execute` aceita um emulador alternativo, se ele já estiver no
+`PATH`:
+
+```console
+goBaDig --execute --emulator fmsx programa.dmx
+goBaDig --execute --emulator bluemsx+ programa.dmx
+goBaDig --execute --emulator zesarux programa.dzx
+goBaDig --execute --emulator zesarux programa.dzs
+```
+
+A flag `--emulator` pode vir antes ou depois do nome do arquivo. No
+console, o emulador é um segundo argumento opcional:
+`execute programa.dzs zesarux`.
+
+Backends aceitos por plataforma:
+
+| Plataforma | Padrão | Alternativas |
+| --- | --- | --- |
+| MSX | `openmsx` | `fmsx`, `bluemsx+` |
+| ZX81 | `eightyone` | `zesarux` |
+| ZX Spectrum | `eightyone` | `zesarux` |
+
+ZEsarUX também emula MSX1, mas não entra como opção pro MSX — cobre
+só MSX1, enquanto openMSX/fMSX/blueMSX+ cobrem MSX2/MSX2+ também.
+Pedir um emulador que não existe pra aquela extensão (ex.
+`--emulator zesarux programa.dmx`) é um erro claro, não cai
+silenciosamente pro padrão. Nenhum dos backends usa nenhum protocolo
+de controle remoto (como o ZRCP do ZEsarUX) ainda — é só abrir o
+emulador com o arquivo certo, mesmo nível dos emuladores padrão.
+
 Erro de conversão (arquivo não encontrado, sintaxe Dignified
 inválida, etc.) imprime a mensagem na saída de erro e sai com código
 diferente de zero (CLI) ou mostra a mensagem no próprio console

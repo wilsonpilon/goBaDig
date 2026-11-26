@@ -35,6 +35,44 @@ exata do pacote.
 
 ---
 
+## [1.39.0] — 2026-11-26 — bloco **NEW**, feature **emulator-backends** (build 0)
+
+**Seleção de emulador alternativo** — pedido do usuário depois de
+perceber que MSX, ZX81 e ZX Spectrum agora têm mais de um emulador
+instalado nesta máquina. Nova flag `--emulator <nome>` no CLI,
+`execute <arquivo> [emulador]` no console.
+
+### Adicionado
+
+- `internal/cli/dialect.go`: `emulatorBackends` (lista de nomes
+  válidos por extensão, primeiro = padrão) + `resolveBackend`.
+- MSX: `msx.RunInFMSX`/`msx.RunInBlueMSX`, alternativas ao `openmsx`
+  (padrão).
+- ZX81: `zx81.RunInZEsarUX`, alternativa ao `eightyone` (padrão).
+- ZX Spectrum: `zxspectrum.RunInZEsarUX`, alternativa ao `eightyone`
+  (padrão) — bem mais simples de integrar que o EightyOne: `--machine
+  48k --tape <arquivo>`, sem nenhum perfil INI.
+- ZEsarUX deliberadamente fora do MSX (só emula MSX1 — openMSX/fMSX/
+  blueMSX+ cobrem MSX2/MSX2+ também).
+
+### Corrigido
+
+- `--emulator` ANTES de `--execute`/do nome do arquivo (exatamente a
+  forma documentada no `--help`) fazia `executeFileArg` confundir o
+  nome do emulador com o arquivo a executar, já que sempre tomava
+  literalmente o próximo token depois de `--execute`. Corrigido com
+  `stripEmulatorFlag`, que remove a flag `--emulator`+valor de `args`
+  antes de qualquer outra detecção de argumento posicional rodar.
+
+### Verificado
+
+- Os 4 backends novos (fMSX, blueMSX+, ZEsarUX×2) confirmados abrindo
+  de verdade nesta máquina, incluindo através da flag `--emulator`
+  (ambas as ordens: antes e depois do nome do arquivo) e do comando
+  `execute` do console.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.38.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-execute** (build 0)
 
 **Comando `compile`/`execute` pro ZX Spectrum** (Bloco 4, Etapa 5 de 5

@@ -4,7 +4,7 @@
 **MSX**, **ZX81** e **ZX Spectrum**, com CLI, TUI e GUI, e um VSIX único
 para VSCode cobrindo os três dialetos.
 
-> Status: **v1.38.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
+> Status: **v1.39.0**. CLI/TUI/GUI funcionais (`--help`, `--man`,
 > console interativo com temas, menu suspenso estilo DOS na TUI,
 > editor de texto completo integrado — WibEdit), e o **ciclo MSX
 > completo já funciona pelo CLI**: `goBaDig <arquivo.dmx>` (ou
@@ -26,10 +26,13 @@ para VSCode cobrindo os três dialetos.
 > processo real rodando nesta máquina) — ciclo ZX81 completo via
 > CLI. O módulo **ZX Spectrum** chegou no mesmo ponto que MSX e ZX81:
 > `goBaDig programa.dzs`/`goBaDig --execute programa.dzs` já
-> funcionam de verdade, abrindo no EightyOne (confirmado com um
-> processo real rodando nesta máquina) — **ciclo ZX Spectrum completo
-> via CLI**, roteiro do Bloco 4 fechado (Etapas 1-5). Ver
-> [`OUTLINE.md`](OUTLINE.md) para o
+> funcionam de verdade, abrindo no EightyOne — **ciclo ZX Spectrum
+> completo via CLI**, roteiro do Bloco 4 fechado (Etapas 1-5). E
+> agora as três plataformas também aceitam um **emulador
+> alternativo**: `--emulator <nome>` (CLI) ou `execute <arquivo>
+> [emulador]` (console) — MSX ganha `fmsx`/`bluemsx+`, ZX81 e ZX
+> Spectrum ganham `zesarux`, todos confirmados abrindo de verdade
+> nesta máquina. Ver [`OUTLINE.md`](OUTLINE.md) para o
 > plano completo e o estado real de cada bloco de trabalho, e
 > [`resume.txt`](resume.txt) (local, não versionado) para retomar o
 > trabalho de uma sessão para outra.
