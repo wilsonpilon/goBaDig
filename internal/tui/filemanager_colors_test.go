@@ -43,7 +43,7 @@ import (
 //     wasn't specific enough to catch it reliably).
 //
 // This end-to-end version drives the real TUI (same path a user
-// takes: Files > Open) and checks an actual rendered screen cell's
+// takes: File > File Manager) and checks an actual rendered screen cell's
 // colors against the REAL, persisted active theme (config.
 // OpenDefault - not a fixture), both foreground AND background, for
 // an UNSELECTED row - "tui.go" (this package's own source file,
@@ -56,13 +56,9 @@ func TestFileManagerEntriesAreNotBlackOnBlack(t *testing.T) {
 		screen.InjectKey(key, r, mod)
 		time.Sleep(30 * time.Millisecond)
 	}
-	// Navigate File -> Editor -> Setup -> Help -> Files, open the
-	// menu, select "Open" (same sequence as
-	// TestFilesMenuOpensAndClosesTheFileManager).
-	press(tcell.KeyRight, 0, tcell.ModNone)
-	press(tcell.KeyRight, 0, tcell.ModNone)
-	press(tcell.KeyRight, 0, tcell.ModNone)
-	press(tcell.KeyRight, 0, tcell.ModNone)
+	// File is already the active menu at startup; open its dropdown
+	// and select the first item, "File Manager" (same sequence as
+	// TestFileMenuOpensAndClosesTheFileManager).
 	press(tcell.KeyEnter, 0, tcell.ModNone)
 	press(tcell.KeyEnter, 0, tcell.ModNone)
 

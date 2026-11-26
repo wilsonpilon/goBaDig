@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
+
+	"github.com/wilsonpilon/goBaDig/internal/chrome"
 )
 
 // TestRenderUsesTheConfiguredColorsNotTviewDefaults is a regression
@@ -161,6 +163,69 @@ func TestMultipleDirectoryEntriesAreActuallyVisibleOnScreen(t *testing.T) {
 		want := "[" + name + "]"
 		if !strings.Contains(line, want) {
 			t.Errorf("directory label %q not found anywhere on screen (silently swallowed as a style tag).\nScreen:\n%s", want, line)
+		}
+	}
+}
+
+// TestFileCategoriesGetTheirOwnColorAndIcon confirms a user-requested
+// feature: BADIG Dignified source, classic ASCII listings, and
+// compiled/packaged artifacts each render with their own distinct
+// color and a leading icon, instead of all plain files looking the
+// same - so a panel listing makes it obvious at a glance which file
+// is "your code" vs. the generated listing vs. the thing ready to
+// run in an emulator.
+func TestFileCategoriesGetTheirOwnColorAndIcon(t *testing.T) {
+	dir := t.TempDir()
+	names := []string{
+		"game.dmx", "game.dzx", "game.dzs", // source
+		"game.amx", "game.azx", "game.azs", // classic listing
+		"game.bmx", "game.p", "game.tap", "game.tzx", "game.dsk", // binary/packaged
+		"README.txt", // ordinary file
+	}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	colors := DefaultColors()
+	p := newPanel(colors)
+	if err := p.load(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]struct {
+		color tcell.Color
+		icon  string
+	}{
+		"..":         {colors.DirectoryText, ""},
+		"game.dmx":   {colors.SourceText, chrome.IconSource},
+		"game.dzx":   {colors.SourceText, chrome.IconSource},
+		"game.dzs":   {colors.SourceText, chrome.IconSource},
+		"game.amx":   {colors.ClassicText, chrome.IconListing},
+		"game.azx":   {colors.ClassicText, chrome.IconListing},
+		"game.azs":   {colors.ClassicText, chrome.IconListing},
+		"game.bmx":   {colors.BinaryText, chrome.IconBinary},
+		"game.p":     {colors.BinaryText, chrome.IconBinary},
+		"game.tap":   {colors.BinaryText, chrome.IconBinary},
+		"game.tzx":   {colors.BinaryText, chrome.IconBinary},
+		"game.dsk":   {colors.BinaryText, chrome.IconBinary},
+		"README.txt": {colors.FileText, ""},
+	}
+	for _, e := range p.entries {
+		w, ok := want[e.name]
+		if !ok {
+			t.Fatalf("unexpected entry %q", e.name)
+		}
+		if got := p.entryColor(e); got != w.color {
+			t.Errorf("%s: entryColor = %v, want %v", e.name, got, w.color)
+		}
+		label := entryLabel(e)
+		if w.icon != "" && !strings.Contains(label, w.icon) {
+			t.Errorf("%s: entryLabel() = %q, want it to contain icon %q", e.name, label, w.icon)
+		}
+		if w.icon == "" && (strings.Contains(label, chrome.IconSource) || strings.Contains(label, chrome.IconListing) || strings.Contains(label, chrome.IconBinary)) {
+			t.Errorf("%s: entryLabel() = %q, want no category icon", e.name, label)
 		}
 	}
 }

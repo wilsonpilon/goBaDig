@@ -106,16 +106,24 @@ func (fm *FileManager) promptMkdir() {
 
 // promptNewProject implements Ctrl+N: name + folder (defaulting to
 // the active panel's current directory, created if it doesn't exist)
-// + dialect, with an optional starter source file - exactly the
-// scope confirmed with the user (per-project settings beyond
-// name/path/dialect are deliberately not part of this dialog).
+// + dialect. Per-project settings beyond name/path/dialect are
+// deliberately not part of this dialog (confirmed with the user).
+//
+// The starter file is always created (no longer an optional
+// checkbox - the file manager is meant to be the project's full
+// control center, so a project without anything to immediately edit
+// defeats the point) as "main<ext>" - a fixed, predictable entry
+// point name, not "<project name><ext>", so every project's starter
+// file is found the same way regardless of what the project itself
+// is called. It's opened in the embedded WibEdit editor right away,
+// completing the create -> edit -> save -> compile -> execute loop
+// entirely from the file manager.
 func (fm *FileManager) promptNewProject() {
 	labels := make([]string, len(projectDialectLabels))
 	for i, d := range projectDialectLabels {
 		labels[i] = d.label
 	}
 	selectedDialect := 0
-	createStarter := true
 
 	form := tview.NewForm()
 	form.AddInputField("Nome", "", 40, nil, nil)
@@ -123,23 +131,20 @@ func (fm *FileManager) promptNewProject() {
 	form.AddDropDown("Dialeto", labels, selectedDialect, func(_ string, index int) {
 		selectedDialect = index
 	})
-	form.AddCheckbox("Criar arquivo inicial", createStarter, func(checked bool) {
-		createStarter = checked
-	})
 	form.AddButton("Criar", func() {
 		name := form.GetFormItemByLabel("Nome").(*tview.InputField).GetText()
 		path := form.GetFormItemByLabel("Pasta").(*tview.InputField).GetText()
 		dialectID := projectDialectLabels[selectedDialect].id
 		fm.closeDialog("new-project")
-		fm.createProject(name, path, dialectID, createStarter)
+		fm.createProject(name, path, dialectID)
 	})
 	form.AddButton("Cancelar", func() { fm.closeDialog("new-project") })
 	form.SetCancelFunc(func() { fm.closeDialog("new-project") })
-	window := fm.newDialogWindow(form, chrome.IconFile, "Novo Projeto", 11)
+	window := fm.newDialogWindow(form, chrome.IconFile, "Novo Projeto", 9)
 	fm.openDialog("new-project", window, form)
 }
 
-func (fm *FileManager) createProject(name, path, dialectID string, createStarter bool) {
+func (fm *FileManager) createProject(name, path, dialectID string) {
 	if name == "" {
 		fm.setStatus(" o projeto precisa de um nome")
 		return
@@ -148,15 +153,52 @@ func (fm *FileManager) createProject(name, path, dialectID string, createStarter
 		fm.setStatus(fmt.Sprintf(" erro ao criar projeto: %v", err))
 		return
 	}
-	if createStarter {
-		ext := projectExtensions[dialectID]
-		starter := filepath.Join(path, name+ext)
-		if _, err := os.Stat(starter); os.IsNotExist(err) {
-			_ = os.WriteFile(starter, []byte{}, 0o644)
-		}
+	starter := filepath.Join(path, "main"+projectExtensions[dialectID])
+	if _, err := os.Stat(starter); os.IsNotExist(err) {
+		_ = os.WriteFile(starter, []byte{}, 0o644)
 	}
 	_ = fm.current().load(path)
 	fm.setStatus(fmt.Sprintf(" projeto %q criado em %s", name, path))
+	fm.onOpenInEditor(starter)
+}
+
+// promptNewFile implements F3: a blank file in the active panel's
+// current directory, named by the user (so the extension picks the
+// dialect - .dmx/.dzx/.dzs for a source file the file manager can
+// later compile/execute, or anything else for a plain text file).
+// Opened in the embedded editor immediately, same reasoning as
+// promptNewProject's starter file.
+func (fm *FileManager) promptNewFile() {
+	form := tview.NewForm()
+	form.AddInputField("Nome do arquivo", "", 40, nil, nil)
+	form.AddButton("Criar", func() {
+		name := form.GetFormItemByLabel("Nome do arquivo").(*tview.InputField).GetText()
+		fm.closeDialog("new-file")
+		fm.createFile(name)
+	})
+	form.AddButton("Cancelar", func() { fm.closeDialog("new-file") })
+	form.SetCancelFunc(func() { fm.closeDialog("new-file") })
+	window := fm.newDialogWindow(form, chrome.IconSource, "Novo Arquivo", 7)
+	fm.openDialog("new-file", window, form)
+}
+
+func (fm *FileManager) createFile(name string) {
+	if name == "" {
+		fm.setStatus(" o arquivo precisa de um nome")
+		return
+	}
+	path := filepath.Join(fm.current().dir, name)
+	if _, err := os.Stat(path); err == nil {
+		fm.setStatus(fmt.Sprintf(" %q ja existe", name))
+		return
+	}
+	if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
+		fm.setStatus(fmt.Sprintf(" erro ao criar arquivo: %v", err))
+		return
+	}
+	_ = fm.current().reload()
+	fm.setStatus(fmt.Sprintf(" arquivo %q criado", name))
+	fm.onOpenInEditor(path)
 }
 
 // promptProjectList implements Ctrl+P: pick a saved project and jump

@@ -66,11 +66,25 @@ func paletteFor(item theme.Theme) palette {
 // a fixed scheme of its own. The status bar stays fixed Silver/Black,
 // matching the TUI's own top menu bar/bottom status bar, which are
 // themselves never theme-driven either (menuBg/menuFg above).
+//
+// SourceText/ClassicText/BinaryText repurpose Palette.Hover and
+// Palette.Error - neither is used anywhere else in this TUI, and
+// both are deliberately vivid/high-contrast in every curated theme
+// (Hover is an interactive-highlight accent, Error is the
+// attention-grabbing destructive color) - exactly the "stands out"
+// quality the user asked for when a panel listing should make BADIG
+// source, classic listings, and ready-to-run artifacts scannable at
+// a glance. SourceText shares Primary with DirectoryText on purpose:
+// both are "the important things", and the "[name]" bracket
+// notation already disambiguates a directory from a file.
 func filemanagerColorsFor(item theme.Theme) filemanager.Colors {
 	return filemanager.Colors{
 		PanelBackground:  tcell.GetColor(item.Palette.Surface),
 		FileText:         tcell.GetColor(item.Palette.Foreground),
 		DirectoryText:    tcell.GetColor(item.Palette.Primary),
+		SourceText:       tcell.GetColor(item.Palette.Primary),
+		ClassicText:      tcell.GetColor(item.Palette.Hover),
+		BinaryText:       tcell.GetColor(item.Palette.Error),
 		InactiveBorder:   tcell.GetColor(item.Palette.Foreground),
 		ActiveBorder:     tcell.GetColor(item.Palette.Primary),
 		SelectionBg:      tcell.GetColor(item.Palette.Selection),
@@ -121,7 +135,10 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	pages := tview.NewPages()
 	colors := paletteFor(activeTheme)
 	menus := []menuDef{
-		{icon: chrome.IconFile, label: "File", items: []menuItem{{chrome.IconExit, "Exit", func() { app.Stop() }}}},
+		{icon: chrome.IconFile, label: "File", items: []menuItem{
+			{chrome.IconFolder, "File Manager", nil},
+			{chrome.IconExit, "Exit", func() { app.Stop() }},
+		}},
 		{icon: chrome.IconEdit, label: "Editor", items: []menuItem{{chrome.IconEdit, "Open", nil}}},
 		{icon: chrome.IconSetup, label: "Setup", items: []menuItem{
 			{chrome.IconInstall, "Install", nil},
@@ -131,7 +148,6 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 			{chrome.IconSetup, "ZX Spectrum", nil},
 		}},
 		{icon: chrome.IconHelp, label: "Help", items: []menuItem{{chrome.IconAbout, "About", nil}}},
-		{icon: chrome.IconFolder, label: "Files", items: []menuItem{{chrome.IconFolder, "Open", nil}}},
 	}
 	activeMenu := 0
 	menuOpen := false
@@ -438,6 +454,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 			app.SetFocus(form)
 		}
 	}
+	menus[0].items[0].action = openFileManager
 	menus[1].items[0].action = openEditor
 	menus[2].items[0].action = showThemePicker
 	menus[2].items[1].action = showOptionsPanel(options.CategoryCore, "Basic Dignified")
@@ -445,7 +462,6 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 	menus[2].items[3].action = showOptionsPanel(options.CategoryZX81, "ZX81")
 	menus[2].items[4].action = showOptionsPanel(options.CategoryZXSpectrum, "ZX Spectrum")
 	menus[3].items[0].action = showAbout
-	menus[4].items[0].action = openFileManager
 
 	var openMenu func(i int)
 	openMenu = func(i int) {

@@ -48,7 +48,7 @@ type FileManager struct {
 	dialogOpen bool
 }
 
-const statusHelp = " Tab Painel  Enter/Backspace Navega  F2 Compila  F4 Edita  F5 Copia  F6 Move  F7 Dir  F8 Apaga  F9 Executa  Ctrl+N Projeto  Ctrl+P Projetos  Esc Fecha"
+const statusHelp = " Tab Painel  Enter/Backspace Navega  F2 Compila  F3 Arquivo  F4 Edita  F5 Copia  F6 Move  F7 Dir  F8 Apaga  F9 Executa  Ctrl+N Projeto  Ctrl+P Projetos  Esc Fecha"
 
 // NewFileManager builds a ready-to-show file manager starting both
 // panels at the current working directory. colors is the palette to
@@ -163,6 +163,9 @@ func (fm *FileManager) Capture(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case tcell.KeyF2:
 		fm.compileSelected()
+		return nil
+	case tcell.KeyF3:
+		fm.promptNewFile()
 		return nil
 	case tcell.KeyF4:
 		fm.editSelected()

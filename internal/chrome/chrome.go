@@ -32,7 +32,7 @@ import (
 const (
 	IconFile    = "▭" // ▭ WHITE RECTANGLE - a blank sheet of paper.
 	IconEdit    = "✎" // ✎ LOWER RIGHT PENCIL - the Editor menu.
-	IconFolder  = "▦" // ▦ SQUARE WITH ORTHOGONAL CROSSHATCH FILL - the Files menu (a directory listing).
+	IconFolder  = "▦" // ▦ SQUARE WITH ORTHOGONAL CROSSHATCH FILL - the file manager's own menu entry/directories.
 	IconSetup   = "⚙" // ⚙ GEAR.
 	IconHelp    = "ℹ" // ℹ INFORMATION SOURCE.
 	IconExit    = "✕" // ✕ MULTIPLICATION X.
@@ -40,6 +40,15 @@ const (
 	IconAbout   = "★" // ★ BLACK STAR.
 	IconWindow  = "■" // ■ BLACK SQUARE, used as the window system/close box.
 	IconSwatch  = "■" // ■ BLACK SQUARE, used as a per-theme color swatch.
+
+	// The file manager's own file-category markers (internal/
+	// filemanager): a user asked for files of interest to stand out
+	// with both a stronger color AND a distinct icon, to make a
+	// panel listing scannable at a glance - which file is YOUR
+	// source, which is the classic listing, which is ready to run.
+	IconSource  = "◆" // ◆ BLACK DIAMOND - BADIG Dignified source (.dmx/.dzx/.dzs), the "real" code.
+	IconListing = "≡" // ≡ IDENTICAL TO - a classic ASCII listing (.amx/.azx/.azs).
+	IconBinary  = "▣" // ▣ WHITE SQUARE CONTAINING BLACK SMALL SQUARE - a packaged/compiled artifact (.bmx/.p/.tap/.tzx/.dsk).
 
 	DesktopShade = '▒' // ▒ MEDIUM SHADE - the classic dithered desktop texture.
 	BannerRule   = '═' // ═ BOX DRAWINGS DOUBLE HORIZONTAL - a decorative banner rule.

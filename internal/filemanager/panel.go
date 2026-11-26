@@ -10,7 +10,42 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/wilsonpilon/goBaDig/internal/chrome"
 )
+
+// fileCategory distinguishes the file types a goBaDig user cares
+// about at a glance in a panel listing: their own Dignified source,
+// the classic ASCII listing a compile produces, and the final
+// compiled/packaged artifact ready to run in an emulator. Requested
+// by the user once the file manager became "the control center" for
+// the whole compile/edit/run cycle - plain file-manager coloring
+// (just directory vs. file) no longer told that story.
+type fileCategory int
+
+const (
+	categoryOther fileCategory = iota
+	categorySource
+	categoryClassic
+	categoryBinary
+)
+
+var sourceExtensions = map[string]bool{".dmx": true, ".dzx": true, ".dzs": true}
+var classicExtensions = map[string]bool{".amx": true, ".azx": true, ".azs": true}
+var binaryExtensions = map[string]bool{".bmx": true, ".p": true, ".tap": true, ".tzx": true, ".dsk": true}
+
+func categorize(name string) fileCategory {
+	switch ext := strings.ToLower(filepath.Ext(name)); {
+	case sourceExtensions[ext]:
+		return categorySource
+	case classicExtensions[ext]:
+		return categoryClassic
+	case binaryExtensions[ext]:
+		return categoryBinary
+	default:
+		return categoryOther
+	}
+}
 
 // entry is one row shown in a panel: a directory, a file, or the
 // ".." pseudo-entry used to go up to the parent directory.
@@ -178,14 +213,32 @@ func entryLabel(e entry) string {
 	if e.isDir {
 		return tview.Escape("[" + e.name + "]")
 	}
-	return tview.Escape(e.name)
+	icon := ""
+	switch categorize(e.name) {
+	case categorySource:
+		icon = chrome.IconSource + " "
+	case categoryClassic:
+		icon = chrome.IconListing + " "
+	case categoryBinary:
+		icon = chrome.IconBinary + " "
+	}
+	return tview.Escape(icon + e.name)
 }
 
 func (p *panel) entryColor(e entry) tcell.Color {
 	if e.isDir {
 		return p.colors.DirectoryText
 	}
-	return p.colors.FileText
+	switch categorize(e.name) {
+	case categorySource:
+		return p.colors.SourceText
+	case categoryClassic:
+		return p.colors.ClassicText
+	case categoryBinary:
+		return p.colors.BinaryText
+	default:
+		return p.colors.FileText
+	}
 }
 
 // selected returns the entry currently highlighted in the panel.

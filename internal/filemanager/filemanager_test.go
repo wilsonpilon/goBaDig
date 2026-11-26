@@ -228,7 +228,7 @@ func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
 	store := newTestStore(t)
 	projectDir := filepath.Join(t.TempDir(), "MeuJogo")
 	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
-	fm.createProject("MeuJogo", projectDir, options.CategoryMSX, false)
+	fm.createProject("MeuJogo", projectDir, options.CategoryMSX)
 
 	projects, err := store.ListProjects()
 	if err != nil {
@@ -243,13 +243,74 @@ func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
 	}
 }
 
-func TestCreateProjectWithStarterFileWritesTheRightExtension(t *testing.T) {
+func TestCreateProjectWritesAMainStarterFileWithTheRightExtension(t *testing.T) {
 	store := newTestStore(t)
 	projectDir := filepath.Join(t.TempDir(), "Jogo81")
-	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
-	fm.createProject("Jogo81", projectDir, options.CategoryZX81, true)
+	var opened string
+	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), func(path string) { opened = path }, nil)
+	fm.createProject("Jogo81", projectDir, options.CategoryZX81)
 
-	if _, err := os.Stat(filepath.Join(projectDir, "Jogo81.dzx")); err != nil {
-		t.Fatalf("expected a Jogo81.dzx starter file: %v", err)
+	want := filepath.Join(projectDir, "main.dzx")
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("expected a main.dzx starter file: %v", err)
+	}
+	wantAbs, _ := filepath.Abs(want)
+	if opened != wantAbs {
+		t.Fatalf("onOpenInEditor called with %q, want the starter file %q", opened, wantAbs)
+	}
+}
+
+func TestCreateFileCreatesAnEmptyFileAndOpensItInTheEditor(t *testing.T) {
+	dir := t.TempDir()
+	var opened string
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), func(path string) { opened = path }, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.createFile("main.dmx")
+
+	want := filepath.Join(dir, "main.dmx")
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("expected main.dmx to have been created: %v", err)
+	}
+	wantAbs, _ := filepath.Abs(want)
+	if opened != wantAbs {
+		t.Fatalf("onOpenInEditor called with %q, want %q", opened, wantAbs)
+	}
+}
+
+func TestCreateFileRejectsAnEmptyName(t *testing.T) {
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
+	if err := fm.current().load(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	fm.createFile("")
+	if status := fm.status.GetText(true); status == statusHelp {
+		t.Fatal("status was not updated after createFile(\"\")")
+	}
+}
+
+func TestCreateFileRefusesToOverwriteAnExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "main.dmx")
+	if err := os.WriteFile(existing, []byte("10 PRINT 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var opened string
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), func(path string) { opened = path }, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.createFile("main.dmx")
+
+	contents, err := os.ReadFile(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "10 PRINT 1\n" {
+		t.Fatalf("existing file was overwritten: %q", contents)
+	}
+	if opened != "" {
+		t.Fatalf("onOpenInEditor should not have been called, got %q", opened)
 	}
 }

@@ -9,14 +9,16 @@ import (
 	"github.com/rivo/tview"
 )
 
-// TestFilesMenuOpensAndClosesTheFileManager is the same class of
-// regression test as TestEditorMenuOpensAndClosesWibEdit, for the new
-// "Files" menu wiring internal/filemanager's two-panel component into
-// the shared *tview.Pages root: opens Files > Open, asserts the file
-// manager's own chrome (its status bar of shortcuts) actually
-// renders, then exits it (Escape) and asserts the desktop is visible
-// again.
-func TestFilesMenuOpensAndClosesTheFileManager(t *testing.T) {
+// TestFileMenuOpensAndClosesTheFileManager is the same class of
+// regression test as TestEditorMenuOpensAndClosesWibEdit, for
+// internal/filemanager's two-panel component wired in as File > File
+// Manager (merged into the File menu rather than its own top-level
+// "Files" menu, per the user's own request once the file manager
+// became the project's de facto control center): opens File > File
+// Manager, asserts the file manager's own chrome (its status bar of
+// shortcuts) actually renders, then exits it (Escape) and asserts the
+// desktop is visible again.
+func TestFileMenuOpensAndClosesTheFileManager(t *testing.T) {
 	screen := tcell.NewSimulationScreen("")
 	if err := screen.Init(); err != nil {
 		t.Fatalf("init simulation screen: %v", err)
@@ -41,18 +43,14 @@ func TestFilesMenuOpensAndClosesTheFileManager(t *testing.T) {
 		time.Sleep(30 * time.Millisecond)
 	}
 
-	// Navigate File -> Editor -> Setup -> Help -> Files, open the
-	// menu, select "Open".
-	press(tcell.KeyRight, 0, tcell.ModNone)
-	press(tcell.KeyRight, 0, tcell.ModNone)
-	press(tcell.KeyRight, 0, tcell.ModNone)
-	press(tcell.KeyRight, 0, tcell.ModNone)
+	// File is already the active menu at startup; open its dropdown
+	// and select the first item, "File Manager".
 	press(tcell.KeyEnter, 0, tcell.ModNone)
 	press(tcell.KeyEnter, 0, tcell.ModNone)
 
 	contents := dumpScreenText(screen)
 	if !strings.Contains(contents, "Tab Painel") {
-		t.Fatalf("file manager chrome not found on screen after Files > Open.\nScreen contents:\n%s", contents)
+		t.Fatalf("file manager chrome not found on screen after File > File Manager.\nScreen contents:\n%s", contents)
 	}
 
 	press(tcell.KeyEscape, 0, tcell.ModNone)

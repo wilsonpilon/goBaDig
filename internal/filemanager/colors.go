@@ -18,8 +18,11 @@ import "github.com/gdamore/tcell/v2"
 // consistent with Setup > Install's dialogs and the rest of the TUI.
 type Colors struct {
 	PanelBackground tcell.Color // panel fill (theme Surface)
-	FileText        tcell.Color // normal (non-directory) entries (theme Foreground)
+	FileText        tcell.Color // normal (non-directory, non-recognized) entries (theme Foreground)
 	DirectoryText   tcell.Color // directory entries, an accent (theme Primary)
+	SourceText      tcell.Color // BADIG Dignified source (.dmx/.dzx/.dzs) (theme Primary)
+	ClassicText     tcell.Color // classic ASCII listing (.amx/.azx/.azs) (theme Hover)
+	BinaryText      tcell.Color // compiled/packaged artifact (.bmx/.p/.tap/.tzx/.dsk) (theme Error)
 	InactiveBorder  tcell.Color // the non-focused panel's border (theme Foreground)
 	ActiveBorder    tcell.Color // the focused panel's border (theme Primary)
 	SelectionBg     tcell.Color // highlighted row background (theme Selection)
@@ -46,6 +49,9 @@ func DefaultColors() Colors {
 		PanelBackground:  tcell.ColorBlack,
 		FileText:         tcell.ColorWhite,
 		DirectoryText:    tcell.ColorYellow,
+		SourceText:       tcell.ColorYellow,
+		ClassicText:      tcell.ColorAqua,
+		BinaryText:       tcell.ColorGreen,
 		InactiveBorder:   tcell.ColorWhite,
 		ActiveBorder:     tcell.ColorYellow,
 		SelectionBg:      tcell.ColorNavy,
