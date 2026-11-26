@@ -3443,6 +3443,41 @@ ainda não chamam nenhum desses comandos.
   varredura de tela inteira da `TestSetupMenuUnselectedItemsAreNot
   BlackOnBlack` - confirmado capaz de pegar a classe de bug.
 
+  **Segunda correção de bug (2026-11-26, v1.41.2)**: a v1.41.1 só
+  corrigiu a linha SELECIONADA de cada painel - o usuário reportou de
+  volta que "não mudou nada, as cores ficaram diferente, mas agora
+  aparece texto cinza com fundo cinza", ou seja, todas as OUTRAS
+  linhas (não selecionadas) continuavam com o mesmo problema.
+  **Causa raiz real**: `tview.NewTableCell` grava `cell.Style` com um
+  valor concreto já no construtor (branco sobre preto, padrão global
+  do `tview`), e `TableCell.SetTextColor` só altera o componente de
+  PRIMEIRO PLANO desse estilo (`c.Style = c.Style.Foreground(cor)`,
+  só quando `cell.Style != tcell.StyleDefault` - o que é sempre o
+  caso, vindo do construtor). O fundo fica exatamente como o
+  construtor deixou - preto, fixo do `tview` - a menos que
+  `SetBackgroundColor` TAMBÉM seja chamado. A v1.41.1 só chamava
+  `SetTextColor` por célula: o texto pegava a cor certa do tema, mas
+  ficava sentado numa caixa preta que o tema nunca escolheu - "cinza
+  sobre cinza" quando o tema ativo tem um texto em tom acinzentado
+  (confirmado nesta máquina: o tema realmente ativo e persistido,
+  "Solarized Light", tem `Foreground = #586E75`, um cinza-azulado
+  musgo). Essa causa raiz só foi confirmada de verdade inspecionando
+  o campo `Style` da própria `TableCell` direto em um teste unitário
+  (`internal/filemanager/panel_test.go`,
+  `TestRenderUsesTheConfiguredColorsNotTviewDefaults`) - um teste
+  anterior baseado só em dump de tela simulada (`tcell.
+  SimulationScreen`) passou incorretamente duas vezes antes disso,
+  porque não distinguia "o padrão do `tview` coincidiu com o valor
+  esperado" de "minha cor foi realmente aplicada" - lição registrada
+  pra qualquer bug de cor futuro nesta UI: inspecionar o estado do
+  widget direto quando possível, não confiar só numa tela renderizada.
+  Corrigido construindo o estilo inteiro (texto E fundo) com
+  `SetStyle` de uma vez, em `panel.go`'s `render`, em vez de
+  `SetTextColor`/`SetBackgroundColor` separados. Teste de tela
+  simulada reforçado pra também checar o fundo (não só o texto) de
+  uma linha NÃO selecionada, contra o tema realmente ativo e
+  persistido nesta máquina.
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e

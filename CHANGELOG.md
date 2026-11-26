@@ -35,6 +35,48 @@ exata do pacote.
 
 ---
 
+## [1.41.2] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 2)
+
+**Correção de bug**, reportada diretamente pelo usuário depois da
+v1.41.1: "não mudou nada, as cores ficaram diferente, mas agora
+aparece texto cinza com fundo cinza" — a v1.41.1 corrigiu só a linha
+SELECIONADA; todas as outras linhas continuavam com o mesmo problema.
+
+### Corrigido
+
+- **Causa raiz real**: `tview.NewTableCell` grava `cell.Style` com um
+  valor concreto já no construtor (branco sobre preto, o padrão
+  global do `tview`), e `TableCell.SetTextColor` só altera o
+  componente de **primeiro plano** desse estilo (`c.Style =
+  c.Style.Foreground(cor)`, só quando `cell.Style != tcell.
+  StyleDefault` — o que é sempre o caso, vindo do construtor). O
+  fundo fica exatamente como o construtor deixou — preto, fixo do
+  `tview` — a menos que `SetBackgroundColor` *também* seja chamado.
+  A correção da v1.41.1 só chamava `SetTextColor` por célula: o texto
+  pegava a cor certa do tema, mas ficava sentado numa caixa preta que
+  o tema nunca escolheu - "cinza sobre cinza" quando o tema ativo tem
+  um texto em tom acinzentado (confirmado nesta máquina: o tema
+  realmente ativo, "Solarized Light", tem `Foreground = #586E75`).
+  Corrigido construindo o estilo inteiro (texto E fundo) com
+  `SetStyle` de uma vez, em vez de `SetTextColor`/`SetBackgroundColor`
+  separados.
+
+### Verificado
+
+- Novo `internal/filemanager/panel_test.go`
+  (`TestRenderUsesTheConfiguredColorsNotTviewDefaults`) - lê o campo
+  `Style` da própria `TableCell` direto depois de `render()`, não uma
+  tela simulada renderizada; foi exatamente essa inspeção direta que
+  achou e confirmou a causa raiz real (uma tela simulada não distingue
+  "o padrão do `tview` coincidiu com o que eu queria" de "minha cor
+  foi realmente aplicada").
+- `internal/tui/filemanager_colors_test.go` reforçado pra também
+  checar o fundo (não só o texto) de uma linha NÃO selecionada,
+  contra o tema realmente ativo e persistido nesta máquina (não um
+  tema fixo assumido).
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.41.1] — 2026-11-26 — bloco **NEW**, feature **file-manager** (build 1)
 
 **Correção de bug + visual**, reportada diretamente pelo usuário: o
