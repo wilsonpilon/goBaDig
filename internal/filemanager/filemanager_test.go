@@ -226,9 +226,9 @@ func TestMoveSelectedMovesAFileAfterConfirmation(t *testing.T) {
 
 func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
 	store := newTestStore(t)
-	projectDir := filepath.Join(t.TempDir(), "MeuJogo")
+	parent := t.TempDir()
 	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
-	fm.createProject("MeuJogo", projectDir, options.CategoryMSX)
+	fm.createProject("MeuJogo", parent, options.CategoryMSX)
 
 	projects, err := store.ListProjects()
 	if err != nil {
@@ -237,20 +237,42 @@ func TestCreateProjectThenListAppearsInProjectsList(t *testing.T) {
 	if len(projects) != 1 || projects[0].Name != "MeuJogo" {
 		t.Fatalf("ListProjects() = %+v, want one project named MeuJogo", projects)
 	}
-	wantDir, _ := filepath.Abs(projectDir)
+	wantDir, _ := filepath.Abs(filepath.Join(parent, "MeuJogo"))
 	if fm.current().dir != wantDir {
-		t.Fatalf("active panel dir = %q, want %q (jumped to the new project)", fm.current().dir, wantDir)
+		t.Fatalf("active panel dir = %q, want %q (jumped to the new project's own subfolder)", fm.current().dir, wantDir)
+	}
+}
+
+func TestCreateProjectCreatesItsOwnSubfolderInsideTheParent(t *testing.T) {
+	store := newTestStore(t)
+	parent := t.TempDir()
+	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), nil, nil)
+	fm.createProject("MeuJogo", parent, options.CategoryMSX)
+
+	projectDir := filepath.Join(parent, "MeuJogo")
+	if info, err := os.Stat(projectDir); err != nil || !info.IsDir() {
+		t.Fatalf("expected %s to have been created as the project's own subfolder: %v", projectDir, err)
+	}
+	// The parent itself must stay clean - the project's files live in
+	// its own subfolder, not scattered into whatever directory the
+	// user was browsing (the user's own request).
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "MeuJogo" {
+		t.Fatalf("parent directory = %v, want only the MeuJogo subfolder", entries)
 	}
 }
 
 func TestCreateProjectWritesAMainStarterFileWithTheRightExtension(t *testing.T) {
 	store := newTestStore(t)
-	projectDir := filepath.Join(t.TempDir(), "Jogo81")
+	parent := t.TempDir()
 	var opened string
 	fm := NewFileManager(tview.NewApplication(), store, DefaultColors(), func(path string) { opened = path }, nil)
-	fm.createProject("Jogo81", projectDir, options.CategoryZX81)
+	fm.createProject("Jogo81", parent, options.CategoryZX81)
 
-	want := filepath.Join(projectDir, "main.dzx")
+	want := filepath.Join(parent, "Jogo81", "main.dzx")
 	if _, err := os.Stat(want); err != nil {
 		t.Fatalf("expected a main.dzx starter file: %v", err)
 	}

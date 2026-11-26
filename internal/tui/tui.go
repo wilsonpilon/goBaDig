@@ -202,9 +202,30 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		AddItem(statusBar, 1, 0, false)
 	pages.AddPage("app", root, true, true)
 
+	// editorReturnPage is which page closeEditor switches back to -
+	// "app" (the desktop) when the editor was opened from the Editor
+	// menu, "filemanager" when it was opened from there instead (F3/F4
+	// - see the file manager wiring below). Previously closeEditor
+	// always switched to "app" unconditionally, so closing a file
+	// opened FROM the file manager dropped the user onto the desktop
+	// instead of back onto the file manager - reported by the user as
+	// the file manager's own status bar (its shortcut list) "getting
+	// messed up" after a round trip through the editor: what they were
+	// actually seeing was the DESKTOP's own, different status bar,
+	// having been sent to the wrong page.
+	editorReturnPage := "app"
+	// fm is declared here (assigned below, after the file manager is
+	// built) rather than with ":=" at its construction site, so
+	// closeEditor above can reference it - a closure in the same
+	// function scope can't forward-reference a ":="-declared name.
+	var fm *filemanager.FileManager
 	closeEditor := func() {
-		pages.SwitchToPage("app")
-		app.SetFocus(pages)
+		pages.SwitchToPage(editorReturnPage)
+		if editorReturnPage == "filemanager" {
+			app.SetFocus(fm)
+		} else {
+			app.SetFocus(pages)
+		}
 	}
 	ed := edit.NewEditor(app, closeEditor)
 	pages.AddPage("editor", ed, true, false)
@@ -241,11 +262,12 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		pages.SwitchToPage("app")
 		app.SetFocus(pages)
 	}
-	fm := filemanager.NewFileManager(app, store, filemanagerColorsFor(activeTheme), func(path string) {
+	fm = filemanager.NewFileManager(app, store, filemanagerColorsFor(activeTheme), func(path string) {
 		if err := ed.OpenFile(path); err != nil {
 			showError("Nao foi possivel abrir o arquivo no editor", err)
 			return
 		}
+		editorReturnPage = "filemanager"
 		openEditor()
 	}, closeFileManager)
 	pages.AddPage("filemanager", fm, true, false)
@@ -455,7 +477,7 @@ func run(screen tcell.Screen, ready func(*tview.Application)) (runErr error) {
 		}
 	}
 	menus[0].items[0].action = openFileManager
-	menus[1].items[0].action = openEditor
+	menus[1].items[0].action = func() { editorReturnPage = "app"; openEditor() }
 	menus[2].items[0].action = showThemePicker
 	menus[2].items[1].action = showOptionsPanel(options.CategoryCore, "Basic Dignified")
 	menus[2].items[2].action = showOptionsPanel(options.CategoryMSX, "MSX")

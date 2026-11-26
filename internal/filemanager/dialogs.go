@@ -104,10 +104,17 @@ func (fm *FileManager) promptMkdir() {
 	fm.openDialog("mkdir", window, form)
 }
 
-// promptNewProject implements Ctrl+N: name + folder (defaulting to
-// the active panel's current directory, created if it doesn't exist)
-// + dialect. Per-project settings beyond name/path/dialect are
-// deliberately not part of this dialog (confirmed with the user).
+// promptNewProject implements Ctrl+N: name + parent folder (defaults
+// to the active panel's current directory) + dialect. Per-project
+// settings beyond name/path/dialect are deliberately not part of this
+// dialog (confirmed with the user).
+//
+// "Pasta" is the PARENT location, not the project's own folder:
+// createProject below always creates a new subfolder named after the
+// project inside it, so a project's files stay organized in their own
+// place instead of being dumped straight into whatever directory the
+// user happened to be browsing (requested by the user: "crie uma
+// pasta dentro do diretório corrente para organizar os arquivos").
 //
 // The starter file is always created (no longer an optional
 // checkbox - the file manager is meant to be the project's full
@@ -133,10 +140,10 @@ func (fm *FileManager) promptNewProject() {
 	})
 	form.AddButton("Criar", func() {
 		name := form.GetFormItemByLabel("Nome").(*tview.InputField).GetText()
-		path := form.GetFormItemByLabel("Pasta").(*tview.InputField).GetText()
+		parent := form.GetFormItemByLabel("Pasta").(*tview.InputField).GetText()
 		dialectID := projectDialectLabels[selectedDialect].id
 		fm.closeDialog("new-project")
-		fm.createProject(name, path, dialectID)
+		fm.createProject(name, parent, dialectID)
 	})
 	form.AddButton("Cancelar", func() { fm.closeDialog("new-project") })
 	form.SetCancelFunc(func() { fm.closeDialog("new-project") })
@@ -144,11 +151,14 @@ func (fm *FileManager) promptNewProject() {
 	fm.openDialog("new-project", window, form)
 }
 
-func (fm *FileManager) createProject(name, path, dialectID string) {
+// createProject creates a new subfolder named name inside parent -
+// not parent itself - and makes THAT the project's own directory.
+func (fm *FileManager) createProject(name, parent, dialectID string) {
 	if name == "" {
 		fm.setStatus(" o projeto precisa de um nome")
 		return
 	}
+	path := filepath.Join(parent, name)
 	if err := fm.store.CreateProject(name, path, dialectID); err != nil {
 		fm.setStatus(fmt.Sprintf(" erro ao criar projeto: %v", err))
 		return
