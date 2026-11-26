@@ -3371,10 +3371,10 @@ ainda não chamam nenhum desses comandos.
   máquina com CGO habilitado e compila/testa limpo com a versão nova de
   `x/image`; a ressalva anterior sobre não conseguir verificar a GUI
   valia só para o ambiente usado naquele momento, não é uma limitação
-  deste repositório). Ainda não ligado a
-  nada específico de BASIC (realce de sintaxe, abertura direto de
-  `.bas`/arquivos-fonte das 3 plataformas) — é a base crua do editor;
-  isso fica para os próximos passos da IDE.
+  deste repositório). Na época, ainda não estava ligado a nada
+  específico de BASIC (realce de sintaxe, abertura direto de
+  `.bas`/arquivos-fonte das 3 plataformas) — destaque de sintaxe
+  chegou na v1.46.0, ver abaixo.
 - [x] **Gerenciador de arquivos de dois painéis** (2026-11-26, v1.41.0,
   pedido explícito do usuário: "já que não temos os gerenciadores de
   arquivo ainda, podemos seguir por este caminho e assim chamar o
@@ -3635,6 +3635,71 @@ ainda não chamam nenhum desses comandos.
   `parent` antes da segunda chamada, senão um recarregamento manual
   anterior no próprio teste mascara a ausência do recarregamento
   dentro de `createProject`).
+
+- [x] **Destaque de sintaxe no WibEdit** (2026-11-27, v1.46.0), pedido
+  explícito do usuário: "Vamos implementar este destaque de sintaxe
+  no Norton Editor que está dentro do GoBaDig... inicialmente vamos
+  usar apenas o destaque de sintaxe, mas depois vamos usar o
+  autocomplete e o help sensível ao contexto". Baseado no material de
+  referência já existente pros dialetos (`badig/<dialeto>/Sublime
+  Package` e `badig/<dialeto>/VSCode Extension`), **não** no lexer da
+  compilação (`internal/platforms/*`) - aquele é construído pra um
+  passo único, batch, sobre um programa inteiro e correto; isso aqui
+  roda a cada tecla digitada, sobre texto possivelmente incompleto ou
+  inválido no meio da edição, então reusar o mesmo lexer traria risco
+  de performance/estabilidade sem necessidade.
+
+  Novo `internal/editor/syntax.go`/`syntax_keywords.go`: um
+  tokenizador POR LINHA (`tokenizeLine`), independente do pipeline de
+  compilação, com tabelas de palavras-chave/funções próprias por
+  dialeto (MSX, ZX81, ZX Spectrum), destiladas do material Sublime/
+  VSCode já existente no projeto (pesquisado via subagent: o `.vsix`
+  do MSX precisou ser descompactado - é só um zip - pra achar a
+  gramática real, `extension/syntaxes/msx-basic-dignified.
+  tmLanguage.json`, já que o único `.sublime-syntax` do MSX no
+  repositório é só pro output do compilador, não pro código-fonte).
+  Seis categorias: palavra-chave, função, comentário, string, número,
+  label (`{nome}`) - mais simples que as gramáticas completas
+  originais (sem distinguir operadores, sem detecção de "invalid
+  input", sem separar construções Dignified como categoria à parte)
+  de propósito: o valor visual está majoritariamente nessas seis,
+  pelo menor risco de implementação. Dialeto escolhido pela extensão
+  do arquivo aberto (`.dmx`/`.amx` = MSX, `.dzx`/`.azx` = ZX81,
+  `.dzs`/`.azs` = ZX Spectrum) - fonte Dignified e listagem clássica
+  numerada abrem com destaque igual.
+
+  Seis cores novas (`internal/editor/editor.go`), com o fundo sempre
+  sincronizado com `contentStyle` (`options_display.go`), pra
+  continuar combinando com qualquer um dos 5 perfis de cor já
+  existentes do WibEdit (esse sistema de cores é independente do
+  `internal/theme`, como já documentado antes). Ligado no próprio
+  laço de desenho do editor (`internal/editor/document_view.go`'s
+  `Draw`): tokeniza só as linhas realmente visíveis na tela a cada
+  redesenho, não o documento inteiro - custo proporcional à altura do
+  terminal, não ao tamanho do arquivo.
+
+  **Limitação conhecida, documentada de propósito**: o tokenizador não
+  guarda estado entre linhas - comentários de bloco de várias linhas
+  (apóstrofo duplo abrindo/fechando, ou `###...###`) não são
+  rastreados como abertos/fechados, então uma palavra em inglês
+  dentro de um desses blocos que por acaso também é uma palavra-chave
+  BASIC (`ON`, `TO`, `FOR`, `AND`...) ainda aparece destacada, mesmo o
+  bloco inteiro sendo um comentário - confirmado rodando contra um
+  programa MSX real (`badig/examples/msx/CGK173.dmx`, que tem um
+  cabeçalho de comentário de várias linhas). Rastrear isso direito
+  pediria varrer o documento inteiro (ou um índice por documento de
+  "quais linhas estão dentro de um bloco não fechado", invalidado a
+  cada edição) - fora de escopo nesta primeira rodada, registrado como
+  possível próximo passo.
+
+  Teste novo (`internal/editor/syntax_test.go`): tokenizador testado
+  isoladamente pros três dialetos, mais um teste de ponta a ponta
+  (`TestOpeningADmxFileActuallyRendersSyntaxColors`) que abre um
+  `.dmx` de verdade via `Editor.OpenFile` (o mesmo caminho que o `F4`
+  do gerenciador de arquivos usa) e confirma que a palavra-chave e a
+  string realmente aparecem com cores diferentes na tela simulada -
+  confirmado capaz de pegar uma regressão desligando o gancho de
+  propósito.
 
 ### Bloco 7 — GUI (Fyne)
 

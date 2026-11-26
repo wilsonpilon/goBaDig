@@ -167,6 +167,8 @@ Manager`** e faz dele o centro de controle do programa: criar arquivo
 (`F3`) e criar projeto (`Ctrl+N`, agora sempre com um `main<ext>`
 inicial) abrem direto no editor, e arquivos de interesse (fonte,
 listagem clássica, artefato compilado) ganham cor e ícone próprios.
+**`v1.46.0`** traz **destaque de sintaxe** pro WibEdit, pros três
+dialetos — ver seção 5 abaixo.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -236,9 +238,13 @@ Na TUI, o menu **`Editor > Open`** abre o editor de texto/código
 **WibEdit** (estilo WordStar/Norton Editor 2, portado do projeto
 `wibworks` do mesmo autor) como uma tela cheia dentro da própria TUI —
 não é um programa separado. É a base sobre a qual a futura IDE do
-goBaDig será construída; ainda não está ligado a nada específico de
-BASIC (sem realce de sintaxe ou abertura direta de `.bas`/fontes das 3
-plataformas).
+goBaDig será construída. Desde a `v1.46.0`, abrir um arquivo
+`.dmx`/`.amx` (MSX), `.dzx`/`.azx` (ZX81) ou `.dzs`/`.azs` (ZX
+Spectrum) já vem com **destaque de sintaxe** próprio daquele dialeto
+— palavras-chave, funções, comentários, strings, números e labels
+(`{nome}`) cada um com sua própria cor; qualquer outro arquivo abre
+sem destaque, como texto comum. Autocomplete e ajuda sensível ao
+contexto ainda não existem — ficam para os próximos passos.
 
 Na TUI, o menu **`File > File Manager`** (desde a `v1.41.0`, menu
 consolidado na `v1.42.0` - era um menu `Files` separado) abre o
