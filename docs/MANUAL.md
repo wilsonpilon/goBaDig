@@ -147,8 +147,11 @@ pro detalhamento. **`v1.34.0`** começa o módulo **ZX Spectrum**: só o
 tokenizer por enquanto (`internal/platforms/zxspectrum`, texto
 Classic ASCII já numerado → bytes tokenizados, mais empacotamento
 `.tap`/`.tzx`) — nenhum arquivo `.dzs` Spectrum compila ainda (falta
-o Description/Lexer/Parser do dialeto), sem nenhum comando novo pro
-usuário nesta release.
+o Description/Lexer/Parser do dialeto). **`v1.35.0`** porta o
+`Description`/`Lexer` do dialeto (vocabulário clássico, `GO TO`/
+`GO SUB` com espaço variável, apóstrofo como separador real de
+`PRINT`) — ainda falta o `Parser`, nenhum comando novo pro usuário em
+nenhuma das duas releases.
 
 ## 4. Compilar a partir do código-fonte
 

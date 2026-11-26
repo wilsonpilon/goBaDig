@@ -6,7 +6,7 @@
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
-Estado: **v1.34.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
+Estado: **v1.35.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
 IDE), viabilidade do ZRCP confirmada (Bloco 0, não implementado
@@ -51,9 +51,12 @@ portado (`internal/platforms/zxspectrum`) — encoding de número
 Sinclair via `math/big` (aritmética racional exata, não `float64`,
 diferente do ZX81), `DEF FN`/slots ocultos de 6 bytes, e
 empacotamento `.tap`/`.tzx` (100% mecânico) — validado contra os
-vetores de ouro reais do `test_zxspectrum.py`; ainda SEM
-Description/Lexer/Parser Spectrum (próxima Etapa do roteiro, ver
-Bloco 4 abaixo)** — histórico completo de cada um
+vetores de ouro reais do `test_zxspectrum.py`; e agora o
+`Description`/`Lexer` do dialeto também (vocabulário clássico, `GO
+TO`/`GO SUB` com espaço variável, apóstrofo como separador real de
+`PRINT`) — ainda SEM `Parser` Spectrum (próxima Etapa do roteiro, ver
+Bloco 4 abaixo), nenhum `.dzs` compila de ponta a ponta ainda)** —
+histórico completo de cada um
 desses itens em `CHANGELOG.md` e nos Blocos correspondentes abaixo,
 não repetido aqui.
 
@@ -2895,9 +2898,33 @@ ainda não chamam nenhum desses comandos.
 
 ### Bloco 4 — Módulo ZX Spectrum
 
-- [ ] Portar `Description`/`Lexer`/`Parser` Spectrum (alocação por
-  categoria, LET implícito, PRINT AT, TRUE/FALSE=1/0, DATA com expressões,
-  DEF FN/FN com slots ocultos de 6 bytes). — **A**, **1**
+- [ ] Portar `Description`/`Lexer`/`Parser` Spectrum (LET implícito,
+  PRINT AT, TRUE/FALSE=1/0, DATA com expressões, DEF FN/FN com slots
+  ocultos de 6 bytes). — **A**, **1** — **Description+Lexer feitos em
+  2026-11-26** (`internal/platforms/zxspectrum/{description,lexer}.go`,
+  v1.35.0, Etapa 2 de 5). `Parser` (Etapa 3) ainda pendente desta
+  entrada — ver mais abaixo quando fechar.
+
+  **Correção de premissa confirmada pela pesquisa ANTES de portar**: a
+  frase "alocação por categoria" (como no cabeçalho original desta
+  tarefa) estava ERRADA — Spectrum **não tem nenhum alocador de
+  variável** (nomes nativos de qualquer comprimento são válidos); só
+  existe validação de forma por categoria (`ValidateIdentifier`,
+  tokenizer.go, já portada na Etapa 1) — corrigido no texto do item
+  acima (removida a menção a "alocação por categoria").
+
+  Achados confirmados **rodando o `badig.py` real** (não só lendo o
+  código, disciplina já estabelecida no projeto): `GO TO`/`GO SUB` com
+  espaço variável são vocabulário do **Lexer Dignified** aqui (não só
+  do tokenizer, diferente do ZX81); apóstrofo (`'`) é o separador real
+  de `PRINT` do Sinclair BASIC (`PRINT "A"'"B"`), nunca um marcador de
+  comentário; `REM` precisou virar **DOIS tokens** no Lexer (a própria
+  palavra-chave + o conteúdo cru como um token separado) — confirmado
+  que isso reproduz o espaçamento duplo real da saída (`REM  texto`,
+  dois espaços: um do espaçamento automático de `core.Generate` entre
+  palavra reservada e o que vem depois, outro já parte do próprio
+  conteúdo preservado) — diferente da convenção mais simples de
+  MSX/ZX81 (REM como um blob só).
 - [x] Portar tokenizer Spectrum, incluindo encoding de número Sinclair
   (usar `math/big.Rat` para precisão, validar contra os 69 testes Python
   como golden-master). — **A**, **1** — **feito em 2026-11-26**

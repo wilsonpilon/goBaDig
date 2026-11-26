@@ -35,6 +35,34 @@ exata do pacote.
 
 ---
 
+## [1.35.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-lexer** (build 0)
+
+**Description/Lexer ZX Spectrum** (Bloco 4, Etapa 2 de 5) — vocabulário
+Dignified (`instructions`/`jumps`/`operators`/`symbols`) e o `Lexer`
+transcritos de `badig_zxspectrum.py`'s `Description`/`Lexer(MSXLexer)`.
+Ainda sem `Parser` (nenhum `.dzs` compila de ponta a ponta ainda).
+
+### Adicionado
+
+- `zxspectrum.Description` (`core.Description`).
+- `zxspectrum.Lexer` (`core.Lexer`).
+- 15 testes automatizados novos.
+
+### Verificado
+
+- Confirmado empiricamente (rodando o `badig.py` real) antes de
+  travar cada ponto ambíguo: significado do apóstrofo (`'`, separador
+  de `PRINT`, não comentário), comportamento de `GO TO`/`GO SUB` com
+  espaço variável, e o espaçamento duplo real de `REM` + conteúdo.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
+### O que não mudou / ainda falta
+
+- Nenhum `Parser` Spectrum ainda — nenhum `.dzs` compila de ponta a
+  ponta.
+- Nenhum comando `compile`/`execute` pro Spectrum ainda.
+
 ## [1.34.0] — 2026-11-26 — bloco **NEW**, feature **zxspectrum-tokenizer** (build 0)
 
 **Tokenizer ZX Spectrum** (Bloco 4, Etapa 1 de 5) — primeira peça do
