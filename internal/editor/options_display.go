@@ -62,6 +62,34 @@ func setDisplayPalette(profile int) {
 	markerStyle = blockStyle
 	_, contentBackgroundColor, _ = contentStyle.Decompose()
 	statusForegroundColor, statusBackgroundColor, _ = panelStyle.Decompose()
+	syntaxKeywordStyle = syntaxKeywordStyle.Background(contentBackgroundColor)
+	syntaxFunctionStyle = syntaxFunctionStyle.Background(contentBackgroundColor)
+	syntaxCommentStyle = syntaxCommentStyle.Background(contentBackgroundColor)
+	syntaxStringStyle = syntaxStringStyle.Background(contentBackgroundColor)
+	syntaxNumberStyle = syntaxNumberStyle.Background(contentBackgroundColor)
+	syntaxLabelStyle = syntaxLabelStyle.Background(contentBackgroundColor)
+}
+
+// syntaxStyleFor returns the display style for a highlight category,
+// or ok=false for synNone (callers fall back to the plain content
+// style).
+func syntaxStyleFor(kind syntaxKind) (tcell.Style, bool) {
+	switch kind {
+	case synKeyword:
+		return syntaxKeywordStyle, true
+	case synFunction:
+		return syntaxFunctionStyle, true
+	case synComment:
+		return syntaxCommentStyle, true
+	case synString:
+		return syntaxStringStyle, true
+	case synNumber:
+		return syntaxNumberStyle, true
+	case synLabel:
+		return syntaxLabelStyle, true
+	default:
+		return tcell.StyleDefault, false
+	}
 }
 
 func (e *Editor) applyDisplayPalette(profile int) {

@@ -853,6 +853,24 @@ var statusBackgroundColor = tcell.ColorSilver
 var mnemonicForegroundColor = tcell.ColorDefault
 var scrollbarThumbColor = tcell.ColorBlack
 
+// Syntax highlighting colors (internal/editor/syntax.go). Six
+// categories, each a full style whose BACKGROUND is kept in sync with
+// contentStyle's own (see setDisplayPalette in options_display.go) so
+// highlighted text still matches whichever of the 5 display profiles
+// is active - only the foreground differs per category. Not profile-
+// specific beyond that: unlike panelStyle/blockStyle/etc., these
+// don't get their own per-profile overrides in the switch - the same
+// six foreground colors are used everywhere, which keeps the "VGA
+// Monochrome"/"Monochrome" profiles no more or less monochrome than
+// they already were before this feature (markerStyle, for one, is
+// already a fixed yellow across every profile).
+var syntaxKeywordStyle = tcell.StyleDefault.Foreground(tcell.ColorFuchsia).Background(tcell.ColorBlack)
+var syntaxFunctionStyle = tcell.StyleDefault.Foreground(tcell.ColorAqua).Background(tcell.ColorBlack)
+var syntaxCommentStyle = tcell.StyleDefault.Foreground(tcell.ColorGray).Background(tcell.ColorBlack)
+var syntaxStringStyle = tcell.StyleDefault.Foreground(tcell.ColorLime).Background(tcell.ColorBlack)
+var syntaxNumberStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).Background(tcell.ColorBlack)
+var syntaxLabelStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(tcell.ColorBlack)
+
 type editorMenuBar struct {
 	*tview.Box
 	editor *Editor

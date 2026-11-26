@@ -172,6 +172,7 @@ func (e *Editor) setFile(path, text string, known bool) {
 	if path != "" {
 		e.filename, e.lastDir = filepath.Base(path), filepath.Dir(path)
 	}
+	e.area.dialect = dialectForPath(path)
 	e.over = e.startMode == 1
 	e.area.over = e.over
 	e.changed, e.literal = false, false
@@ -216,6 +217,7 @@ func (e *Editor) saveTo(path string, overwrite bool, done func()) {
 		return
 	}
 	e.path, e.filename, e.lastDir = path, filepath.Base(path), filepath.Dir(path)
+	e.area.dialect = dialectForPath(path)
 	e.diskText, e.diskKnown, e.changed = text, true, false
 	e.area.document.setSourceBase(e.fileBase)
 	e.notice = "Saved " + path

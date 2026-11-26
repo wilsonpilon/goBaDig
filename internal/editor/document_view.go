@@ -21,6 +21,7 @@ type documentView struct {
 	over           bool
 	dragged        bool
 	dragging       bool
+	dialect        syntaxDialect
 }
 
 func newDocumentView() *documentView {
@@ -148,6 +149,15 @@ func (v *documentView) Draw(screen tcell.Screen) {
 		first := sort.Search(len(line.cells), func(i int) bool {
 			return line.cells[i].column+line.cells[i].width > left
 		})
+		// Tokenized once per visible row (not cached across rows of a
+		// single wrapped line, nor across redraws) - tokenizeLine is a
+		// cheap single-pass scan over one line's own text, and only
+		// the rows actually on screen ever get tokenized, so the cost
+		// stays proportional to terminal height, not document size.
+		var spans []syntaxSpan
+		if v.dialect != dialectNone {
+			spans = tokenizeLine(v.dialect, d.text[line.start:line.end])
+		}
 		for _, cell := range line.cells[first:] {
 			cx := cell.column - left
 			if cell.column >= row.to || cx >= contentWidth {
@@ -157,6 +167,9 @@ func (v *documentView) Draw(screen tcell.Screen) {
 				continue
 			}
 			cellStyle := style
+			if syntaxStyle, ok := syntaxStyleFor(spanKindAt(spans, cell.start-line.start)); ok {
+				cellStyle = syntaxStyle
+			}
 			if cell.start >= start && cell.start < end {
 				cellStyle = blockStyle
 			}
