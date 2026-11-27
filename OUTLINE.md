@@ -8,8 +8,8 @@
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-27
 (nota: este parágrafo de estado ficou desatualizado em várias rodadas
 recentes - ver `resume.txt`, seção MARCOs, para o estado real mais
-recente; a versão publicada mais recente é a v1.49.0, bloco NEW,
-feature msx-dictionary).
+recente; a versão publicada mais recente é a v1.50.0, bloco NEW,
+feature asmsx-support).
 Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
@@ -3226,19 +3226,20 @@ ainda não chamam nenhum desses comandos.
 - [ ] Parser de argumentos real (flags core + flags por módulo
   compostas, equivalente aos `parent_parsers`), substituindo o
   dispatch simples do stub. — **M**, **1**
-- [x] **Motor de "man" + comandos do BaDig + dicionário MSX completo**
-  (parcial, 2026-11-27, v1.48.0/v1.49.0 - Fases 2 e 3 do plano de 4
-  fases, ver Bloco 6): `goBaDig --man [tópico]`/console `man [tópico]`
-  navegam por tópico de verdade agora (`internal/man`, ver bullets
-  detalhados no Bloco 6), cobrindo os próprios comandos do BaDig
-  (`compile`/`execute`/`set`/`settings`/`dialect`/`theme`/`version`/
-  `man`) **e**, desde a v1.49.0, as 181 palavras reservadas do BASIC
-  MSX (`--man abs`, `--man msx` pro índice do dicionário) - dados do
-  `msxide`/`paleobasic` do usuário. **Ainda faltam** os manuais de
-  sintaxe BASIC do ZX81 e ZX Spectrum embutidos (sem fonte equivalente
-  ao dicionário MSX - via `fwMSX`/`go81` e
-  `badig/documentation/ZX_SPECTRUM.md`, se/quando decidido) e o manual
-  do ASMSX (Fase 4) — ver seção 10.7 para detalhes. — **A**, **2**
+- [x] **Motor de "man" + comandos do BaDig + dicionário MSX completo +
+  manual do ASMSX** (parcial, 2026-11-27, v1.48.0/v1.49.0/v1.50.0 -
+  Fases 2, 3 e 4 do plano de 4 fases, ver Bloco 6): `goBaDig --man
+  [tópico]`/console `man [tópico]` navegam por tópico de verdade
+  agora (`internal/man`, ver bullets detalhados no Bloco 6), cobrindo
+  os próprios comandos do BaDig (`compile`/`execute`/`set`/
+  `settings`/`dialect`/`theme`/`version`/`man`), as 181 palavras
+  reservadas do BASIC MSX (`--man abs`, `--man msx` pro índice do
+  dicionário - dados do `msxide`/`paleobasic` do usuário) e, desde a
+  v1.50.0, o manual completo do compilador ASMSX (`--man asmsx`).
+  **Ainda faltam** os manuais de sintaxe BASIC do ZX81 e ZX Spectrum
+  embutidos (sem fonte equivalente ao dicionário MSX - via
+  `fwMSX`/`go81` e `badig/documentation/ZX_SPECTRUM.md`, se/quando
+  decidido) — ver seção 10.7 para detalhes. — **A**, **2**
 - [x] Modo de comando interativo (`--cli`, release 1.1.4): console com
   prompt `goBaDig>` aguardando comandos linha a linha (`help`, `man`,
   `about`, `version`, `exit`/`quit`, encerra também em EOF/Ctrl-D),
@@ -3904,6 +3905,113 @@ ainda não chamam nenhum desses comandos.
   puro continuando a abrir o menu de ajuda sem ser afetado pela nova
   checagem).
 
+- [x] **Suporte ao compilador ASMSX** (2026-11-27, v1.50.0) - Fase 4
+  (última) do plano de 4 fases. Não uma reimplementação do asMSX -
+  só integração: configuração de caminho, compilação via subprocess,
+  e o manual completo embutido no mesmo sistema de referência das
+  Fases 2/3.
+
+  `docs/man/asmsx.md`: cópia de `resource/asMSX/doc/asmsx.md` (1148
+  linhas), com uma nota de atribuição (projeto GPLv3, originalmente de
+  Eduardo "pitpan" A. Robsy Petrus, hoje mantido pelo asMSX team -
+  github.com/Fubukimaru/asMSX) logo após o título - `resource/` é
+  gitignored e não é distribuído, então o conteúdo precisa estar num
+  caminho versionado pra funcionar em qualquer máquina que rode o
+  binário publicado (mesma razão de `docs/man/badig.md`, Fase 2).
+  Registrado como um tópico só (`"asmsx"`) via uma função nova em
+  `internal/man/registry.go`, `addMarkdownTopic(pages, key, src)` -
+  diferente de `addMarkdownSource` (Fase 2, que divide um arquivo em
+  vários tópicos por heading de nível 1), esta mantém o manual
+  inteiro como um único tópico sob uma chave curta explícita
+  ("asmsx"), preservando o título real do manual ("asMSX - MSX cross
+  assembler") só pra exibição - a chave de registro e o título de
+  exibição deliberadamente NÃO coincidem aqui, ao contrário de
+  `badig.md`/dicionário MSX, onde coincidiam por construção. Isso
+  expôs um bug sutil em `Index()`: o `TOCEntry.Title` de cada linha
+  do índice estava usando `topics[name].Title` (o título de EXIBIÇÃO)
+  em vez de `name` (a chave de BUSCA) - funcionava por acidente pra
+  todo tópico onde os dois coincidiam, mas quebrava a navegação por
+  Enter especificamente pro "asmsx". Corrigido usando `name` no
+  `TOCEntry`.
+
+  `internal/options/options.go`: novo campo `ASMSX_PATH` (categoria
+  MSX, ao lado do `EMULATOR_PATH` existente), sem validação de
+  existência de arquivo (mesmo padrão não-especial que
+  `EMULATOR_PATH` já segue). Aparece automaticamente nos painéis
+  `Setup > MSX` da TUI/GUI, que já renderizam genericamente a partir
+  de `options.ForCategory` - nenhuma mudança de UI necessária.
+
+  Novo `internal/platforms/msx/asmsx.go`: `ResolveAsmsxPath(store)` -
+  cascata (1) `ASMSX_PATH` configurado e `os.Stat` confirma que
+  existe, (2) `exec.LookPath("asmsx")` no PATH do sistema;
+  `EMULATOR_PATH` já modelava essa mesma ideia de cascata, mas nenhum
+  dos seus campos chegou a ser lido por código de produção até agora
+  - este é o primeiro. Camada "bundled ao lado do goBaDig.exe"
+  deliberadamente fora de escopo (documentado, não implementado) -
+  não há pipeline de build que compile `asmsx.exe` a partir do código
+  C vendorizado em `resource/asMSX/src/` (precisa gcc+flex+bison).
+  `CompileAsm(asmPath, asmsxExe)` - mesmo padrão síncrono-com-captura-
+  de-saída de `internal/editor/printer_unix.go` (único outro
+  precedente no projeto - todo lançamento de emulador hoje é fire-
+  and-forget, `cmd.Start()` sem esperar). Roda dentro do diretório do
+  próprio `.asm`, passando só o nome base (pra `#include` relativo do
+  asMSX resolver certo); sucesso confere se `<base>.bin` foi criado
+  (convenção padrão do asMSX sem diretiva de saída alternativa -
+  `.rom`/`.cas`/`.wav`/`.com` dependem de diretiva dentro do próprio
+  `.asm` e não são detectados automaticamente - limitação conhecida
+  de v1, documentada).
+
+  Dispatch por extensão pra `.asm`, deliberadamente **fora** do
+  `switch` fechado de `internal/dialect.go` (só pra dialetos
+  Dignified), em três lugares: `internal/filemanager/actions.go`'s
+  `compileSelected` (F2 na TUI - novo `compileAsmSelected`),
+  `internal/cli/console.go`'s `executeCompile` (`compile arquivo.asm`
+  no console - novo `executeCompileAsm`) e `internal/cli/cli.go`'s
+  `runCompile` (`goBaDig arquivo.asm` direto - novo `runCompileAsm`,
+  abre a store padrão já que não há estado de sessão nesse caminho
+  non-interativo).
+
+  **Cuidado de teste encontrado implementando**: `executeCompileAsm`/
+  `runCompileAsm` abrem a store de configurações (pra ler
+  `ASMSX_PATH`) - `executeCompileAsm` reusa `s.openStore()`, que é
+  no-op se `s.store` já estiver setado, então os testes do console
+  SEMPRE precisam injetar uma store isolada (`config.Open` num
+  arquivo temporário) antes de chamar `executeCompile(".asm")`, senão
+  o teste abriria/tocaria o `settings.db` real do usuário em
+  `%APPDATA%\goBaDig` (confirmado lendo `config.OpenDefault`). Já
+  `runCompileAsm` (CLI não-interativa) não tem como receber uma store
+  injetada - o teste correspondente aceita esse toque mínimo e
+  idempotente no ambiente real (mesma coisa que uma invocação real do
+  programa compilado faria).
+
+  Testes novos: `internal/platforms/msx/asmsx_test.go`
+  (`ResolveAsmsxPath`: caminho configurado existente, configurado mas
+  inexistente, fallback pro PATH, nem configurado nem no PATH;
+  `CompileAsm` testado contra uma ferramenta REAL - um binário Go
+  minúsculo compilado em tempo de teste via `go build`, já que não há
+  `asmsx` real garantido no ambiente - sucesso com `.bin` gerado,
+  saída capturada em caso de erro, aviso quando a ferramenta termina
+  sem erro mas não gera o `.bin`); novos casos em `internal/man/
+  dict_test.go` (`Lookup("asmsx")` case-insensitive, `Index()`
+  linkando pela chave curta mas exibindo o título real); um teste de
+  dispatch em cada um dos três pontos de integração confirmando que
+  `.asm` é roteado pro ASMSX e não cai no erro de "dialeto não
+  reconhecido" do `CompileByExtension`.
+
+  Testado manualmente de ponta a ponta nesta máquina contra um
+  `asmsx.exe` real já instalado (achado via PATH do sistema) -
+  confirmou a cascata de resolução e o encapsulamento de erro
+  funcionando (um lock de arquivo específico desta máquina impediu a
+  compilação de fato rodar, mas confirmou que o erro do subprocesso é
+  capturado e reportado corretamente em vez de travar o programa).
+
+  Com isso, as 4 fases do plano registrado na v1.47.0 (autocomplete +
+  man/help + dicionário MSX + ASMSX) estão completas e lançadas
+  (v1.47.0 a v1.50.0). Fora de escopo, documentado como passo futuro
+  natural (não bloqueia "suporte ao ASMSX" em si, que já está
+  completo): os 3 formatos de ponte Assembly→BASIC que o MSXIDE
+  oferece (BLOAD direto / DATA-READ-POKE embutido / `.inc` reusável).
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
@@ -3970,9 +4078,12 @@ Notepad++/UltraEdit (opcional, "se for possível").
   about.go`) e um menu "Manual" próprio no WibEdit. **Dicionário MSX
   Basic completo (181 verbetes) + ajuda contextual Shift+F1
   adicionados em 2026-11-27 (v1.49.0)** - Fase 3 do mesmo plano, ver
-  Bloco 6. Suporte ao compilador **ASMSX** (Fase 4, ver
-  `resource/asMSX/`) segue pendente - última fase do plano de 4
-  fases.
+  Bloco 6. **Suporte ao compilador ASMSX adicionado em 2026-11-27
+  (v1.50.0)** - Fase 4 (última) do mesmo plano, ver Bloco 6: `.asm`
+  compila direto (`compile`/`goBaDig arquivo.asm`/`F2` na TUI),
+  `ASMSX_PATH` no catálogo de opções, manual completo em `--man
+  asmsx`. Com isso, as 4 fases do plano registrado na v1.47.0 estão
+  completas.
 - [ ] Avaliar viabilidade de realce de sintaxe para Notepad++ e
   UltraEdit (UDL). — **B** (avaliação), **3**
 
