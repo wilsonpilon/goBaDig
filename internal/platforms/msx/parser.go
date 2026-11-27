@@ -339,6 +339,12 @@ func (*Parser) BuiltinDefines() map[string]core.BuiltinDefine {
 				{Kind: KindNumber, Value: "0"},
 			},
 		},
+		// "incbload" key is lowercase because pass1Dignified's own
+		// call-site lookup always lowercases the macro name before
+		// checking the defines map (ver pipeline.go's expandDefineCall),
+		// regardless of how the user capitalizes "[INCBLOAD](...)" in
+		// their own source.
+		"incbload": {Expand: expandIncbload},
 	}
 }
 

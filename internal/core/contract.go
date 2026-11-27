@@ -209,8 +209,16 @@ type BuiltinDefine struct {
 	// default EACH ONE independently to "0" - MSX's own simpler
 	// "[?](x,y)" macro, which just pastes whatever raw tokens it's
 	// given verbatim at a single placeholder, doesn't need this and
-	// leaves Expand nil.
-	Expand func(args []Token) []Token
+	// leaves Expand nil. ctx is the same *CompileContext pass1Dignified
+	// already has in scope - added for MSX's "[INCBLOAD]("file.asm")"
+	// macro, which needs ctx.IncludeStack[0] to resolve the referenced
+	// .asm's path the same way INCLUDE itself does (ver resolveInclude);
+	// ZX81's own printAtExpand ignores it. The error return is also new
+	// for INCBLOAD's sake (a missing .bin/unresolvable address is a real
+	// compile-time failure, unlike ZX81's purely syntactic macro, which
+	// never fails and always returns nil here) - propagated verbatim by
+	// expandDefineCall, same as every other failure in that function.
+	Expand func(ctx *CompileContext, args []Token) ([]Token, error)
 }
 
 // Settings holds dialect-specific config, applied after the shared

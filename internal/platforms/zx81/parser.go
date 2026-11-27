@@ -262,7 +262,7 @@ func (*Parser) BuiltinDefines() map[string]core.BuiltinDefine {
 // treated as another separator - it and everything after it just
 // become part of the col side's own token list, same as the original
 // (its own `if len(coordinates) == 1` guard only ever fires once).
-func printAtExpand(args []core.Token) []core.Token {
+func printAtExpand(_ *core.CompileContext, args []core.Token) ([]core.Token, error) {
 	var coords [2][]core.Token
 	side := 0
 	depth := 0
@@ -293,5 +293,5 @@ func printAtExpand(args []core.Token) []core.Token {
 	out = append(out, core.Token{Kind: KindSymbol, Value: ","})
 	out = append(out, coords[1]...)
 	out = append(out, core.Token{Kind: KindSymbol, Value: ";"})
-	return out
+	return out, nil
 }

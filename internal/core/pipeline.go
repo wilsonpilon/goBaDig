@@ -617,7 +617,7 @@ type defineEntry struct {
 	// user-written DEFINE (readDefines never sets it) and for a
 	// platform's own simpler builtins (MSX's "[?](x,y)" leaves it nil
 	// too).
-	expand func([]Token) []Token
+	expand func(ctx *CompileContext, args []Token) ([]Token, error)
 }
 
 // pass1Dignified replaces the generic runPass(platform.Parser.Pass1)
@@ -1182,7 +1182,7 @@ func pass1Dignified(ctx *CompileContext, tokens []Token, platform Platform) ([]T
 		}
 
 		if def.expand != nil {
-			return def.expand(insertVar), nil
+			return def.expand(ctx, insertVar)
 		}
 
 		var expanded []Token
