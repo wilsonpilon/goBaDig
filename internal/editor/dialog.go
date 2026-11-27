@@ -116,6 +116,7 @@ func (d *editorDialog) checked(id string) bool {
 
 func (e *Editor) openDialog(d *editorDialog) {
 	e.literal = false
+	e.closeAutocomplete()
 	d.editor = e
 	d.previousFocus = e.app.GetFocus()
 	d.page = fmt.Sprintf("dialog-%d", len(e.dialogs))

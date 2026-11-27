@@ -62,6 +62,7 @@ type Editor struct {
 	notice           string
 	dialogs          []*editorDialog
 	outlineView      *editorOutlineView
+	ac               *autocompleteState
 	lastSearch       searchState
 	replaceSession   *replaceSession
 	virtual          *VirtualDocument
@@ -163,6 +164,16 @@ func (e *Editor) OpenFile(path string) error {
 
 func (e *Editor) Input() tview.Primitive { return e.area }
 
+// Draw overrides the Draw tview.Pages promotes from the embedded
+// *tview.Pages, so the autocomplete popup (drawAutocompletePopup,
+// autocomplete.go) can be painted on top of everything else without
+// ever being a Pages entry of its own - see that function's doc
+// comment for why a Pages entry doesn't work for this.
+func (e *Editor) Draw(screen tcell.Screen) {
+	e.Pages.Draw(screen)
+	drawAutocompletePopup(screen, e)
+}
+
 func (e *Editor) build() {
 	menuBar := &editorMenuBar{Box: tview.NewBox(), editor: e}
 	e.windows = []*editorWindow{{area: e.area, filename: e.filename, startMode: e.startMode}}
@@ -210,12 +221,14 @@ func (e *Editor) bindWindow(window *editorWindow, index int) {
 			e.changed = true
 			e.notice = ""
 			e.updateStatus()
+			e.refreshAutocomplete()
 		}
 	}
 	window.area.moved = func() {
 		if e.activeWindow == index {
 			e.notice = ""
 			e.updateStatus()
+			e.refreshAutocomplete()
 		}
 	}
 }
@@ -245,6 +258,7 @@ func (e *Editor) syncActiveWindow() {
 }
 
 func (e *Editor) activateWindow(index int, focus bool) {
+	e.closeAutocomplete()
 	if index < 0 || index >= len(e.windows) || index == e.activeWindow {
 		if focus && e.area != nil {
 			e.app.SetFocus(e.area)
@@ -430,6 +444,7 @@ func (e *Editor) available(command commandSpec) bool {
 
 func (e *Editor) openMenu(key rune) {
 	e.literal = false
+	e.closeAutocomplete()
 	menu, ok := e.menu(key)
 	if !ok {
 		return
@@ -682,6 +697,27 @@ func (e *Editor) Capture(event *tcell.EventKey) *tcell.EventKey {
 	if len(e.dialogs) > 0 {
 		e.dialogs[len(e.dialogs)-1].key(event)
 		return nil
+	}
+	if e.ac != nil {
+		switch event.Key() {
+		case tcell.KeyTab, tcell.KeyEnter:
+			e.confirmAutocomplete()
+			return nil
+		case tcell.KeyUp:
+			e.ac.selected = (e.ac.selected + len(e.ac.candidates) - 1) % len(e.ac.candidates)
+			return nil
+		case tcell.KeyDown:
+			e.ac.selected = (e.ac.selected + 1) % len(e.ac.candidates)
+			return nil
+		case tcell.KeyEscape:
+			e.closeAutocomplete()
+			return nil
+		}
+		// Any other key (space, a printable rune, backspace, the arrow
+		// keys that move within/off the word, ...) falls through to the
+		// normal flow below - documentView's own changed/moved callback
+		// (bindWindow) calls refreshAutocomplete() right after, which is
+		// what actually updates or closes the popup for those keys.
 	}
 	if event.Key() == tcell.KeyEscape {
 		if e.menuOpen {

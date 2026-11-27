@@ -160,6 +160,7 @@ func saveEditorFile(path, text string, character rune, expected *string, overwri
 }
 
 func (e *Editor) setFile(path, text string, known bool) {
+	e.closeAutocomplete()
 	e.fileBase = 0
 	loadedText := text
 	if known && len(text) > fileChunkBytes {
