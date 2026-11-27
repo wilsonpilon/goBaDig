@@ -3755,7 +3755,12 @@ Notepad++/UltraEdit (opcional, "se for possível").
 - [x] Editor próprio baseado no Norton Editor 2.0 — **integrado em
   2026-11-21** como WibEdit (`internal/editor`, portado de
   `E:\wibworks`), embutido na TUI via menu **Editor > Open**. Ver
-  Bloco 6. Versão GUI do mesmo editor ainda não portada.
+  Bloco 6. Versão GUI do mesmo editor ainda não portada. **Destaque
+  de sintaxe por dialeto adicionado em 2026-11-27 (v1.46.0)** -
+  baseado no MESMO material Sublime/VSCode listado acima, ver Bloco
+  6 pro detalhamento completo (tokenizador próprio, independente do
+  lexer da compilação). Autocomplete e ajuda sensível ao contexto
+  (pedidos pelo usuário como próximos passos) ainda não existem.
 - [ ] Avaliar viabilidade de realce de sintaxe para Notepad++ e
   UltraEdit (UDL). — **B** (avaliação), **3**
 
