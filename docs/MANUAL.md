@@ -177,7 +177,9 @@ WibEdit) — ver seção 5 abaixo e a seção 9. **`v1.49.0`** traz o
 contextual `Shift+F1` no WibEdit — ver seção 5 abaixo. **`v1.50.0`**
 traz **suporte ao compilador Assembly ASMSX** dentro de projetos MSX
 BASIC (`compile arquivo.asm`, opção `ASMSX_PATH`, manual embutido) —
-ver seção 6 abaixo.
+ver seção 6 abaixo. **`v1.51.0`** liga esse `.bin` de volta ao BASIC
+com a macro **`[INCBLOAD]`** (`BLOAD`+`DEFUSR` automáticos, endereço
+descoberto a partir do `.asm`) — ver seção 6 abaixo.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -583,10 +585,39 @@ versão).
 O manual completo do asMSX (sintaxe, diretivas, parâmetros de linha
 de comando) está embutido no mesmo sistema de referência da seção 9:
 `--man asmsx`/console `man asmsx`, ou o menu **Manual** do WibEdit.
-Ligar o resultado do `.bin` de volta a um programa BASIC (`BLOAD`
-direto, `DATA`/`READ`/`POKE` embutido, ou um `.inc` reusável, como o
-MSXIDE do próprio autor já oferece) é um passo futuro, fora do
-escopo desta integração.
+
+### Chamando a rotina Assembly do BASIC: `[INCBLOAD]` (desde a `v1.51.0`)
+
+Depois de compilar o `.asm` (seção anterior), a macro Dignified
+`[INCBLOAD]("arquivo.asm")`, escrita no `.dmx`, liga o `.bin` gerado
+de volta ao programa BASIC - o formato "BLOAD direto" entre os três
+que o MSXIDE do próprio autor já oferece (os outros dois,
+`DATA`/`READ`/`POKE` embutido e um `.inc` reusável, continuam fora do
+escopo). Em cada compilação do `.dmx`, a macro expande para:
+
+```basic
+BLOAD"ARQUIVO.BIN":DEFUSR=&Hxxxx
+```
+
+onde `&Hxxxx` é o endereço de entrada da rotina, descoberto
+automaticamente a partir da diretiva `.START` do `.asm` (ou `.ORG`, se
+não houver `.START`) - inclusive quando `.START`/`.ORG` apontam para
+um rótulo em vez de um número literal, resolvido pelo arquivo `.sym`
+que o próprio asmsx gera junto com o `.bin`. Depois do `BLOAD`, o
+programa chama a rotina normalmente onde for preciso:
+
+```basic
+x = usr(0)
+print usr(0)
+```
+
+Exige que `arquivo.asm` já tenha sido compilado (seu `.bin` precisa
+existir) - a macro nunca compila o Assembly por conta própria, e nada
+é escrito no `.dmx`: a expansão acontece só em memória, a cada
+compilação, então mudar o endereço no `.asm` e recompilar os dois
+(`.asm` primeiro, depois o `.dmx`) já atualiza tudo automaticamente.
+Detalhes completos, incluindo uma limitação conhecida sobre nomes de
+rótulo, em `--man incbload`/console `man incbload`.
 
 ## 7. Rodar em um emulador
 
@@ -649,7 +680,9 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
   Cruz, 1986) e do manual MSX2+/FM da ACVS, reaproveitando material já
   existente do usuário em `msxide`/`paleobasic`. Desde a `v1.50.0`,
   `--man asmsx` traz também o manual completo do compilador **asMSX**
-  (sintaxe, diretivas, parâmetros de linha de comando) - ver "6.
+  (sintaxe, diretivas, parâmetros de linha de comando), e desde a
+  `v1.51.0`, `--man incbload` documenta a macro `[INCBLOAD]` que liga
+  o `.bin` do asMSX de volta ao BASIC - ver "6.
   Converter um programa Dignified" acima — ver `docs/RESOURCES.md` e
   `OUTLINE.md`, seção 10.7.
 - **Console** (`--cli`): `man [tópico]` é o mesmo índice/referência do

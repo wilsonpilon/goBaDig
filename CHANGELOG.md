@@ -35,6 +35,21 @@ exata do pacote.
 
 ---
 
+## [1.51.0] — 2026-11-27 — bloco **NEW**, feature **asm-basic-bridge** (build 0)
+
+Ponte entre um programa Assembly já compilado com o asMSX e o programa
+MSX BASIC que vai chamá-lo: nova macro Dignified
+`[INCBLOAD]("arquivo.asm")`, que expande para
+`BLOAD"ARQUIVO.BIN":DEFUSR=&Hxxxx` em cada compilação, descobrindo o
+endereço de entrada automaticamente a partir da diretiva `.START`/
+`.ORG` do `.asm` (resolvendo um rótulo via o `.sym` que o asmsx gera).
+Sem `,R` no BLOAD, de propósito: a rotina é chamada (repetidamente) via
+`USR()`, não disparada uma única vez ao carregar. Nada é escrito no
+`.dmx` - a expansão acontece só em memória, a cada compilação. Ver
+`docs/releases/v1.51.0.md`.
+
+---
+
 ## [1.50.0] — 2026-11-27 — bloco **NEW**, feature **asmsx-support** (build 0)
 
 **Fase 4** (última) do plano de 4 fases (autocomplete + man/help +
