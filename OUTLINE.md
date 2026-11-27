@@ -8,8 +8,8 @@
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-27
 (nota: este parágrafo de estado ficou desatualizado em várias rodadas
 recentes - ver `resume.txt`, seção MARCOs, para o estado real mais
-recente; a versão publicada mais recente é a v1.50.0, bloco NEW,
-feature asmsx-support).
+recente; a versão publicada mais recente é a v1.51.0, bloco NEW,
+feature asm-basic-bridge).
 Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
@@ -4011,6 +4011,80 @@ ainda não chamam nenhum desses comandos.
   natural (não bloqueia "suporte ao ASMSX" em si, que já está
   completo): os 3 formatos de ponte Assembly→BASIC que o MSXIDE
   oferece (BLOAD direto / DATA-READ-POKE embutido / `.inc` reusável).
+
+- [x] **Ponte Assembly→BASIC: macro `[INCBLOAD]`** (2026-11-27,
+  v1.51.0) - Fase 5, pedida pelo usuário na sequência da Fase 4: o
+  primeiro dos 3 formatos de ponte do MSXIDE (BLOAD direto), como uma
+  macro Dignified nova em vez de edição automática do `.dmx` -
+  confirmado com o usuário via pergunta fechada (macro recalculada a
+  cada compilação vs. inserção de texto automática no arquivo-fonte;
+  macro escolhida, evita o compilador escrever no arquivo do usuário
+  como efeito colateral de compilar o Assembly).
+
+  `[INCBLOAD]("arquivo.asm")` expande, em cada compilação do `.dmx`,
+  para o equivalente a `BLOAD"ARQUIVO.BIN":DEFUSR=&Hxxxx` - sem `,R`
+  no BLOAD de propósito (`,R` dispara execução automática ao carregar,
+  adequado a um programa que toma conta da máquina inteira, não a uma
+  rotina pensada para ser chamada repetidamente via `USR()`, que é o
+  caso de uso pedido). Exige que `arquivo.asm` já tenha sido compilado
+  (seu `.bin` precisa existir) - a macro só lê artefatos já gerados,
+  nunca chama o asmsx ela mesma, mantendo compilação do Assembly e da
+  BASIC como dois passos desacoplados (já existentes).
+
+  Mecanismo escolhido depois de descartar dois outros: uma instrução
+  Dignified nova em `internal/core` (rejeitada - macro é vocabulário
+  só do MSX, não deveria morar no núcleo compartilhado pelos 3
+  dialetos) e pós-processamento fora do pipeline, direto em
+  `msx.CompileFile` (rejeitada - perderia a numeração de linha
+  automática do core). Escolhido: `BuiltinDefine.Expand`
+  (`internal/core/contract.go`), o mesmo mecanismo que já registra
+  `"[?](x,y)"` pro MSX e `"[?](row,col)"` pro ZX81 - mas `Expand`
+  recebia só os tokens do argumento, sem o `*CompileContext`
+  necessário pra resolver caminho relativo (mesma regra do `INCLUDE`,
+  `ctx.IncludeStack[0]`) nem forma de reportar erro (um `.bin`
+  faltando é falha real de compilação, não algo que uma macro
+  puramente sintática como a do ZX81 precisava expressar). Mudança
+  aditiva em `core.BuiltinDefine.Expand`:
+  `func(args []Token) []Token` →
+  `func(ctx *CompileContext, args []Token) ([]Token, error)` - só 2
+  implementações existentes no repo (MSX e ZX81), ambas atualizadas;
+  `expandDefineCall` (`pipeline.go`) já retornava `([]Token, error)`
+  então o call site simplesmente passou a propagar os dois valores
+  direto.
+
+  Descoberta do endereço de entrada (`internal/platforms/msx/
+  incbload.go`, `resolveEntryAddress`): lê a diretiva `.START` do
+  `.asm` (ou `.ORG`, se não houver `.START`) - se o argumento for um
+  literal (`0x`/`$`/sufixo `h`, ou decimal), usa direto; se for um
+  rótulo, resolve lendo o arquivo `.sym` que o próprio asmsx gera
+  junto com o `.bin` (confirmado lendo `resource/asMSX/src/dura.y`,
+  `write_sym`/`finalize`: só é gerado se o programa define algum
+  símbolo, formato `XXXXh NOME` por linha, `run_address` já resolvido
+  pelo bison antes de chegar lá - nenhuma reimplementação de
+  expressões Z80 foi necessária, só leitura do resultado já calculado
+  pelo asmsx). Limitação conhecida, documentada: um rótulo cujo nome
+  parece um literal hex válido com sufixo `h` (ex. `ABh`) é lido como
+  número em vez de rótulo - a mesma ambiguidade que o próprio asmsx
+  resolve com contexto de tabela de símbolos completo, que esta
+  varredura textual não tem.
+
+  Sintaxe do argumento (`[INCBLOAD]("arquivo.asm")`, nome entre aspas
+  com a extensão completa) escolhida pra espelhar exatamente a
+  convenção já existente do `INCLUDE "arquivo"` - mesma função de
+  "referenciar um arquivo externo por nome".
+
+  Testes novos: `internal/platforms/msx/incbload_test.go` - os 3
+  formatos numéricos do asMSX + decimal, rejeição de nome de rótulo
+  como número, `.START` tendo prioridade sobre `.ORG`, última
+  ocorrência quando repetida, resolução de rótulo via `.sym`, erros
+  (sem `.START`/`.ORG`, símbolo não encontrado no `.sym`, `.bin`
+  ainda não compilado) e um teste de integração completo (`.dmx` real
+  com `[INCBLOAD]`, passando pelo `CompileFile` inteiro até a listagem
+  Classic gerada, confirmando o `BLOAD`/`DEFUSR` certos no texto
+  final). Testado manualmente de ponta a ponta via `goBaDig
+  arquivo.dmx` contra fixtures reais de `.asm`/`.bin`/`.sym`.
+
+  Novo tópico `incbload` em `docs/man/badig.md` (`--man incbload`).
 
 ### Bloco 7 — GUI (Fyne)
 
