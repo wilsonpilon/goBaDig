@@ -5,7 +5,11 @@
 > superado quando necessário. Ver também `resume.txt` (não versionado) para
 > retomar o trabalho em outra máquina/IA com um resumo rápido do estado atual.
 
-Data da primeira análise: 2026-11-05. Última atualização: 2026-11-26.
+Data da primeira análise: 2026-11-05. Última atualização: 2026-11-27
+(nota: este parágrafo de estado ficou desatualizado em várias rodadas
+recentes - ver `resume.txt`, seção MARCOs, para o estado real mais
+recente; a versão publicada mais recente é a v1.47.0, bloco NEW,
+feature editor-autocomplete).
 Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
@@ -3701,6 +3705,62 @@ ainda não chamam nenhum desses comandos.
   confirmado capaz de pegar uma regressão desligando o gancho de
   propósito.
 
+- [x] **Autocomplete no WibEdit** (2026-11-27, v1.47.0), primeira
+  metade do próximo passo já anunciado na v1.46.0. Antes de
+  implementar, o usuário pediu para estudar o **MSXIDE** (projeto
+  próprio dele, `E:\msxide`, **FreeBASIC**, não Go) - investigação
+  confirmou que a arquitetura (popup por prefixo reusando a mesma
+  fonte de dados do dicionário/man, parser de Markdown próprio pro
+  manual/help, ASMSX vendorizado como subprocess com resolução de
+  caminho em cascata) é reaproveitável como **conceito**, sem código
+  Go a portar. A partir dessa investigação + 3 agentes Explore no
+  próprio goBaDig, foi registrado um **plano de 4 fases** (salvo fora
+  do repo em `C:\Users\barney\.claude\plans\`, ver `resume.txt` pro
+  resumo completo): Fase 1 (esta) = autocomplete só com as tabelas
+  já existentes; Fase 2 = motor genérico de "man"/referência +
+  parser de Markdown + visualizador no WibEdit + `--man`/`man
+  <tópico>` reais na CLI (hoje ainda stub, ver nota no Bloco 8/seção
+  10.7); Fase 3 = dicionário MSX Basic completo (dados de
+  `E:\msxide\ajuda`, trazidos e **commitados publicamente** - decisão
+  explícita do usuário, avisado sobre a exposição de conteúdo de
+  terceiros) + ajuda contextual Shift+F1; Fase 4 = suporte ao **ASMSX**
+  (compilador Assembly, `resource/asMSX/`) como ferramenta dentro de
+  projetos MSX BASIC existentes (não um dialeto de projeto separado -
+  decisão explícita do usuário), com `ASMSX_PATH` no catálogo de
+  opções e compilação via subprocess síncrono.
+
+  Implementado nesta rodada: novo `internal/editor/autocomplete.go` -
+  popup ancorado na palavra sendo digitada, reusando
+  `msxKeywords`/`msxFunctions`/`zx81Keywords`/`zx81Functions`/
+  `zxSpectrumKeywords`/`zxSpectrumFunctions` (as mesmas tabelas do
+  destaque de sintaxe) como única fonte de candidatos - nenhum dado
+  externo. `Tab`/`Enter` completa, `Up`/`Down` navega, `Esc` fecha sem
+  completar; qualquer outra tecla cai no fluxo normal do editor e a
+  lista se atualiza/fecha sozinha a partir do callback `changed`/
+  `moved` que `documentView` já expunha. `Editor.Capture` ganhou um
+  terceiro modo de interceptação de tecla (nem "passa tudo" nem
+  "bloqueia tudo", os dois já existentes).
+
+  **Bug real encontrado e corrigido no caminho**: a primeira versão do
+  popup copiava o mecanismo do `editorDropdown` (página nova em
+  `tview.Pages`) - isso quebrava a digitação por completo depois do
+  popup abrir uma vez. Causa raiz confirmada lendo o código-fonte de
+  `rivo/tview@v0.42.0` (`pages.go:88-90`): `Pages.AddPage` **rouba o
+  foco** pra página recém-adicionada sempre que o container já tem
+  foco, e `*tview.Box` não tem `InputHandler` próprio - toda tecla
+  seguinte era engolida em silêncio. Corrigido abandonando `Pages` pro
+  popup: `Editor` ganhou um método `Draw` próprio que desenha o popup
+  direto por cima de `Pages.Draw`, sem nunca criar página nem tocar
+  foco - mesma classe de bug (mecanismo do `tview` com efeito colateral
+  não-óbvio) que já tinha custado a investigação do "congelamento" do
+  Setup > Install em 2026-11-20.
+
+  Teste novo (`internal/editor/autocomplete_test.go`, 7 casos): abre
+  com o candidato certo nos 3 dialetos, `Tab` confirma e substitui o
+  prefixo, `Esc` fecha sem alterar texto, espaço fecha sozinho (sai da
+  palavra), setas navegam com wrap-around, nunca abre sem dialeto
+  reconhecido.
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
@@ -3759,8 +3819,14 @@ Notepad++/UltraEdit (opcional, "se for possível").
   de sintaxe por dialeto adicionado em 2026-11-27 (v1.46.0)** -
   baseado no MESMO material Sublime/VSCode listado acima, ver Bloco
   6 pro detalhamento completo (tokenizador próprio, independente do
-  lexer da compilação). Autocomplete e ajuda sensível ao contexto
-  (pedidos pelo usuário como próximos passos) ainda não existem.
+  lexer da compilação). **Autocomplete adicionado em 2026-11-27
+  (v1.47.0)** - ver Bloco 6 pro detalhamento completo. Ajuda sensível
+  ao contexto (dicionário MSX Basic completo + Shift+F1) ainda não
+  existe - é a Fase 3 do plano de 4 fases registrado junto com o
+  autocomplete (ver Bloco 6), que também cobre um `--man` real (hoje
+  ainda 100% stub em `internal/about/about.go`, inclusive com texto
+  desatualizado - ver seção 10.7) e suporte ao compilador **ASMSX**
+  (Fase 4, ver `resource/asMSX/`).
 - [ ] Avaliar viabilidade de realce de sintaxe para Notepad++ e
   UltraEdit (UDL). — **B** (avaliação), **3**
 
