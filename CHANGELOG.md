@@ -35,6 +35,61 @@ exata do pacote.
 
 ---
 
+## [1.47.0] — 2026-11-27 — bloco **NEW**, feature **editor-autocomplete** (build 0)
+
+**Autocomplete no WibEdit**, primeira metade do próximo passo já
+anunciado na v1.46.0 ("depois vamos usar o autocomplete e o help
+sensível ao contexto"). Pedido do usuário antes de implementar: dar uma
+olhada no MSXIDE (projeto próprio dele, FreeBASIC) pra estudar como ele
+já resolve help/autocomplete/man - confirmado que a arquitetura é
+reaproveitável como conceito (popup por prefixo, mesma fonte de dados
+do destaque de sintaxe/dicionário), mas não há código Go a portar (é
+FreeBASIC). Decisão de escopo: usar só as tabelas de palavra-chave/
+função já existentes (`internal/editor/syntax_keywords.go`), sem
+dicionário externo nesta rodada - isso fica para uma rodada futura.
+
+### Adicionado
+
+- `internal/editor/autocomplete.go`: popup de autocomplete por
+  prefixo, ancorado na palavra sendo digitada. Reusa as mesmas tabelas
+  `msxKeywords`/`msxFunctions`/`zx81Keywords`/`zx81Functions`/
+  `zxSpectrumKeywords`/`zxSpectrumFunctions` do destaque de sintaxe
+  (v1.46.0) como única fonte de candidatos - nenhum dado novo. `Tab`/
+  `Enter` completa a palavra, `Up`/`Down` navega entre as opções,
+  `Esc` fecha sem completar; qualquer outra tecla (espaço, pontuação,
+  as setas esquerda/direita, Backspace) cai no fluxo normal do editor
+  e a lista se atualiza ou fecha sozinha a partir do novo estado do
+  cursor/texto.
+- `Editor.Capture` (`internal/editor/editor.go`) ganhou um terceiro
+  modo de interceptação de tecla que não existia antes: nem "passa
+  tudo" (documento normal) nem "bloqueia tudo" (menu/diálogo/outline
+  já existentes) - só as cinco teclas acima são roubadas enquanto o
+  popup está aberto, o resto sempre cai pro fluxo padrão.
+
+### Corrigido no caminho (achado implementando, não planejado)
+
+- Uma primeira versão do popup usava o mesmo mecanismo do menu
+  suspenso (`editorDropdown`): uma página nova em `tview.Pages`. Isso
+  quebrava a digitação por completo depois do popup abrir uma vez -
+  causa raiz: `tview.Pages.AddPage` **rouba o foco** pra página recém-
+  adicionada sempre que o container já tem foco
+  (`rivo/tview@v0.42.0/pages.go:88-90`), e `*tview.Box` não tem
+  `InputHandler` próprio, então toda tecla seguinte era engolida em
+  silêncio. Corrigido abandonando `Pages` pro popup: `Editor` ganhou
+  um método `Draw` próprio que desenha o popup diretamente por cima de
+  `Pages.Draw`, sem nunca criar uma página nem tocar foco - o foco
+  nunca saiu do documento, exatamente a intenção original.
+
+### Verificado
+
+- `internal/editor/autocomplete_test.go`: popup abre com o candidato
+  certo (MSX/ZX81/ZX Spectrum), `Tab` confirma e substitui o prefixo,
+  `Esc` fecha sem alterar o texto, espaço fecha sozinho (sai da
+  palavra), setas navegam entre várias opções com wrap-around, nunca
+  abre num documento sem dialeto reconhecido.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.46.0] — 2026-11-27 — bloco **NEW**, feature **editor-syntax-highlight** (build 0)
 
 **Destaque de sintaxe no WibEdit**, pedido explícito do usuário:

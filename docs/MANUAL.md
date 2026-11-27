@@ -168,7 +168,9 @@ Manager`** e faz dele o centro de controle do programa: criar arquivo
 inicial) abrem direto no editor, e arquivos de interesse (fonte,
 listagem clássica, artefato compilado) ganham cor e ícone próprios.
 **`v1.46.0`** traz **destaque de sintaxe** pro WibEdit, pros três
-dialetos — ver seção 5 abaixo.
+dialetos — ver seção 5 abaixo. **`v1.47.0`** acrescenta **autocomplete
+por prefixo** no WibEdit, reusando as mesmas tabelas de palavra-chave/
+função do destaque de sintaxe.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -243,8 +245,15 @@ goBaDig será construída. Desde a `v1.46.0`, abrir um arquivo
 Spectrum) já vem com **destaque de sintaxe** próprio daquele dialeto
 — palavras-chave, funções, comentários, strings, números e labels
 (`{nome}`) cada um com sua própria cor; qualquer outro arquivo abre
-sem destaque, como texto comum. Autocomplete e ajuda sensível ao
-contexto ainda não existem — ficam para os próximos passos.
+sem destaque, como texto comum. Desde a `v1.47.0`, o WibEdit também
+tem **autocomplete por prefixo**: ao digitar 3+ letras que combinem
+com uma palavra-chave/função do dialeto do arquivo aberto, uma lista
+de sugestões aparece ancorada no cursor; `Tab`/`Enter` completa,
+`Up`/`Down` navega entre as opções, `Esc` fecha sem completar (ou
+digitar um espaço/pontuação, que sai da palavra e fecha a lista
+sozinha). Mesma fonte de dados do destaque de sintaxe (palavras-chave/
+funções por dialeto) — nenhum dicionário externo ainda. Ajuda
+sensível ao contexto ainda não existe — fica para os próximos passos.
 
 Na TUI, o menu **`File > File Manager`** (desde a `v1.41.0`, menu
 consolidado na `v1.42.0` - era um menu `Files` separado) abre o
