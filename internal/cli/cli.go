@@ -10,11 +10,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
+	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/dialect"
 	"github.com/wilsonpilon/goBaDig/internal/man"
+	"github.com/wilsonpilon/goBaDig/internal/platforms/msx"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
@@ -185,14 +188,49 @@ func compileFileArg(args []string) (string, bool) {
 // msx.CompileFile/zx81.CompileFile/zxspectrum.CompileFile, each
 // wrapping its own core.Run/Tokenize - already existed and was
 // validated on its own; this is just the CLI entry point to it,
-// dispatching by extension - ver internal/dialect.
+// dispatching by extension - ver internal/dialect. `goBaDig
+// <arquivo.asm>` is the same entry point for ASMSX (Fase 4 of the
+// autocomplete+man/help+ASMSX plan, ver OUTLINE.md) - not part of
+// dialect.CompileByExtension's own switch, since ASMSX is an
+// MSX-specific tool, not a Dignified dialect.
 func runCompile(path string) int {
+	if strings.EqualFold(filepath.Ext(path), ".asm") {
+		return runCompileAsm(path)
+	}
 	classicPath, binaryPath, err := dialect.CompileByExtension(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
 		return 1
 	}
 	fmt.Fprintf(os.Stdout, "Convertido: %s\n  -> %s\n  -> %s\n", path, classicPath, binaryPath)
+	return 0
+}
+
+// runCompileAsm resolves the asMSX executable (opening the settings
+// store so a configured ASMSX_PATH is honored, same as the console's
+// own executeCompileAsm) and compiles path with it.
+func runCompileAsm(path string) int {
+	store, err := config.OpenDefault()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
+		return 1
+	}
+	defer store.Close()
+
+	asmsxExe, err := msx.ResolveAsmsxPath(store)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
+		return 1
+	}
+	binPath, output, err := msx.CompileAsm(path, asmsxExe)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
+		return 1
+	}
+	if output != "" {
+		fmt.Fprintln(os.Stdout, output)
+	}
+	fmt.Fprintf(os.Stdout, "Compilado: %s\n  -> %s\n", path, binPath)
 	return 0
 }
 

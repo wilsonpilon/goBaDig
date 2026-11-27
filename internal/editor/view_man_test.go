@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
+
+	"github.com/wilsonpilon/goBaDig/internal/man"
 )
 
 func TestManDisplayOpensTheIndexWithATOC(t *testing.T) {
@@ -39,9 +41,18 @@ func TestManViewEnterOpensALinkedTopicAndEscGoesBack(t *testing.T) {
 	editor.execute(command)
 
 	view := editor.manView
-	// Move the selection to the first TOC entry and activate it.
+	// Move the selection to the first TOC entry and activate it. The
+	// TOC's own Title is the lookup KEY (man.Lookup(wantTopic)), not
+	// necessarily the destination page's own display Title - true for
+	// most topics, but deliberately not for "asmsx" (whose Page.Title
+	// is the manual's own real heading) - so compare against whatever
+	// man.Lookup itself returns, not the key string directly.
 	view.selected = view.page().TOC[0].Line
 	wantTopic := view.page().TOC[0].Title
+	wantPage, err := man.Lookup(wantTopic)
+	if err != nil {
+		t.Fatalf("man.Lookup(%q): %v", wantTopic, err)
+	}
 
 	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
 	if editor.manView == nil {
@@ -50,8 +61,8 @@ func TestManViewEnterOpensALinkedTopicAndEscGoesBack(t *testing.T) {
 	if len(editor.manView.history) != 2 {
 		t.Fatalf("history length = %d, want 2", len(editor.manView.history))
 	}
-	if got := editor.manView.page().Title; got != wantTopic {
-		t.Fatalf("opened topic = %q, want %q", got, wantTopic)
+	if got := editor.manView.page().Title; got != wantPage.Title {
+		t.Fatalf("opened topic = %q, want %q", got, wantPage.Title)
 	}
 
 	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone))

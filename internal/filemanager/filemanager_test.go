@@ -141,6 +141,33 @@ func TestF2CompilesTheSelectedFile(t *testing.T) {
 	}
 }
 
+// TestF2DispatchesAsmFilesToAsmsx confirms ".asm" is routed into the
+// ASMSX branch (not dialect.CompileByExtension, which would reject it
+// as an unrecognized dialect) - PATH is pointed at an empty directory
+// so asmsx can never actually be found; CompileAsm's own real
+// subprocess/output logic is covered separately, deeply, in
+// internal/platforms/msx/asmsx_test.go, so this only needs to confirm
+// the dispatch itself happened.
+func TestF2DispatchesAsmFilesToAsmsx(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir()
+	file := filepath.Join(dir, "game.asm")
+	if err := os.WriteFile(file, []byte("; nothing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fm := NewFileManager(tview.NewApplication(), newTestStore(t), DefaultColors(), nil, nil)
+	if err := fm.current().load(dir); err != nil {
+		t.Fatal(err)
+	}
+	fm.current().table.Select(indexOf(t, fm.current(), "game.asm"), 0)
+	fm.Capture(keyEvent(tcell.KeyF2))
+
+	status := fm.status.GetText(true)
+	if !strings.Contains(status, "asmsx") {
+		t.Fatalf("status = %q, want it to mention asmsx (confirms .asm was dispatched to ASMSX, not CompileByExtension)", status)
+	}
+}
+
 func TestF9ReportsAnErrorWhenNoEmulatorIsOnPathButStillBuildsTheArtifact(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	dir := t.TempDir()

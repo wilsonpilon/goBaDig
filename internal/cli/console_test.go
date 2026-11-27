@@ -376,6 +376,38 @@ func TestCompileCommandWithoutAnArgumentShowsUsage(t *testing.T) {
 	}
 }
 
+// TestCompileCommandDispatchesAsmFilesToAsmsx confirms ".asm" is
+// routed into the ASMSX branch (not dialect.CompileByExtension, which
+// would reject it as an unrecognized dialect) - PATH is pointed at an
+// empty directory so asmsx can never actually be found. A real,
+// isolated store is required: executeCompileAsm opens the default
+// settings database (config.OpenDefault, the real user's AppData
+// file) when state.store is nil, which a test must never do -
+// CompileAsm's own real subprocess/output logic is covered
+// separately, deeply, in internal/platforms/msx/asmsx_test.go, so
+// this only needs to confirm the dispatch itself happened.
+func TestCompileCommandDispatchesAsmFilesToAsmsx(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	store, err := config.Open(filepath.Join(t.TempDir(), "settings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	asmPath := filepath.Join(t.TempDir(), "game.asm")
+	if err := os.WriteFile(asmPath, []byte("; nothing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	state := &consoleState{out: &out, store: store}
+	state.executeCompile(asmPath)
+
+	if !strings.Contains(out.String(), "asmsx") {
+		t.Fatalf("executeCompile(%s) output missing mention of asmsx; got: %s", asmPath, out.String())
+	}
+}
+
 func TestCompileCommandReportsErrorForMissingFile(t *testing.T) {
 	var out bytes.Buffer
 	state := &consoleState{out: &out}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/dialect"
 	"github.com/wilsonpilon/goBaDig/internal/man"
 	"github.com/wilsonpilon/goBaDig/internal/options"
+	"github.com/wilsonpilon/goBaDig/internal/platforms/msx"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
@@ -363,13 +365,22 @@ func (s *consoleState) printOptions(category string) error {
 }
 
 // executeCompile implements the console's own "compile
-// <arquivo.dmx|arquivo.dzx|arquivo.dzs>" command - the interactive-mode
-// counterpart to "goBaDig <arquivo.dmx>" at the non-interactive
-// command line (ver cli.go's own runCompile), both wrapping the same
-// dialect.CompileByExtension dispatch (internal/dialect).
+// <arquivo.dmx|arquivo.dzx|arquivo.dzs|arquivo.asm>" command - the
+// interactive-mode counterpart to "goBaDig <arquivo.dmx>" at the
+// non-interactive command line (ver cli.go's own runCompile), both
+// wrapping the same dialect.CompileByExtension dispatch
+// (internal/dialect) for the three Dignified dialects, plus an ASMSX
+// branch (Fase 4 of the autocomplete+man/help+ASMSX plan, ver
+// OUTLINE.md) for ".asm" - not part of dialect.CompileByExtension's
+// own switch, since ASMSX is an MSX-specific tool, not a Dignified
+// dialect.
 func (s *consoleState) executeCompile(path string) {
 	if path == "" {
-		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx|arquivo.dzx|arquivo.dzs>")
+		fmt.Fprintln(s.out, "uso: compile <arquivo.dmx|arquivo.dzx|arquivo.dzs|arquivo.asm>")
+		return
+	}
+	if strings.EqualFold(filepath.Ext(path), ".asm") {
+		s.executeCompileAsm(path)
 		return
 	}
 	classicPath, binaryPath, err := dialect.CompileByExtension(path)
@@ -378,6 +389,32 @@ func (s *consoleState) executeCompile(path string) {
 		return
 	}
 	fmt.Fprintf(s.out, "Convertido: %s\n  -> %s\n  -> %s\n", path, classicPath, binaryPath)
+}
+
+// executeCompileAsm resolves the asMSX executable (internal/options'
+// ASMSX_PATH, falling back to PATH - ver internal/platforms/msx's own
+// ResolveAsmsxPath) and compiles path with it, opening the settings
+// store first if this console session hasn't already (same lazy
+// "do it on first use" shape as loadOptions/loadTheme).
+func (s *consoleState) executeCompileAsm(path string) {
+	if err := s.openStore(); err != nil {
+		fmt.Fprintf(s.out, "erro ao abrir configurações: %v\n", err)
+		return
+	}
+	asmsxExe, err := msx.ResolveAsmsxPath(s.store)
+	if err != nil {
+		fmt.Fprintf(s.out, "erro: %v\n", err)
+		return
+	}
+	binPath, output, err := msx.CompileAsm(path, asmsxExe)
+	if err != nil {
+		fmt.Fprintf(s.out, "erro: %v\n", err)
+		return
+	}
+	if output != "" {
+		fmt.Fprintln(s.out, output)
+	}
+	fmt.Fprintf(s.out, "Compilado: %s\n  -> %s\n", path, binPath)
 }
 
 // executeExecute implements the console's own "execute

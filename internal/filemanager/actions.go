@@ -5,14 +5,26 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wilsonpilon/goBaDig/internal/dialect"
+	"github.com/wilsonpilon/goBaDig/internal/platforms/msx"
 )
 
+// compileSelected dispatches by extension: the three Dignified
+// dialects go through dialect.CompileByExtension, and ".asm" goes
+// through ASMSX instead (Fase 4 of the autocomplete+man/help+ASMSX
+// plan, ver OUTLINE.md) - not part of dialect.CompileByExtension's
+// own switch, since ASMSX is an MSX-specific tool, not a Dignified
+// dialect.
 func (fm *FileManager) compileSelected() {
 	path, ok := fm.current().selectedPath()
 	if !ok {
 		fm.setStatus(" selecione um arquivo pra compilar")
+		return
+	}
+	if strings.EqualFold(filepath.Ext(path), ".asm") {
+		fm.compileAsmSelected(path)
 		return
 	}
 	classicPath, binaryPath, err := dialect.CompileByExtension(path)
@@ -22,6 +34,24 @@ func (fm *FileManager) compileSelected() {
 	}
 	_ = fm.current().reload()
 	fm.setStatus(fmt.Sprintf(" compilado: %s + %s", filepath.Base(classicPath), filepath.Base(binaryPath)))
+}
+
+// compileAsmSelected resolves the asMSX executable (internal/options'
+// ASMSX_PATH, via the file manager's own settings store - ver
+// internal/platforms/msx's ResolveAsmsxPath) and compiles path with it.
+func (fm *FileManager) compileAsmSelected(path string) {
+	asmsxExe, err := msx.ResolveAsmsxPath(fm.store)
+	if err != nil {
+		fm.setStatus(fmt.Sprintf(" erro ao compilar: %v", err))
+		return
+	}
+	binPath, _, err := msx.CompileAsm(path, asmsxExe)
+	if err != nil {
+		fm.setStatus(fmt.Sprintf(" erro ao compilar: %v", err))
+		return
+	}
+	_ = fm.current().reload()
+	fm.setStatus(fmt.Sprintf(" compilado: %s", filepath.Base(binPath)))
 }
 
 // executeSelected uses the platform's default emulator (empty

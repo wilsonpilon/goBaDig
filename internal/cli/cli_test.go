@@ -78,6 +78,33 @@ func TestRunManWithAnUnknownTopicFails(t *testing.T) {
 	}
 }
 
+// TestRunCompileDispatchesAsmFilesToAsmsx confirms ".asm" is routed
+// into the ASMSX branch (not dialect.CompileByExtension, which would
+// reject it as an unrecognized dialect) - PATH is pointed at an empty
+// directory so asmsx can never actually be found. runCompileAsm opens
+// the real default settings store (config.OpenDefault) the same way
+// an actual "goBaDig foo.asm" invocation would - there is no
+// per-call override for this single-shot entry point, so this test
+// accepts that minor, idempotent real-environment touch (same as any
+// normal run of the compiled program); CompileAsm's own real
+// subprocess/output logic is covered separately, deeply, in
+// internal/platforms/msx/asmsx_test.go.
+func TestRunCompileDispatchesAsmFilesToAsmsx(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	asmPath := filepath.Join(t.TempDir(), "game.asm")
+	if err := os.WriteFile(asmPath, []byte("; nothing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handled, code := Run([]string{asmPath})
+	if !handled {
+		t.Fatal("Run(game.asm): expected handled=true")
+	}
+	if code != 1 {
+		t.Fatalf("Run(game.asm) with no asmsx on PATH: code = %d, want 1", code)
+	}
+}
+
 func TestRunLeavesInteractiveModesToCaller(t *testing.T) {
 	for _, args := range [][]string{{"--tui"}, {"--gui"}, {"--cli"}} {
 		handled, _ := Run(args)

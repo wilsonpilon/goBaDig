@@ -112,7 +112,7 @@ func FindMsxDictEntry(keyword string) (MsxDictEntry, bool) {
 		}
 	}
 	for _, e := range msxDict {
-		for _, part := range strings.Split(e.Title, "-") {
+		for part := range strings.SplitSeq(e.Title, "-") {
 			if strings.ToUpper(strings.TrimSpace(part)) == key {
 				return e, true
 			}

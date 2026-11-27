@@ -10,15 +10,28 @@ import (
 
 // topics holds every page this registry can serve, keyed by lowercase
 // topic title, built once from the embedded Markdown sources at
-// startup. Fase 3 adds the MSX BASIC dictionary here too (preferred
-// over a plain Markdown page when both exist for the same keyword);
-// Fase 4 adds an "asmsx" topic the same way Badig is added below.
+// startup. The MSX BASIC dictionary (dict.go) is looked up separately
+// in Lookup, below, and preferred over a plain Markdown page when
+// both exist for the same keyword.
 var topics = buildTopics()
 
 func buildTopics() map[string]Page {
 	pages := make(map[string]Page)
 	addMarkdownSource(pages, docsman.Badig)
+	addMarkdownTopic(pages, "asmsx", docsman.Asmsx)
 	return pages
+}
+
+// addMarkdownTopic registers src as a single topic under the given
+// key, regardless of the heading text its own content parses to -
+// unlike addMarkdownSource (below), for a source that is already one
+// whole manual on its own (docs/man/asmsx.md: the asMSX compiler's
+// own manual, vendored from resource/asMSX/doc/asmsx.md, keeping its
+// own real title - "asMSX - MSX cross assembler" - as Page.Title for
+// display, while still being reachable as the short, memorable "man
+// asmsx").
+func addMarkdownTopic(pages map[string]Page, key, src string) {
+	pages[strings.ToLower(key)] = ParseMarkdown(src)
 }
 
 // addMarkdownSource splits src's top-level ("# ") sections into
@@ -42,7 +55,7 @@ func addMarkdownSource(pages map[string]Page, src string) {
 func splitTopLevelSections(src string) []string {
 	var sections []string
 	var current []string
-	for _, line := range strings.Split(src, "\n") {
+	for line := range strings.SplitSeq(src, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "# ") && len(current) > 0 {
 			sections = append(sections, strings.Join(current, "\n"))
 			current = nil
@@ -97,7 +110,13 @@ func Index() Page {
 	page.Lines = append(page.Lines, Line{Text: page.Title, Style: StyleHeading1})
 	page.Lines = append(page.Lines, Line{Text: "Comandos do goBaDig", Style: StyleHeading2})
 	for _, name := range names {
-		page.TOC = append(page.TOC, TOCEntry{Title: topics[name].Title, Line: len(page.Lines)})
+		// TOCEntry.Title must be exactly what Lookup resolves (the
+		// registry key), not the page's own display Title - the two
+		// coincide for badig.md's topics but not for "asmsx" (its
+		// Page.Title is the manual's own real heading, "asMSX - MSX
+		// cross assembler", kept for display; the lookup key stays
+		// the short "asmsx").
+		page.TOC = append(page.TOC, TOCEntry{Title: name, Line: len(page.Lines)})
 		page.Lines = append(page.Lines, Line{Text: "- " + topics[name].Title, Style: StyleBullet})
 	}
 	page.Lines = append(page.Lines, Line{Text: "BASIC", Style: StyleHeading2})

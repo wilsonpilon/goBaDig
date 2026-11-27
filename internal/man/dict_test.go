@@ -127,6 +127,40 @@ func TestLookupMsxPseudoTopicOpensTheDictionaryIndex(t *testing.T) {
 	}
 }
 
+func TestLookupAsmsxReturnsTheAsmsxManual(t *testing.T) {
+	for _, topic := range []string{"asmsx", "ASMSX", " asmsx "} {
+		page, err := Lookup(topic)
+		if err != nil {
+			t.Fatalf("Lookup(%q) error: %v", topic, err)
+		}
+		if !strings.Contains(page.Title, "asMSX") {
+			t.Fatalf("Lookup(%q).Title = %q, want it to mention asMSX", topic, page.Title)
+		}
+		if len(page.Lines) < 10 {
+			t.Fatalf("Lookup(%q) has only %d lines, looks truncated", topic, len(page.Lines))
+		}
+	}
+}
+
+func TestIndexLinksToAsmsxByItsShortKeyNotItsDisplayTitle(t *testing.T) {
+	index := Index()
+	var asmsxEntry *TOCEntry
+	for i, entry := range index.TOC {
+		if entry.Title == "asmsx" {
+			asmsxEntry = &index.TOC[i]
+		}
+	}
+	if asmsxEntry == nil {
+		t.Fatal(`Index() is missing a TOC entry whose Title is exactly "asmsx"`)
+	}
+	// The bullet text shown to the user should still be the manual's
+	// own real title, not the short lookup key.
+	line := index.Lines[asmsxEntry.Line]
+	if !strings.Contains(line.Text, "asMSX") {
+		t.Fatalf("displayed line = %q, want it to mention asMSX", line.Text)
+	}
+}
+
 func TestIndexLinksToTheMsxDictionary(t *testing.T) {
 	index := Index()
 	found := false

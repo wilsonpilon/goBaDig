@@ -212,6 +212,8 @@ func Catalog() []Field {
 			Description: "Nível de detalhe das mensagens do emulador.", Min: new(0), Max: new(4)}, // verbose (emulator)
 		{Category: CategoryMSX, Key: "EMULATOR_PATH", Type: TypeString, Default: "",
 			Description: "Caminho do executável do openMSX."}, // emulator_path
+		{Category: CategoryMSX, Key: "ASMSX_PATH", Type: TypeString, Default: "",
+			Description: "Caminho do executável do asMSX (compilador Z80 Assembly)."}, // no Python equivalent - goBaDig-only, ver OUTLINE.md "suporte ao ASMSX"
 
 		// --- zx81 (zx81/tokenizer_interface.py + emulator_interface.py; badig_zx81.py has no dialect-specific options of its own) ---
 		{Category: CategoryZX81, Key: "TOKENIZE", Type: TypeBool, Default: "true",
