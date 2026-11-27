@@ -1,6 +1,9 @@
 package edit
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -82,6 +85,98 @@ func TestManViewUpDownNavigateSelection(t *testing.T) {
 	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone))
 	if view.selected != start {
 		t.Fatalf("selected after Up = %d, want %d", view.selected, start)
+	}
+}
+
+func TestShiftF1OpensTheDictionaryEntryForTheWordUnderTheCursor(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "game.dmx")
+	if err := os.WriteFile(path, []byte("PRINT 1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	editor.area.document.cursor = documentPosition{line: 0, character: 3}
+
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModShift))
+	if editor.manView == nil {
+		t.Fatal("Shift+F1 did not open the Manual viewer")
+	}
+	if got := editor.manView.page().Title; got != "PRINT" {
+		t.Fatalf("opened page title = %q, want PRINT", got)
+	}
+}
+
+func TestShiftF1NormalizesTheQuestionMarkShorthandToPrint(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "game.dmx")
+	if err := os.WriteFile(path, []byte("? 1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	editor.area.document.cursor = documentPosition{line: 0, character: 0}
+
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF13, 0, tcell.ModNone))
+	if editor.manView == nil {
+		t.Fatal("Shift+F1 (KeyF13) did not open the Manual viewer")
+	}
+	if got := editor.manView.page().Title; got != "PRINT" {
+		t.Fatalf("opened page title = %q, want PRINT", got)
+	}
+}
+
+func TestShiftF1ReportsAnUnknownWordInsteadOfOpeningAnything(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "game.dmx")
+	if err := os.WriteFile(path, []byte("NAOEXISTE"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	editor.area.document.cursor = documentPosition{line: 0, character: 3}
+
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModShift))
+	if editor.manView != nil {
+		t.Fatal("Shift+F1 opened the Manual viewer for an unknown word")
+	}
+	if !strings.Contains(editor.notice, "NAOEXISTE") {
+		t.Fatalf("notice = %q, want it to mention the unknown word", editor.notice)
+	}
+}
+
+func TestShiftF1FallsBackToTheGeneralIndexOutsideMsx(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "game.dzx")
+	if err := os.WriteFile(path, []byte("PRINT 1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	editor.area.document.cursor = documentPosition{line: 0, character: 3}
+
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModShift))
+	if editor.manView == nil {
+		t.Fatal("Shift+F1 outside MSX should fall back to the general index")
+	}
+	if len(editor.manView.page().TOC) == 0 {
+		t.Fatal("fallback page has no TOC - doesn't look like the general index")
+	}
+}
+
+func TestPlainF1StillOpensTheHelpMenuUnaffectedByShiftF1(t *testing.T) {
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))
+	if !editor.menuOpen || editor.currentMenu != 'H' {
+		t.Fatal("plain F1 should still open the Help menu")
 	}
 }
 

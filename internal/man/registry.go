@@ -57,14 +57,30 @@ func splitTopLevelSections(src string) []string {
 
 // Lookup finds a topic by name (case-insensitive) - the CLI's "man
 // <tópico>"/"--man <tópico>", and WibEdit's Manual viewer following a
-// TOC link (view_man.go).
+// TOC link (view_man.go), and Shift+F1's contextual lookup
+// (internal/editor). The MSX BASIC dictionary (dict.go) is tried
+// first - its keywords never collide with the goBaDig command topics
+// below, but a verbete always wins if they ever do, since it is the
+// more specific reference for an actual BASIC keyword.
 func Lookup(topic string) (Page, error) {
+	if entry, ok := FindMsxDictEntry(topic); ok {
+		return entry.Page(), nil
+	}
 	key := strings.ToLower(strings.TrimSpace(topic))
+	if key == msxDictTopic {
+		return MsxDictIndex(), nil
+	}
 	if page, ok := topics[key]; ok {
 		return page, nil
 	}
 	return Page{}, fmt.Errorf("tópico de man desconhecido: %q (use \"man\" sem argumento para ver o índice)", topic)
 }
+
+// msxDictTopic is the reserved pseudo-topic ("man msx") that opens the
+// MSX BASIC dictionary's own index (dict.go's MsxDictIndex) - not a
+// real dictionary keyword, so it is checked separately from
+// FindMsxDictEntry above.
+const msxDictTopic = "msx"
 
 // Index lists every available topic as a Page of its own, each line
 // linked via TOC so a viewer can jump straight into it - the "man"/
@@ -79,9 +95,16 @@ func Index() Page {
 
 	page := Page{Title: "goBaDig - índice do manual"}
 	page.Lines = append(page.Lines, Line{Text: page.Title, Style: StyleHeading1})
+	page.Lines = append(page.Lines, Line{Text: "Comandos do goBaDig", Style: StyleHeading2})
 	for _, name := range names {
 		page.TOC = append(page.TOC, TOCEntry{Title: topics[name].Title, Line: len(page.Lines)})
 		page.Lines = append(page.Lines, Line{Text: "- " + topics[name].Title, Style: StyleBullet})
 	}
+	page.Lines = append(page.Lines, Line{Text: "BASIC", Style: StyleHeading2})
+	page.TOC = append(page.TOC, TOCEntry{Title: msxDictTopic, Line: len(page.Lines)})
+	page.Lines = append(page.Lines, Line{
+		Text:  fmt.Sprintf("- Dicionário MSX BASIC (%d verbetes)", len(msxDict)),
+		Style: StyleBullet,
+	})
 	return page
 }

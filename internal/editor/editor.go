@@ -736,6 +736,12 @@ func (e *Editor) Capture(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
+	if isShiftF1(event) {
+		if !e.menuOpen {
+			e.contextualHelp()
+		}
+		return nil
+	}
 	if event.Key() == tcell.KeyF1 {
 		if e.menuOpen {
 			e.showHelp(e.dropdown.items[e.dropdown.selected].id)

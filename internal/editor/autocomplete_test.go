@@ -39,6 +39,41 @@ func TestAutocompletePopupOpensWithMatchingCandidate(t *testing.T) {
 	}
 }
 
+func TestAutocompleteOffersAWordFromAMsxDictCompoundTitle(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "game.dmx")
+	if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, screen := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	drawEditor(editor, screen)
+
+	// "RETURN" only exists in the MSX dictionary as half of the
+	// compound title "GOSUB-RETURN" - this only works once
+	// candidatesFor pulls from man.AutocompleteWords(), not just the
+	// plain msxKeywords/msxFunctions tables.
+	for _, r := range "RET" {
+		sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone))
+	}
+	drawEditor(editor, screen)
+
+	if editor.ac == nil {
+		t.Fatal(`typing "RET" did not open the autocomplete popup`)
+	}
+	found := false
+	for _, c := range editor.ac.candidates {
+		if c == "RETURN" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("candidates = %v, want RETURN among them", editor.ac.candidates)
+	}
+}
+
 func TestAutocompleteTabConfirmsAndReplacesPrefix(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "game.dmx")

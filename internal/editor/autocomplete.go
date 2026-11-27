@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+
+	"github.com/wilsonpilon/goBaDig/internal/man"
 )
 
 // maxAutocompleteCandidates caps how many matches the popup ever shows
@@ -104,6 +106,45 @@ func wordPrefixBeforeCursor(d *document) (string, documentPosition) {
 	return prefix.String(), documentPosition{line: cursor.line, character: start}
 }
 
+// wordAtCursor returns the whole word touching the cursor on its own
+// line, scanning both backward and forward (unlike
+// wordPrefixBeforeCursor, which only looks backward for a partial,
+// still-being-typed prefix) - used by Shift+F1's contextual help
+// (view_man.go), which needs the complete word under/next to the
+// cursor rather than whatever was typed so far. Empty if the cursor
+// isn't on or adjacent to a word character at all.
+func wordAtCursor(d *document) string {
+	cursor := d.cursor
+	line := d.lines[cursor.line]
+	start := cursor.character
+	for start > 0 {
+		cell := line.cells[start-1]
+		if len(cell.text) != 1 || !isWordChar(cell.text[0]) {
+			break
+		}
+		start--
+	}
+	end := cursor.character
+	for end < len(line.cells) {
+		cell := line.cells[end]
+		if len(cell.text) != 1 || !isWordChar(cell.text[0]) {
+			break
+		}
+		end++
+	}
+	if start == end {
+		if cursor.character < len(line.cells) && line.cells[cursor.character].text == "?" {
+			return "?"
+		}
+		return ""
+	}
+	var word strings.Builder
+	for _, cell := range line.cells[start:end] {
+		word.WriteString(cell.text)
+	}
+	return word.String()
+}
+
 // candidatesFor combines a dialect's keyword and function tables
 // (syntax_keywords.go) into a sorted, capped, case-insensitive
 // prefix-match candidate list. Excludes a candidate identical to the
@@ -114,23 +155,46 @@ func candidatesFor(dialect syntaxDialect, prefix string) []string {
 		return nil
 	}
 	upperPrefix := strings.ToUpper(prefix)
-	var tables []map[string]bool
+	var words []string
 	switch dialect {
 	case dialectMSX:
-		tables = []map[string]bool{msxKeywords, msxFunctions}
+		// The book-derived dictionary (internal/man) is the richer
+		// source - it also knows compound keywords the plain syntax
+		// table doesn't split out (e.g. "RETURN" out of "GOSUB-
+		// RETURN"). msxKeywords/msxFunctions stay in the mix as a
+		// fallback for anything tokenizable that isn't in the 1986
+		// book (ver OUTLINE.md, "dicionário MSX Basic completo").
+		words = man.AutocompleteWords()
+		for word := range msxKeywords {
+			words = append(words, word)
+		}
+		for word := range msxFunctions {
+			words = append(words, word)
+		}
 	case dialectZX81:
-		tables = []map[string]bool{zx81Keywords, zx81Functions}
+		for word := range zx81Keywords {
+			words = append(words, word)
+		}
+		for word := range zx81Functions {
+			words = append(words, word)
+		}
 	case dialectZXSpectrum:
-		tables = []map[string]bool{zxSpectrumKeywords, zxSpectrumFunctions}
+		for word := range zxSpectrumKeywords {
+			words = append(words, word)
+		}
+		for word := range zxSpectrumFunctions {
+			words = append(words, word)
+		}
 	default:
 		return nil
 	}
+
+	seen := make(map[string]bool)
 	var matches []string
-	for _, table := range tables {
-		for word := range table {
-			if word != upperPrefix && strings.HasPrefix(word, upperPrefix) {
-				matches = append(matches, word)
-			}
+	for _, word := range words {
+		if word != upperPrefix && strings.HasPrefix(word, upperPrefix) && !seen[word] {
+			seen[word] = true
+			matches = append(matches, word)
 		}
 	}
 	sort.Strings(matches)

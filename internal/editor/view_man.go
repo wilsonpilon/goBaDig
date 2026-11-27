@@ -1,6 +1,8 @@
 package edit
 
 import (
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -53,6 +55,50 @@ func (e *Editor) openManView(page man.Page) {
 	e.AddPage("man", view, true, true)
 	e.app.SetFocus(view)
 	e.updateStatus()
+}
+
+// isShiftF1 reports whether event is Shift+F1 - WibEdit's contextual
+// help shortcut (Fase 3), deliberately distinct from the plain F1
+// general-help key already in use (editor.go). Windows' native
+// console driver (tcell's console_win.go) reports this as KeyF1 plus
+// ModShift; a generic ANSI/xterm terminal instead remaps Shift+F1 to
+// the distinct KeyF13 (the "F13-F24 = Shift+F1-F12" xterm convention)
+// - checking both keeps this working under either driver.
+func isShiftF1(event *tcell.EventKey) bool {
+	if event.Key() == tcell.KeyF13 {
+		return true
+	}
+	return event.Key() == tcell.KeyF1 && event.Modifiers()&tcell.ModShift != 0
+}
+
+// contextualHelp implements Shift+F1: look up the word touching the
+// cursor in the MSX BASIC dictionary and open it in the Manual
+// viewer. Only the MSX dialect has a real dictionary (Fase 3 of the
+// plan registered in OUTLINE.md alongside autocomplete/man); ZX81 and
+// ZX Spectrum fall back to the general index instead of doing nothing
+// - a deliberate v1 shortcut, not a missing feature, since neither
+// has an equivalent source to build a dictionary from.
+func (e *Editor) contextualHelp() {
+	if e.area.dialect != dialectMSX {
+		e.manDisplay()
+		return
+	}
+	word := wordAtCursor(e.area.document)
+	if word == "?" {
+		word = "PRINT"
+	}
+	if word == "" {
+		e.notice = "Posicione o cursor sobre uma palavra do MSX BASIC e pressione Shift+F1."
+		e.updateStatus()
+		return
+	}
+	entry, ok := man.FindMsxDictEntry(word)
+	if !ok {
+		e.notice = fmt.Sprintf("%q nao encontrado no dicionario MSX BASIC.", word)
+		e.updateStatus()
+		return
+	}
+	e.openManView(entry.Page())
 }
 
 // manDisplay opens the Manual viewer at its index - the "Manual" menu
