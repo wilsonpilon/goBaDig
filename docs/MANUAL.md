@@ -174,7 +174,10 @@ função do destaque de sintaxe. **`v1.48.0`** traz o motor de **"man"/
 referência** (`--man`/console `man`, e um visualizador novo dentro do
 WibEdit) — ver seção 5 abaixo e a seção 9. **`v1.49.0`** traz o
 **dicionário completo de BASIC do MSX** (181 verbetes) e a ajuda
-contextual `Shift+F1` no WibEdit — ver seção 5 abaixo.
+contextual `Shift+F1` no WibEdit — ver seção 5 abaixo. **`v1.50.0`**
+traz **suporte ao compilador Assembly ASMSX** dentro de projetos MSX
+BASIC (`compile arquivo.asm`, opção `ASMSX_PATH`, manual embutido) —
+ver seção 6 abaixo.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -553,6 +556,38 @@ original, úteis para entender a sintaxe enquanto o conversor Go não
 existe) estão em `badig/examples/`. Os exemplos oficiais do projeto Go
 ficarão em [`examples/`](../examples/README.md), um por plataforma.
 
+### Compilando Assembly com ASMSX (desde a `v1.50.0`)
+
+Um projeto MSX BASIC pode ter arquivos `.asm` (Z80 Assembly) ao lado
+do BASIC - goBaDig não reimplementa o compilador, só integra o
+**asMSX** (projeto externo, GPLv3) como ferramenta: `compile
+<arquivo.asm>` funciona exatamente como `compile <arquivo.dmx>`, só
+que delega pro asMSX em vez do motor próprio:
+
+```console
+goBaDig programa.asm              # linha de comando direta
+compile programa.asm              # console (--cli)
+```
+
+No gerenciador de arquivos da TUI, `F2` sobre um `.asm` selecionado
+faz o mesmo. O caminho do executável é resolvido em cascata: primeiro
+a opção `ASMSX_PATH` (painel `Setup > MSX`, ou `set ASMSX_PATH
+<caminho>` no console), se configurada e o arquivo existir; senão o
+`PATH` do sistema (`asmsx`). Sem nenhum dos dois, o erro é claro
+("asmsx not found in PATH"). Sucesso reporta o caminho do `.bin`
+gerado (convenção padrão do asMSX sem diretiva de saída alternativa
+no `.asm` - `.rom`/`.cas`/`.wav`/`.com` dependem de uma diretiva
+dentro do próprio arquivo e não são detectados automaticamente nesta
+versão).
+
+O manual completo do asMSX (sintaxe, diretivas, parâmetros de linha
+de comando) está embutido no mesmo sistema de referência da seção 9:
+`--man asmsx`/console `man asmsx`, ou o menu **Manual** do WibEdit.
+Ligar o resultado do `.bin` de volta a um programa BASIC (`BLOAD`
+direto, `DATA`/`READ`/`POKE` embutido, ou um `.inc` reusável, como o
+MSXIDE do próprio autor já oferece) é um passo futuro, fora do
+escopo desta integração.
+
 ## 7. Rodar em um emulador
 
 **(pendente)**
@@ -612,8 +647,10 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
   `--man print`, `--man msx` para o índice do dicionário) - 181
   verbetes transcritos do livro "Linguagem BASIC MSX" (Denise Santoro
   Cruz, 1986) e do manual MSX2+/FM da ACVS, reaproveitando material já
-  existente do usuário em `msxide`/`paleobasic`. O manual do
-  compilador ASMSX fica para a Fase 4 — ver `docs/RESOURCES.md` e
+  existente do usuário em `msxide`/`paleobasic`. Desde a `v1.50.0`,
+  `--man asmsx` traz também o manual completo do compilador **asMSX**
+  (sintaxe, diretivas, parâmetros de linha de comando) - ver "6.
+  Converter um programa Dignified" acima — ver `docs/RESOURCES.md` e
   `OUTLINE.md`, seção 10.7.
 - **Console** (`--cli`): `man [tópico]` é o mesmo índice/referência do
   `--man`, com autocompletar Tab dos tópicos disponíveis.

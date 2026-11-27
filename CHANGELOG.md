@@ -35,6 +35,79 @@ exata do pacote.
 
 ---
 
+## [1.50.0] — 2026-11-27 — bloco **NEW**, feature **asmsx-support** (build 0)
+
+**Fase 4** (última) do plano de 4 fases (autocomplete + man/help +
+ASMSX): suporte ao compilador Z80 Assembly **asMSX** dentro de
+projetos MSX BASIC existentes - não uma reimplementação, só
+integração: configuração de caminho, compilação via subprocess, e o
+manual completo do asMSX embutido no sistema de referência das Fases
+2/3.
+
+### Adicionado
+
+- `docs/man/asmsx.md`: cópia do manual do asMSX
+  (`resource/asMSX/doc/asmsx.md`, 1148 linhas), com uma nota de
+  atribuição (projeto GPLv3, originalmente de Eduardo "pitpan" A.
+  Robsy Petrus, hoje mantido pelo asMSX team -
+  github.com/Fubukimaru/asMSX) logo após o título, já que `resource/`
+  não é distribuído com o repositório. Registrado como um tópico só
+  (`"asmsx"`) via `internal/man/registry.go`'s nova
+  `addMarkdownTopic` - ao contrário de `addMarkdownSource` (Fase 2),
+  que divide um arquivo em vários tópicos por heading de nível 1, esta
+  mantém o manual inteiro como um único tópico sob uma chave curta
+  explícita, preservando o título real do manual
+  ("asMSX - MSX cross assembler") só para exibição. `Index()` também
+  precisou passar a usar a chave do registro (não o título de exibição
+  da página) no `TOCEntry` de cada tópico, pra navegação funcionar
+  igual nos dois casos.
+- `internal/options/options.go`: novo campo `ASMSX_PATH` (categoria
+  MSX) - caminho do executável do asMSX, sem validação de existência
+  de arquivo (mesmo padrão não-especial que `EMULATOR_PATH` já segue).
+  Aparece automaticamente nos painéis `Setup > MSX` da TUI/GUI, que já
+  renderizam genericamente a partir do catálogo.
+- `internal/platforms/msx/asmsx.go`: `ResolveAsmsxPath` (cascata -
+  `ASMSX_PATH` configurado e existente, senão `PATH` do sistema -
+  `EMULATOR_PATH` já modelava essa ideia, mas nenhum dos seus campos
+  chegou a ser lido por código de produção até agora; este é o
+  primeiro) e `CompileAsm` (mesmo padrão síncrono-com-captura-de-saída
+  de `internal/editor/printer_unix.go` - único outro precedente no
+  projeto, já que todo lançamento de emulador hoje é fire-and-forget).
+  Compilação bem-sucedida reporta o `.bin` gerado; outros formatos de
+  saída (`.rom`/`.cas`/`.wav`/`.com`) dependem de diretiva dentro do
+  próprio `.asm` e não são detectados automaticamente (limitação
+  conhecida de v1).
+- Dispatch por extensão pra `.asm` (deliberadamente **fora** do
+  `switch` fechado de `internal/dialect.go`, que é só pra dialetos
+  Dignified) em três lugares: `internal/filemanager/actions.go`'s
+  `compileSelected` (F2 na TUI), `internal/cli/console.go`'s
+  `executeCompile` (`compile arquivo.asm` no console) e
+  `internal/cli/cli.go`'s `runCompile` (`goBaDig arquivo.asm` direto).
+
+### Verificado
+
+- `internal/platforms/msx/asmsx_test.go`: `ResolveAsmsxPath` (caminho
+  configurado existente, configurado mas inexistente, fallback pro
+  PATH, nem configurado nem no PATH); `CompileAsm` testado contra uma
+  ferramenta **real** (um binário Go minúsculo compilado em tempo de
+  teste, já que não há `asmsx` real garantido no ambiente de CI/dev) -
+  sucesso com `.bin` gerado, saída capturada em caso de erro, aviso
+  quando a ferramenta termina sem erro mas não gera o `.bin`.
+- `internal/man/dict_test.go`: `Lookup("asmsx")` (case-insensitive),
+  `Index()` linkando pela chave curta mas exibindo o título real.
+- Testes de dispatch em cada um dos três pontos de integração
+  (`internal/filemanager`, `internal/cli` × 2), confirmando que
+  `.asm` é roteado pro ASMSX e não cai no erro de "dialeto não
+  reconhecido" do `dialect.CompileByExtension`.
+- Testado de ponta a ponta nesta máquina contra um `asmsx.exe` real
+  já instalado (achado via `PATH`) - confirmou a cascata de resolução
+  e o encapsulamento de erro funcionando (um lock de arquivo
+  específico desta máquina impediu a compilação de fato rodar, mas
+  confirmou que o erro do subprocesso é capturado e reportado
+  corretamente em vez de travar o programa).
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.49.0] — 2026-11-27 — bloco **NEW**, feature **msx-dictionary** (build 0)
 
 **Fase 3** do plano de 4 fases (autocomplete + man/help + ASMSX):
