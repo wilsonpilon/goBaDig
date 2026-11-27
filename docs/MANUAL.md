@@ -172,7 +172,9 @@ dialetos — ver seção 5 abaixo. **`v1.47.0`** acrescenta **autocomplete
 por prefixo** no WibEdit, reusando as mesmas tabelas de palavra-chave/
 função do destaque de sintaxe. **`v1.48.0`** traz o motor de **"man"/
 referência** (`--man`/console `man`, e um visualizador novo dentro do
-WibEdit) — ver seção 5 abaixo e a seção 9.
+WibEdit) — ver seção 5 abaixo e a seção 9. **`v1.49.0`** traz o
+**dicionário completo de BASIC do MSX** (181 verbetes) e a ajuda
+contextual `Shift+F1` no WibEdit — ver seção 5 abaixo.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -258,15 +260,25 @@ com uma palavra-chave/função do dialeto do arquivo aberto, uma lista
 de sugestões aparece ancorada no cursor; `Tab`/`Enter` completa,
 `Up`/`Down` navega entre as opções, `Esc` fecha sem completar (ou
 digitar um espaço/pontuação, que sai da palavra e fecha a lista
-sozinha). Mesma fonte de dados do destaque de sintaxe (palavras-chave/
-funções por dialeto) — nenhum dicionário externo ainda. Desde a
+sozinha). Para MSX, as sugestões agora vêm do **dicionário completo
+de BASIC do MSX** (desde a `v1.49.0`, 181 verbetes — ver abaixo), com
+as tabelas de palavra-chave/função como reforço; ZX81 e ZX Spectrum
+continuam só nas tabelas de sintaxe. Desde a
 `v1.48.0`, o menu **`Manual`** (tecla `M`) abre um visualizador em
 tela cheia da referência do goBaDig (a mesma de `--man`/`man`, ver
 seção 9): `Up`/`Down`/`PgUp`/`PgDn`/`Home`/`End` rolam, `Enter` numa
 linha do índice abre aquele tópico, `Esc` volta um nível ou fecha o
-visualizador. Ajuda sensível ao contexto (palavra sob o cursor,
-`Shift+F1`) e o dicionário completo de BASIC do MSX ainda não
-existem — ficam para os próximos passos (Fase 3).
+visualizador.
+
+Desde a `v1.49.0`, o WibEdit também traz o **dicionário completo de
+BASIC do MSX** (as 181 palavras reservadas do livro "Linguagem BASIC
+MSX" + extensão MSX2+/FM) e **ajuda sensível ao contexto**: com um
+arquivo MSX aberto, `Shift+F1` abre a página do dicionário para a
+palavra sob o cursor diretamente no visualizador acima (`?` é
+reconhecido como o atalho clássico para `PRINT`); uma palavra fora do
+dicionário mostra um aviso em vez de abrir qualquer coisa. Em ZX81/ZX
+Spectrum (sem dicionário equivalente), `Shift+F1` cai no índice geral
+do manual em vez de não fazer nada.
 
 Na TUI, o menu **`File > File Manager`** (desde a `v1.41.0`, menu
 consolidado na `v1.42.0` - era um menu `Files` separado) abre o
@@ -595,18 +607,22 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
 
 - **CLI**: `--help` (opções) e `--man [tópico]` (referência estilo
   `man` do Unix — desde a `v1.48.0`, um índice real de tópicos
-  (`internal/man`), cobrindo por ora os próprios comandos do BaDig;
-  nas próximas fases vai acrescentar o dicionário de BASIC do MSX e o
-  manual do compilador ASMSX, reaproveitando material já existente do
-  usuário em outros projetos próprios, `msxide`/`paleobasic`/`fwMSX` e
-  `go81` — ver `docs/RESOURCES.md` e `OUTLINE.md`, seção 10.7).
+  (`internal/man`), cobrindo os próprios comandos do BaDig e, desde a
+  `v1.49.0`, o **dicionário completo de BASIC do MSX** (`--man abs`,
+  `--man print`, `--man msx` para o índice do dicionário) - 181
+  verbetes transcritos do livro "Linguagem BASIC MSX" (Denise Santoro
+  Cruz, 1986) e do manual MSX2+/FM da ACVS, reaproveitando material já
+  existente do usuário em `msxide`/`paleobasic`. O manual do
+  compilador ASMSX fica para a Fase 4 — ver `docs/RESOURCES.md` e
+  `OUTLINE.md`, seção 10.7.
 - **Console** (`--cli`): `man [tópico]` é o mesmo índice/referência do
   `--man`, com autocompletar Tab dos tópicos disponíveis.
 - **TUI**: além da ajuda tradicional via menu `Help > About`, o
   WibEdit tem desde a `v1.48.0` o menu **`Manual`** (tecla `M`), um
-  visualizador em tela cheia da mesma referência (ver seção 5) - um
-  atalho de ajuda sensível à palavra sob o cursor (`Shift+F1`) fica
-  para a Fase 3.
+  visualizador em tela cheia da mesma referência (ver seção 5). Desde
+  a `v1.49.0`, `Shift+F1` abre a página do dicionário MSX para a
+  palavra sob o cursor diretamente nesse visualizador; em ZX81/ZX
+  Spectrum (sem dicionário equivalente), cai no índice geral.
 - **GUI**: ainda não chama nenhum desses comandos.
 
 **(pendente)** — nenhum pacote de editor Go-native existe ainda; os

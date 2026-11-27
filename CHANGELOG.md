@@ -35,6 +35,72 @@ exata do pacote.
 
 ---
 
+## [1.49.0] — 2026-11-27 — bloco **NEW**, feature **msx-dictionary** (build 0)
+
+**Fase 3** do plano de 4 fases (autocomplete + man/help + ASMSX):
+dicionário completo de BASIC do MSX (as 181 palavras reservadas do
+livro "Linguagem BASIC MSX" + extensão MSX2+/FM, transcritas no
+projeto próprio do usuário, MSXIDE) e ajuda contextual (`Shift+F1`) no
+WibEdit. Conteúdo trazido e **commitado publicamente** no repositório
+- decisão explícita do usuário, avisado sobre a exposição de conteúdo
+de terceiros antes de prosseguir (ver `OUTLINE.md`).
+
+### Adicionado
+
+- `internal/man/msxdict_data.go` (gerado, não escrito à mão):
+  conversão de `E:\msxide\ajuda\MsxBasicDictData.pbi` (140 verbetes,
+  "Linguagem BASIC MSX", Denise Santoro Cruz, Editora Aleph/Gradiente,
+  4a edição 1986) e `MsxBasic2PlusDictData.pbi` (41 verbetes, "Manual
+  MSX2+ FM", ACVS Eletrônica) - um conversor Go descartável (não faz
+  parte do build) parseou as chamadas `MSXDict_Add(...)`/
+  `MSXDict_Add2Plus(...)` do PureBasic original (balanceando parênteses/
+  aspas, resolvendo a concatenação de strings e os atalhos `MSXQ`/
+  `#CRLF$`) e gerou a tabela Go literal.
+- `internal/man/dict.go`: `MsxDictEntry` (título, se é função/avançado,
+  origem em inglês, resumo, formato, exemplo, função, programa exemplo,
+  página do livro, sistema MSX1/MSX2+), `(MsxDictEntry).Page()` (molde
+  fixo NOME/FORMATO/EXEMPLO/FUNÇÃO/PROGRAMA EXEMPLO/REFERÊNCIA, mesmo
+  tipo `Page` que o Markdown produz - CLI e WibEdit não precisam saber
+  a diferença), `FindMsxDictEntry` (match exato case-insensitive, com
+  fallback pra verbetes compostos - ex. `"RETURN"` resolve
+  `"GOSUB-RETURN"`), `MsxDictIndex` (agrupado por letra inicial) e
+  `AutocompleteWords` (normaliza títulos compostos/com sufixo
+  `"(MSX2+)"` em palavras individuais, pro autocomplete abaixo).
+  `Lookup`/`Index` (Fase 2) passam a tentar o dicionário primeiro, e o
+  índice geral ganhou um link `"msx"` pra o índice do dicionário.
+- WibEdit: `Shift+F1` abre a página do dicionário pra palavra sob o
+  cursor (normaliza `"?"` pra `"PRINT"`, o atalho clássico do MSX
+  BASIC); fora do dialeto MSX, cai no índice geral em vez de não fazer
+  nada. Autocomplete (Fase 1) passou a preferir as palavras do
+  dicionário pra MSX, mantendo as tabelas de sintaxe como reforço -
+  cobre palavras que só existem num verbete composto (ex. digitar
+  `RET` agora sugere `RETURN`, que antes só existia dentro do verbete
+  único `"GOSUB-RETURN"`).
+
+### Corrigido no caminho (achado implementando, não planejado)
+
+- Uma primeira versão de `(MsxDictEntry).Page()` juntava um campo
+  inteiro (ex. `Função`) numa única string e quebrava linha a partir
+  do zero, apagando as quebras de linha/linhas em branco que o próprio
+  livro usa pra alinhar diagramas de fluxo (`GOSUB-RETURN`) e tabelas
+  comparativas (`AUTO`). Corrigido quebrando primeiro pelas quebras de
+  linha já existentes no texto de origem, e só reaplicando o wrap
+  linha a linha quando uma linha individual excede a largura.
+
+### Verificado
+
+- `internal/man/dict_test.go`: contagem plausível de verbetes
+  (181 = 140 MSX1 + 41 MSX2+, protege contra um arquivo gerado vazio/
+  truncado passar despercebido), match exato case-insensitive, match
+  composto (`RETURN`→`GOSUB-RETURN`), palavra-chave desconhecida, ordem
+  fixa das seções de `Page()`, agrupamento por letra do índice,
+  prioridade do dicionário em `Lookup`, pseudo-tópico `"msx"`.
+- `internal/editor`: `Shift+F1` abrindo o verbete certo, normalização
+  de `"?"`, aviso pra palavra desconhecida, fallback fora do MSX, F1
+  puro continuando a abrir o menu de ajuda sem ser afetado.
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.48.0] — 2026-11-27 — bloco **NEW**, feature **man-reference** (build 0)
 
 **Fase 2** do plano de 4 fases anunciado na v1.47.0 (autocomplete +
