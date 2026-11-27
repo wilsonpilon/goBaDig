@@ -62,6 +62,7 @@ func TestCompleteLine(t *testing.T) {
 		{input: "dialect ms", want: "dialect msx ", count: 1},
 		{input: "com", want: "compile ", count: 1},
 		{input: "exe", want: "execute ", count: 1},
+		{input: "man com", want: "man compile ", count: 1},
 	}
 	for _, test := range cases {
 		got, candidates := completeLine(test.input)
@@ -83,6 +84,33 @@ func TestThemeCompletionListsThemesOnSecondTab(t *testing.T) {
 	line, choices, show := completion.tab(line)
 	if !show || line != "theme " || len(choices) != 6 {
 		t.Fatalf("second Tab = (%q, %d choices, show=%t), want theme list", line, len(choices), show)
+	}
+}
+
+func TestManCommandWithoutATopicShowsTheIndex(t *testing.T) {
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeMan("")
+	if !strings.Contains(out.String(), "compile") {
+		t.Fatalf("man index missing \"compile\" topic: %s", out.String())
+	}
+}
+
+func TestManCommandWithAKnownTopicShowsItsPage(t *testing.T) {
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeMan("compile")
+	if !strings.Contains(out.String(), "COMPILE") {
+		t.Fatalf("man compile output missing its own heading: %s", out.String())
+	}
+}
+
+func TestManCommandWithAnUnknownTopicReportsAnError(t *testing.T) {
+	var out bytes.Buffer
+	state := &consoleState{out: &out}
+	state.executeMan("nao-existe")
+	if !strings.Contains(out.String(), "desconhecido") {
+		t.Fatalf("expected an \"unknown topic\" message, got: %s", out.String())
 	}
 }
 

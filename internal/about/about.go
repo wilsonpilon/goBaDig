@@ -6,7 +6,9 @@ package about
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/wilsonpilon/goBaDig/internal/man"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
@@ -24,28 +26,27 @@ func Short() string {
 	)
 }
 
-// Man is the CLI "man"-style reference. This stub only prints the
-// project's "about" section (NAME/DESCRIPTION) — the full reference
-// (BaDig commands/options and the embedded MSX/ZX81/ZX Spectrum BASIC
-// manuals) is planned but not implemented yet. See OUTLINE.md, bloco
-// "Sistema de ajuda e manuais".
+// Man is the CLI "man"-style reference index, delegating to
+// internal/man (the shared Page model behind "--man"/"man <tópico>"
+// and WibEdit's own Manual viewer) rather than keeping its own text.
+// See OUTLINE.md, bloco "Sistema de ajuda e manuais".
 func Man() string {
-	return "GOBADIG(1)" + "\n\n" +
-		"NAME\n" +
+	return "GOBADIG(1)\n\nNAME\n" +
 		"    goBaDig - Basic Dignified Suite preprocessor (MSX, ZX81, ZX Spectrum)\n\n" +
-		"DESCRIPTION\n" +
-		"    " + indentedShort() + "\n\n" +
-		"STATUS\n" +
-		"    Este e um programa STUB. Ainda nao ha conversor de linguagem,\n" +
-		"    tokenizer ou integracao com emulador implementados. Ver\n" +
-		"    OUTLINE.md no repositorio para o plano completo.\n\n" +
-		"    O \"man\" completo (comandos, opcoes do BaDig e os manuais de\n" +
-		"    BASIC do MSX, ZX81 e ZX Spectrum para consulta de sintaxe)\n" +
-		"    ainda nao esta implementado nesta versao.\n\n" +
-		"SEE ALSO\n" +
-		"    --help        lista de opcoes de linha de comando\n" +
-		"    --tui         abre a interface de terminal (TUI)\n" +
-		"    --gui         abre a interface grafica (GUI)\n"
+		"DESCRIPTION\n    " + indentedShort() + "\n\n" +
+		"TÓPICOS\n" + indent(man.Index().PlainLines()) +
+		"\nUse \"man <tópico>\" (console) ou \"--man <tópico>\" (linha de comando)\n" +
+		"para abrir um deles.\n"
+}
+
+func indent(lines []string) string {
+	var b strings.Builder
+	for _, line := range lines {
+		b.WriteString("    ")
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 func indentedShort() string {

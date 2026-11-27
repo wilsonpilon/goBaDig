@@ -14,6 +14,7 @@ import (
 
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/dialect"
+	"github.com/wilsonpilon/goBaDig/internal/man"
 	"github.com/wilsonpilon/goBaDig/internal/version"
 )
 
@@ -66,8 +67,10 @@ USO:
 
 OPCOES (stub - o conjunto completo ainda esta em planejamento, ver OUTLINE.md):
     --help         mostra esta ajuda e sai
-    --man          mostra a pagina de referencia (estilo "man"); nesta
-                   versao de stub traz so o "about" do projeto
+    --man [topico] mostra a pagina de referencia (estilo "man"); sem
+                   topico, lista os disponiveis (comandos do goBaDig
+                   e, nas fases seguintes, dicionario de BASIC MSX e
+                   manual do ASMSX)
     --tui          abre a interface de terminal (TUI)
     --gui          abre a interface grafica (GUI)
     --cli          abre o modo console: um prompt interativo que fica
@@ -146,8 +149,7 @@ func Run(args []string) (handled bool, exitCode int) {
 		fmt.Fprint(os.Stdout, HelpText())
 		return true, 0
 	case ModeMan:
-		fmt.Fprintln(os.Stdout, about.Man())
-		return true, 0
+		return true, runMan(manTopicArg(args))
 	case ModeBanner:
 		fmt.Fprint(os.Stdout, Banner())
 		return true, 0
@@ -191,6 +193,42 @@ func runCompile(path string) int {
 		return 1
 	}
 	fmt.Fprintf(os.Stdout, "Convertido: %s\n  -> %s\n  -> %s\n", path, classicPath, binaryPath)
+	return 0
+}
+
+// manTopicArg finds the topic name right after a "-man"/"--man" flag,
+// anywhere in args ("" if absent or if the flag is the last token) -
+// same shape as emulatorArg (below), an independent optional modifier
+// rather than a required argument.
+func manTopicArg(args []string) string {
+	for i, a := range args {
+		if a == "-man" || a == "--man" {
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// runMan implements "--man [tópico]": with no topic, prints the
+// project's "about"-plus-index page (about.Man(), which itself lists
+// every topic via man.Index()); with one, looks it up in internal/man
+// and prints its plain-text rendering.
+func runMan(topic string) int {
+	if topic == "" {
+		fmt.Fprintln(os.Stdout, about.Man())
+		return 0
+	}
+	page, err := man.Lookup(topic)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "goBaDig: %v\n", err)
+		return 1
+	}
+	for _, line := range page.PlainLines() {
+		fmt.Fprintln(os.Stdout, line)
+	}
 	return 0
 }
 

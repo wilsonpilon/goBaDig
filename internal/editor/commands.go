@@ -90,6 +90,14 @@ var neMenus = []menuSpec{
 		{"options.editor", "Editor...", "F7.3/R27", "Configure insertion, tabs and backups.", "editor", 'E', nil, false},
 		{"options.save", "Save configuration...", "F7.4/R28", "Save global or directory configuration.", "config", 'S', nil, true},
 	}},
+	// Manual is goBaDig's own addition, not part of the NE2 reference
+	// this editor otherwise faithfully reproduces (see the comment
+	// above neMenus) - it opens the Markdown/BASIC-dictionary/ASMSX
+	// reference content (internal/man), unrelated to WibEdit's own
+	// F1 "how do I use this editor" help (neHelpMenu, below).
+	{'M', "Manual", []commandSpec{
+		{"manual.open", "Abrir manual...", "goBaDig", "Abre o indice do manual de referencia do goBaDig (comandos, BASIC, ASMSX).", "", 'A', nil, false},
+	}},
 }
 
 var neKeyCommands = []commandSpec{

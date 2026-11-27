@@ -62,6 +62,7 @@ type Editor struct {
 	notice           string
 	dialogs          []*editorDialog
 	outlineView      *editorOutlineView
+	manView          *editorManView
 	ac               *autocompleteState
 	lastSearch       searchState
 	replaceSession   *replaceSession
@@ -93,7 +94,7 @@ func NewEditor(app *tview.Application, onClose func()) *Editor {
 		displayScrollbar: true,
 		dividerPosition:  50,
 		menuX:            make(map[rune]int),
-		menuOrder:        []rune{'F', 'B', 'T', 'S', 'P', 'V', 'O', 'H'},
+		menuOrder:        []rune{'F', 'B', 'T', 'S', 'P', 'V', 'O', 'M', 'H'},
 		printer:          sendToDefaultPrinter,
 	}
 	setDisplayPalette(0)
@@ -431,6 +432,8 @@ func (e *Editor) available(command commandSpec) bool {
 		return true
 	case "view.about":
 		return true
+	case "manual.open":
+		return true
 	case "block.copy", "block.move", "block.delete", "block.delete-direct",
 		"block.set", "block.remove", "block.find", "block.indent", "block.unindent",
 		"block.output", "block.mark-line", "block.mark-end", "search.marker",
@@ -571,6 +574,8 @@ func (e *Editor) execute(command commandSpec) {
 		e.outlineDisplay()
 	case "view.about":
 		e.aboutDisplay()
+	case "manual.open":
+		e.manDisplay()
 	case "options.display":
 		e.displaySetup()
 	case "options.mouse":
@@ -683,6 +688,10 @@ func (e *Editor) execute(command commandSpec) {
 func (e *Editor) Capture(event *tcell.EventKey) *tcell.EventKey {
 	if e.outlineView != nil {
 		e.closeOutlineView()
+		return nil
+	}
+	if e.manView != nil {
+		e.manView.key(event)
 		return nil
 	}
 	if e.literal {

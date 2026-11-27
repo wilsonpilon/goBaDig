@@ -44,6 +44,40 @@ func TestRunHandlesNonInteractiveModes(t *testing.T) {
 	}
 }
 
+func TestManTopicArg(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"long flag with topic", []string{"--man", "compile"}, "compile"},
+		{"short flag with topic", []string{"-man", "compile"}, "compile"},
+		{"flag without a following topic", []string{"--man"}, ""},
+		{"no flag at all", []string{"--help"}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := manTopicArg(c.args); got != c.want {
+				t.Fatalf("manTopicArg(%v) = %q, want %q", c.args, got, c.want)
+			}
+		})
+	}
+}
+
+func TestRunManWithAKnownTopicSucceeds(t *testing.T) {
+	handled, code := Run([]string{"--man", "compile"})
+	if !handled || code != 0 {
+		t.Fatalf("Run(--man compile): handled=%v code=%d, want true/0", handled, code)
+	}
+}
+
+func TestRunManWithAnUnknownTopicFails(t *testing.T) {
+	handled, code := Run([]string{"--man", "nao-existe"})
+	if !handled || code != 1 {
+		t.Fatalf("Run(--man nao-existe): handled=%v code=%d, want true/1", handled, code)
+	}
+}
+
 func TestRunLeavesInteractiveModesToCaller(t *testing.T) {
 	for _, args := range [][]string{{"--tui"}, {"--gui"}, {"--cli"}} {
 		handled, _ := Run(args)

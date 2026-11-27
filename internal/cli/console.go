@@ -15,6 +15,7 @@ import (
 	"github.com/wilsonpilon/goBaDig/internal/about"
 	"github.com/wilsonpilon/goBaDig/internal/config"
 	"github.com/wilsonpilon/goBaDig/internal/dialect"
+	"github.com/wilsonpilon/goBaDig/internal/man"
 	"github.com/wilsonpilon/goBaDig/internal/options"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 	"github.com/wilsonpilon/goBaDig/internal/version"
@@ -148,7 +149,7 @@ func (s *consoleState) execute(line string) bool {
 	case "help":
 		fmt.Fprint(s.out, HelpText())
 	case "man":
-		fmt.Fprintln(s.out, about.Man())
+		s.executeMan(argument)
 	case "about":
 		fmt.Fprintln(s.out, about.Short())
 	case "version":
@@ -170,6 +171,24 @@ func (s *consoleState) execute(line string) bool {
 		fmt.Fprintf(s.out, "comando desconhecido: %q (digite \"help\")\n", line)
 	}
 	return false
+}
+
+// executeMan implements the console's own "man [tópico]" - the
+// interactive-mode counterpart to "goBaDig --man [tópico]" (ver
+// cli.go's own runMan), both wrapping internal/man.
+func (s *consoleState) executeMan(topic string) {
+	if topic == "" {
+		fmt.Fprintln(s.out, about.Man())
+		return
+	}
+	page, err := man.Lookup(topic)
+	if err != nil {
+		fmt.Fprintln(s.out, err)
+		return
+	}
+	for _, line := range page.PlainLines() {
+		fmt.Fprintln(s.out, line)
+	}
 }
 
 func (s *consoleState) executeTheme(name string) {

@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 
+	"github.com/wilsonpilon/goBaDig/internal/man"
 	"github.com/wilsonpilon/goBaDig/internal/theme"
 )
 
@@ -41,6 +42,8 @@ func completeLine(input string) (string, []string) {
 			available = cliThemeAliases(theme.CatalogFor(theme.ModeCLI))
 		case "dialect":
 			available = knownDialects
+		case "man":
+			available = manTopics()
 		default:
 			// "set"'s own argument (an option key, then a value) isn't
 			// completed yet - which keys are valid depends on the
@@ -67,6 +70,15 @@ func completeLine(input string) (string, []string) {
 		return prefix + common, matches
 	}
 	return input, matches
+}
+
+func manTopics() []string {
+	index := man.Index()
+	names := make([]string, 0, len(index.TOC))
+	for _, entry := range index.TOC {
+		names = append(names, entry.Title)
+	}
+	return names
 }
 
 func commonPrefix(values []string) string {
