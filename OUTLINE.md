@@ -8,8 +8,8 @@
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-27
 (nota: este parágrafo de estado ficou desatualizado em várias rodadas
 recentes - ver `resume.txt`, seção MARCOs, para o estado real mais
-recente; a versão publicada mais recente é a v1.47.0, bloco NEW,
-feature editor-autocomplete).
+recente; a versão publicada mais recente é a v1.48.0, bloco NEW,
+feature man-reference).
 Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
@@ -3226,13 +3226,16 @@ ainda não chamam nenhum desses comandos.
 - [ ] Parser de argumentos real (flags core + flags por módulo
   compostas, equivalente aos `parent_parsers`), substituindo o
   dispatch simples do stub. — **M**, **1**
-- [ ] **Sistema de "man" completo** (ver seção 10.7): comandos/opções do
-  BaDig em detalhe + manuais de sintaxe BASIC do MSX, ZX81 e ZX
-  Spectrum embutidos, navegáveis por tópico (ex. `goBaDig --man print`
-  ou um modo paginado tipo `less`). Reaproveitar conteúdo de referência
-  já existente do usuário (`fwMSX` para MSX, `go81` para ZX81) e a
-  documentação Spectrum já extraída de `badig/documentation/ZX_SPECTRUM.md`
-  — ver seção 10.7 para detalhes. — **A**, **2**
+- [x] **Motor de "man" + comandos do BaDig** (parcial, 2026-11-27,
+  v1.48.0 - Fase 2 do plano de 4 fases, ver Bloco 6): `goBaDig --man
+  [tópico]`/console `man [tópico]` navegam por tópico de verdade
+  agora (`internal/man`, ver bullet detalhado no Bloco 6), cobrindo os
+  próprios comandos do BaDig (`compile`/`execute`/`set`/`settings`/
+  `dialect`/`theme`/`version`/`man`). **Ainda faltam** os manuais de
+  sintaxe BASIC do MSX, ZX81 e ZX Spectrum embutidos (Fase 3 - MSX via
+  dicionário do `msxide`/`paleobasic`; ZX81/Spectrum via `fwMSX`/`go81`
+  e `badig/documentation/ZX_SPECTRUM.md`) e o manual do ASMSX (Fase
+  4) — ver seção 10.7 para detalhes. — **A**, **2**
 - [x] Modo de comando interativo (`--cli`, release 1.1.4): console com
   prompt `goBaDig>` aguardando comandos linha a linha (`help`, `man`,
   `about`, `version`, `exit`/`quit`, encerra também em EOF/Ctrl-D),
@@ -3761,6 +3764,68 @@ ainda não chamam nenhum desses comandos.
   palavra), setas navegam com wrap-around, nunca abre sem dialeto
   reconhecido.
 
+- [x] **Motor de "man"/referência + visualizador de Markdown** (2026-11-27,
+  v1.48.0) - Fase 2 do plano de 4 fases registrado na v1.47.0 (ver
+  bullet acima). Ainda não traz o dicionário MSX (Fase 3) nem o manual
+  do ASMSX (Fase 4) - esta rodada entrega a infraestrutura
+  compartilhada e um primeiro conteúdo real: os próprios comandos do
+  goBaDig.
+
+  Novo pacote `internal/man`: `Page`/`Line`/`TOCEntry` e um parser de
+  Markdown escrito à mão (`ParseMarkdown`, `markdown.go`) - inspirado
+  conceitualmente no `BuildMarkdownBufferFromText` do MSXIDE (estudado
+  na Fase 1), implementado do zero em Go. Suporta headings
+  `#`.."######", blocos de código cercados, citações `>`, listas
+  `-`/`*`/`N.` e parágrafos com quebra de linha automática (70
+  colunas) - tabelas e ênfase inline ficam como texto literal nesta
+  versão (documentado, não bloqueia).
+
+  Conteúdo novo versionado `docs/man/badig.md` + `docs/man/embed.go`
+  (pacote `docsman`): a referência dos próprios comandos do goBaDig
+  (`compile`/`execute`/`set`/`settings`/`dialect`/`theme`/`version`/
+  `man`) no formato NOME/SINOPSE/DESCRIÇÃO, um `# tópico` por comando.
+  Fica em `docs/` (não `internal/`) porque `go:embed` não alcança
+  diretórios pai - o `//go:embed` em si mora em `docs/man/embed.go`,
+  ao lado do `.md`, e `internal/man/registry.go` importa esse pacote
+  em vez de embutir o arquivo direto. `registry.go` divide o arquivo
+  pelos headings de nível 1 (`splitTopLevelSections`) - cada um se
+  torna um tópico independente (`Lookup`/`Index`), embora o arquivo
+  inteiro se leia como um único documento Markdown normal no GitHub/
+  editor. Pronto para a Fase 3 acrescentar o dicionário MSX e a Fase 4
+  o manual do ASMSX do mesmo jeito (mais uma fonte em
+  `buildTopics()`).
+
+  CLI: `--man [tópico]` (`cli.go`, `manTopicArg`/`runMan`) e console
+  `man [tópico]` (`console.go`, `executeMan`) substituem o stub antigo
+  (`about.Man()`, que agora também delega pro índice de `internal/
+  man`). Autocompletar Tab dos tópicos disponíveis em
+  `completion.go`.
+
+  WibEdit: visualizador novo em tela cheia (`internal/editor/
+  view_man.go`, `editorManView`), aberto por um menu **"Manual"**
+  próprio (tecla `M`) - navegação real (`Up`/`Down`/`PgUp`/`PgDn`/
+  `Home`/`End` rolam, `Enter` numa linha de índice abre o tópico
+  empilhando histórico, `Esc` volta um nível ou fecha), modal enquanto
+  aberto (nenhuma outra tecla alcança o documento).
+
+  **Achado implementando, não planejado**: o comando novo do WibEdit
+  quase ganhou o id `"help.manual"` - só não ficou assim porque
+  `Editor.execute` intercepta **todo** id com prefixo `"help."`
+  incondicionalmente pra `showHelp` (a ajuda F1 de "como usar o
+  editor", que reproduz fielmente um editor de referência específico,
+  NE2 - ver `neMenus`/`neHelpMenu`, `commands.go`). O manual do BaDig é
+  um conceito diferente (referência da linguagem BASIC/ASMSX, não da
+  própria edição), então ganhou id (`manual.open`) e menu próprios,
+  sem tocar no "F1=Help" existente nem na fidelidade do `neMenus`.
+
+  Testes novos: `internal/man/man_test.go` (parser contra cada
+  elemento suportado, quebra de parágrafos longos, `Lookup`/`Index`
+  case-insensitive e tópico desconhecido); `internal/cli` ganhou casos
+  pra `--man`/`man` sem tópico, tópico válido/inválido e
+  autocompletar; `internal/editor/view_man_test.go` (abertura,
+  navegação Up/Down, Enter num link de índice, Esc voltando/fechando,
+  e que o visualizador é mesmo modal).
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
@@ -3820,13 +3885,14 @@ Notepad++/UltraEdit (opcional, "se for possível").
   baseado no MESMO material Sublime/VSCode listado acima, ver Bloco
   6 pro detalhamento completo (tokenizador próprio, independente do
   lexer da compilação). **Autocomplete adicionado em 2026-11-27
-  (v1.47.0)** - ver Bloco 6 pro detalhamento completo. Ajuda sensível
+  (v1.47.0)** - ver Bloco 6 pro detalhamento completo. **Motor de
+  "man"/referência adicionado em 2026-11-27 (v1.48.0)** - Fase 2 do
+  mesmo plano, ver Bloco 6: `--man [tópico]`/console `man [tópico]`
+  reais (`internal/man`, substituindo o stub de `internal/about/
+  about.go`) e um menu "Manual" próprio no WibEdit. Ajuda sensível
   ao contexto (dicionário MSX Basic completo + Shift+F1) ainda não
-  existe - é a Fase 3 do plano de 4 fases registrado junto com o
-  autocomplete (ver Bloco 6), que também cobre um `--man` real (hoje
-  ainda 100% stub em `internal/about/about.go`, inclusive com texto
-  desatualizado - ver seção 10.7) e suporte ao compilador **ASMSX**
-  (Fase 4, ver `resource/asMSX/`).
+  existe - é a Fase 3 do mesmo plano de 4 fases. Suporte ao compilador
+  **ASMSX** (Fase 4, ver `resource/asMSX/`) também segue pendente.
 - [ ] Avaliar viabilidade de realce de sintaxe para Notepad++ e
   UltraEdit (UDL). — **B** (avaliação), **3**
 
