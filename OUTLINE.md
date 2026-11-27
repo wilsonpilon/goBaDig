@@ -8,8 +8,8 @@
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-27
 (nota: este parágrafo de estado ficou desatualizado em várias rodadas
 recentes - ver `resume.txt`, seção MARCOs, para o estado real mais
-recente; a versão publicada mais recente é a v1.48.0, bloco NEW,
-feature man-reference).
+recente; a versão publicada mais recente é a v1.49.0, bloco NEW,
+feature msx-dictionary).
 Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
@@ -3226,16 +3226,19 @@ ainda não chamam nenhum desses comandos.
 - [ ] Parser de argumentos real (flags core + flags por módulo
   compostas, equivalente aos `parent_parsers`), substituindo o
   dispatch simples do stub. — **M**, **1**
-- [x] **Motor de "man" + comandos do BaDig** (parcial, 2026-11-27,
-  v1.48.0 - Fase 2 do plano de 4 fases, ver Bloco 6): `goBaDig --man
-  [tópico]`/console `man [tópico]` navegam por tópico de verdade
-  agora (`internal/man`, ver bullet detalhado no Bloco 6), cobrindo os
-  próprios comandos do BaDig (`compile`/`execute`/`set`/`settings`/
-  `dialect`/`theme`/`version`/`man`). **Ainda faltam** os manuais de
-  sintaxe BASIC do MSX, ZX81 e ZX Spectrum embutidos (Fase 3 - MSX via
-  dicionário do `msxide`/`paleobasic`; ZX81/Spectrum via `fwMSX`/`go81`
-  e `badig/documentation/ZX_SPECTRUM.md`) e o manual do ASMSX (Fase
-  4) — ver seção 10.7 para detalhes. — **A**, **2**
+- [x] **Motor de "man" + comandos do BaDig + dicionário MSX completo**
+  (parcial, 2026-11-27, v1.48.0/v1.49.0 - Fases 2 e 3 do plano de 4
+  fases, ver Bloco 6): `goBaDig --man [tópico]`/console `man [tópico]`
+  navegam por tópico de verdade agora (`internal/man`, ver bullets
+  detalhados no Bloco 6), cobrindo os próprios comandos do BaDig
+  (`compile`/`execute`/`set`/`settings`/`dialect`/`theme`/`version`/
+  `man`) **e**, desde a v1.49.0, as 181 palavras reservadas do BASIC
+  MSX (`--man abs`, `--man msx` pro índice do dicionário) - dados do
+  `msxide`/`paleobasic` do usuário. **Ainda faltam** os manuais de
+  sintaxe BASIC do ZX81 e ZX Spectrum embutidos (sem fonte equivalente
+  ao dicionário MSX - via `fwMSX`/`go81` e
+  `badig/documentation/ZX_SPECTRUM.md`, se/quando decidido) e o manual
+  do ASMSX (Fase 4) — ver seção 10.7 para detalhes. — **A**, **2**
 - [x] Modo de comando interativo (`--cli`, release 1.1.4): console com
   prompt `goBaDig>` aguardando comandos linha a linha (`help`, `man`,
   `about`, `version`, `exit`/`quit`, encerra também em EOF/Ctrl-D),
@@ -3826,6 +3829,81 @@ ainda não chamam nenhum desses comandos.
   navegação Up/Down, Enter num link de índice, Esc voltando/fechando,
   e que o visualizador é mesmo modal).
 
+- [x] **Dicionário MSX BASIC completo + ajuda contextual Shift+F1**
+  (2026-11-27, v1.49.0) - Fase 3 do plano de 4 fases. Conteúdo trazido
+  e **commitado publicamente** no repositório, decisão explícita do
+  usuário (avisado sobre a exposição de conteúdo de terceiros antes
+  de prosseguir - "Linguagem BASIC MSX", Denise Santoro Cruz, Editora
+  Aleph/Gradiente, 4a edição 1986, + "Manual MSX2+ FM", ACVS
+  Eletrônica, ambos já transcritos no projeto próprio do usuário,
+  MSXIDE, `E:\msxide\ajuda`).
+
+  Conversão de dados (passo único, não é código de produção): um
+  conversor Go descartável (não faz parte do build, escrito/rodado no
+  scratchpad da sessão) parseou `MsxBasicDictData.pbi` (140 verbetes,
+  letras A-W, sem J/Q) e `MsxBasic2PlusDictData.pbi` (41 verbetes) -
+  balanceando parênteses/aspas das chamadas `MSXDict_Add(...)`/
+  `MSXDict_Add2Plus(...)` do PureBasic original, resolvendo a
+  concatenação de strings (literais `"..."`, o atalho `MSXQ` pra um
+  caractere de aspas literal, `#CRLF$` pra nova linha) - e gerou
+  `internal/man/msxdict_data.go` (181 entradas, 140 MSX1 + 41 MSX2+).
+
+  Novo em `internal/man`: `dict.go` - `MsxDictEntry` (título, se é
+  função/avançado, origem em inglês, resumo, formato, exemplo, função,
+  programa exemplo, página do livro, sistema); `(MsxDictEntry).Page()`
+  (molde fixo NOME/FORMATO/EXEMPLO/FUNÇÃO/PROGRAMA EXEMPLO/REFERÊNCIA,
+  produzindo o mesmo tipo `Page` do Markdown - CLI/WibEdit não
+  precisam saber a diferença); `FindMsxDictEntry` (match exato case-
+  insensitive, com fallback por verbete composto dividido em "-" - ex.
+  `"RETURN"` resolve `"GOSUB-RETURN"`, o próprio exemplo do plano
+  original); `MsxDictIndex` (agrupado por letra inicial);
+  `AutocompleteWords` (normaliza títulos compostos/com sufixo
+  "(MSX2+)"/"(MSX2+/FM-Music)" em palavras individuais - remove grupos
+  entre parênteses, trata "/" como separador extra, descarta o "e"
+  solto de listas em português). `registry.go`'s `Lookup` passa a
+  tentar `FindMsxDictEntry` primeiro; `Index()` ganhou um link pro
+  pseudo-tópico reservado `"msx"`, que `Lookup` resolve pra
+  `MsxDictIndex()`.
+
+  WibEdit: `Shift+F1` (`isShiftF1` em `view_man.go` - cobre tanto
+  `KeyF1`+`ModShift`, como o driver de console nativo do Windows do
+  tcell reporta, quanto `KeyF13`, convenção xterm pra terminais ANSI
+  genéricos) chama `contextualHelp()`: extrai a palavra tocando o
+  cursor (`wordAtCursor`, novo em `autocomplete.go` - escaneia nos
+  dois sentidos, diferente do `wordPrefixBeforeCursor` da Fase 1, que
+  só olha pra trás), normaliza `"?"` pra `"PRINT"` (atalho clássico do
+  MSX BASIC), busca no dicionário e abre no visualizador da Fase 2;
+  fora do MSX, cai no índice geral em vez de não fazer nada (decisão
+  de polimento do próprio plano, não bloqueia). Autocomplete (Fase 1)
+  passou a combinar `man.AutocompleteWords()` com as tabelas de
+  sintaxe pra MSX (`candidatesFor` em `autocomplete.go`), mantendo-as
+  como reforço; ZX81/Spectrum inalterados.
+
+  **Achado implementando, não planejado**: uma primeira versão de
+  `(MsxDictEntry).Page()` juntava um campo inteiro (ex. `Função`) numa
+  única string e refazia a quebra de linha do zero (`wrapText` sobre
+  o todo) - isso apagava as quebras de linha/linhas em branco que o
+  próprio livro usa pra alinhar diagramas de fluxo (`GOSUB-RETURN`,
+  ver o texto "10 GOSUB 1000" / "20 GOSUB 1000" / "1000 (sub
+  rotina)..." em linhas separadas de propósito) e tabelas comparativas
+  (`AUTO`). Corrigido quebrando primeiro pelas quebras de linha já
+  existentes no texto de origem (`strings.SplitSeq(text, "\n")`), e só
+  reaplicando `wrapText` numa linha individual que ultrapasse a
+  largura.
+
+  Testes novos: `internal/man/dict_test.go` (contagem plausível de
+  verbetes - 181 = 140+41, protege contra um arquivo gerado vazio/
+  truncado passar despercebido -, match exato case-insensitive, match
+  composto RETURN→GOSUB-RETURN, palavra-chave desconhecida, ordem fixa
+  das seções de `Page()`, agrupamento por letra do índice, prioridade
+  do dicionário em `Lookup`, pseudo-tópico `"msx"`); novo caso em
+  `autocomplete_test.go` (RET→RETURN, só existe via o verbete
+  composto); novos casos em `view_man_test.go` (Shift+F1 abrindo o
+  verbete certo nos dois formatos de tecla, normalização do "?", aviso
+  pra palavra desconhecida sem abrir nada, fallback fora do MSX, F1
+  puro continuando a abrir o menu de ajuda sem ser afetado pela nova
+  checagem).
+
 ### Bloco 7 — GUI (Fyne)
 
 - [x] **Stub** (release 1.1.2): janela com menu `File > Exit` e
@@ -3889,10 +3967,12 @@ Notepad++/UltraEdit (opcional, "se for possível").
   "man"/referência adicionado em 2026-11-27 (v1.48.0)** - Fase 2 do
   mesmo plano, ver Bloco 6: `--man [tópico]`/console `man [tópico]`
   reais (`internal/man`, substituindo o stub de `internal/about/
-  about.go`) e um menu "Manual" próprio no WibEdit. Ajuda sensível
-  ao contexto (dicionário MSX Basic completo + Shift+F1) ainda não
-  existe - é a Fase 3 do mesmo plano de 4 fases. Suporte ao compilador
-  **ASMSX** (Fase 4, ver `resource/asMSX/`) também segue pendente.
+  about.go`) e um menu "Manual" próprio no WibEdit. **Dicionário MSX
+  Basic completo (181 verbetes) + ajuda contextual Shift+F1
+  adicionados em 2026-11-27 (v1.49.0)** - Fase 3 do mesmo plano, ver
+  Bloco 6. Suporte ao compilador **ASMSX** (Fase 4, ver
+  `resource/asMSX/`) segue pendente - última fase do plano de 4
+  fases.
 - [ ] Avaliar viabilidade de realce de sintaxe para Notepad++ e
   UltraEdit (UDL). — **B** (avaliação), **3**
 
