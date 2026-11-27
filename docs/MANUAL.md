@@ -170,7 +170,9 @@ listagem clássica, artefato compilado) ganham cor e ícone próprios.
 **`v1.46.0`** traz **destaque de sintaxe** pro WibEdit, pros três
 dialetos — ver seção 5 abaixo. **`v1.47.0`** acrescenta **autocomplete
 por prefixo** no WibEdit, reusando as mesmas tabelas de palavra-chave/
-função do destaque de sintaxe.
+função do destaque de sintaxe. **`v1.48.0`** traz o motor de **"man"/
+referência** (`--man`/console `man`, e um visualizador novo dentro do
+WibEdit) — ver seção 5 abaixo e a seção 9.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -206,21 +208,26 @@ passo manual/deliberado (ver histórico em `docs/releases/`).
 ```console
 goBaDig                        # banner curto (não entra no console)
 goBaDig --help                 # lista de opções
-goBaDig --man                  # referência estilo "man" (só o "about" nesta versão)
+goBaDig --man                  # índice da referência estilo "man"
+goBaDig --man compile          # referência de um tópico específico
 goBaDig --tui                  # abre a interface de terminal
 goBaDig --gui                  # abre a interface gráfica (Fyne)
 goBaDig --cli                  # abre o console interativo (prompt "goBaDig>")
 ```
 
-No modo `--cli`, o prompt aceita `help`, `man`, `about`, `version`,
-`theme [nome]`, `set <opção> [valor]`, `settings`, `dialect [nome]`
-e `exit`/`quit` (ou `Ctrl-D` para sair) — os comandos não diferenciam
-maiúsculas de minúsculas (`SET` funciona igual a `set`). `theme` sem
+No modo `--cli`, o prompt aceita `help`, `man [tópico]`, `about`,
+`version`, `theme [nome]`, `set <opção> [valor]`, `settings`,
+`dialect [nome]` e `exit`/`quit` (ou `Ctrl-D` para sair) — os comandos
+não diferenciam maiúsculas de minúsculas (`SET` funciona igual a
+`set`). `man` sem tópico lista os disponíveis; `man compile` (por
+exemplo) mostra a referência daquele comando — mesmo conteúdo de
+`--man [tópico]` na linha de comando. `theme` sem
 argumento mostra o tema ativo e a lista; por exemplo, `theme dracula`
 ou `theme Solarized Light` troca o tema persistido para o console. Em um
-terminal interativo, `Tab` completa comandos, temas e dialetos;
-pressione `Tab` novamente para listar as alternativas (por exemplo,
-depois de `theme `). A cor do prompt acompanha o tema selecionado.
+terminal interativo, `Tab` completa comandos, temas, dialetos e
+tópicos de `man`; pressione `Tab` novamente para listar as
+alternativas (por exemplo, depois de `theme `). A cor do prompt
+acompanha o tema selecionado.
 
 `set <opção>` mostra o valor atual de uma das opções de configuração
 do catálogo (lista completa em `OUTLINE.md`, Bloco 1/Fase 4);
@@ -252,8 +259,14 @@ de sugestões aparece ancorada no cursor; `Tab`/`Enter` completa,
 `Up`/`Down` navega entre as opções, `Esc` fecha sem completar (ou
 digitar um espaço/pontuação, que sai da palavra e fecha a lista
 sozinha). Mesma fonte de dados do destaque de sintaxe (palavras-chave/
-funções por dialeto) — nenhum dicionário externo ainda. Ajuda
-sensível ao contexto ainda não existe — fica para os próximos passos.
+funções por dialeto) — nenhum dicionário externo ainda. Desde a
+`v1.48.0`, o menu **`Manual`** (tecla `M`) abre um visualizador em
+tela cheia da referência do goBaDig (a mesma de `--man`/`man`, ver
+seção 9): `Up`/`Down`/`PgUp`/`PgDn`/`Home`/`End` rolam, `Enter` numa
+linha do índice abre aquele tópico, `Esc` volta um nível ou fecha o
+visualizador. Ajuda sensível ao contexto (palavra sob o cursor,
+`Shift+F1`) e o dicionário completo de BASIC do MSX ainda não
+existem — ficam para os próximos passos (Fase 3).
 
 Na TUI, o menu **`File > File Manager`** (desde a `v1.41.0`, menu
 consolidado na `v1.42.0` - era um menu `Files` separado) abre o
@@ -580,14 +593,21 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
 
 ### Sistema de ajuda e manuais de BASIC embutidos
 
-- **CLI**: `--help` (opções) e `--man` (referência estilo `man` do
-  Unix — nesta versão só o "about"; depois vai cobrir as opções do
-  BaDig em detalhe **e os manuais de sintaxe BASIC do MSX, ZX81 e ZX
-  Spectrum**, reaproveitando material já existente do usuário em
-  outros projetos próprios, `fwMSX` e `go81` — ver `docs/RESOURCES.md`
-  e `OUTLINE.md`, seção 10.7).
-- **TUI e GUI**: ajuda tradicional via menu `Help > About` (implementado
-  nesta versão); um visualizador do mesmo manual embutido vem depois.
+- **CLI**: `--help` (opções) e `--man [tópico]` (referência estilo
+  `man` do Unix — desde a `v1.48.0`, um índice real de tópicos
+  (`internal/man`), cobrindo por ora os próprios comandos do BaDig;
+  nas próximas fases vai acrescentar o dicionário de BASIC do MSX e o
+  manual do compilador ASMSX, reaproveitando material já existente do
+  usuário em outros projetos próprios, `msxide`/`paleobasic`/`fwMSX` e
+  `go81` — ver `docs/RESOURCES.md` e `OUTLINE.md`, seção 10.7).
+- **Console** (`--cli`): `man [tópico]` é o mesmo índice/referência do
+  `--man`, com autocompletar Tab dos tópicos disponíveis.
+- **TUI**: além da ajuda tradicional via menu `Help > About`, o
+  WibEdit tem desde a `v1.48.0` o menu **`Manual`** (tecla `M`), um
+  visualizador em tela cheia da mesma referência (ver seção 5) - um
+  atalho de ajuda sensível à palavra sob o cursor (`Shift+F1`) fica
+  para a Fase 3.
+- **GUI**: ainda não chama nenhum desses comandos.
 
 **(pendente)** — nenhum pacote de editor Go-native existe ainda; os
 pacotes Python (`badig/*/VSCode Extension/`, `badig/*/Sublime Package/`)

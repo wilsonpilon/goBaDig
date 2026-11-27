@@ -35,6 +35,70 @@ exata do pacote.
 
 ---
 
+## [1.48.0] — 2026-11-27 — bloco **NEW**, feature **man-reference** (build 0)
+
+**Fase 2** do plano de 4 fases anunciado na v1.47.0 (autocomplete +
+man/help + ASMSX): motor genérico de "man"/referência, usado tanto na
+CLI/console ("--man"/"man") quanto num visualizador novo dentro do
+WibEdit. Ainda não traz o dicionário completo de BASIC do MSX (Fase 3)
+nem o manual do ASMSX (Fase 4) - esta rodada entrega a infraestrutura
+compartilhada e um primeiro conteúdo real: os próprios comandos do
+goBaDig.
+
+### Adicionado
+
+- `internal/man`: modelo compartilhado de "página de manual" (`Page`/
+  `Line`/`TOCEntry`) e um parser de Markdown escrito à mão
+  (`ParseMarkdown`) - inspirado conceitualmente no
+  `BuildMarkdownBufferFromText` do MSXIDE (projeto próprio do usuário,
+  estudado nesta mesma rodada da Fase 1), mas implementado do zero em
+  Go. Suporta headings `#`.."######", blocos de código cercados
+  (` ``` `), citações (`>`), listas (`-`/`*`/`N.`) e parágrafos com
+  quebra de linha automática; tabelas e ênfase inline ficam como texto
+  literal nesta versão.
+- `docs/man/badig.md` + `docs/man/embed.go` (pacote `docsman`): a
+  referência dos próprios comandos do goBaDig (`compile`, `execute`,
+  `set`, `settings`, `dialect`, `theme`, `version`, `man`) no formato
+  NOME/SINOPSE/DESCRIÇÃO, um `# tópico` por comando - escrita a partir
+  do comportamento real atual. Fica em `docs/` (não `internal/`)
+  porque `go:embed` não alcança diretórios pai - o conteúdo versionado
+  continua visível em `docs/` como `docs/MANUAL.md`, mas o
+  `//go:embed` precisa estar ao lado do `.md`.
+- `internal/man/registry.go`: `Lookup(tópico)`/`Index()`, dividindo
+  `docs/man/badig.md` pelos headings de nível 1 - cada um se torna um
+  tópico independente, embora o arquivo inteiro se leia como um único
+  documento Markdown normal no GitHub/editor. Pronto para a Fase 3
+  acrescentar o dicionário MSX e a Fase 4 o manual do ASMSX do mesmo
+  jeito.
+- CLI: `--man [tópico]` (antes só mostrava o "about" do projeto) e o
+  console ganhou "man [tópico]" de verdade (antes ignorava o
+  argumento) - ambos com autocompletar Tab dos tópicos disponíveis
+  (`internal/cli/completion.go`).
+- WibEdit: visualizador novo em tela cheia (`internal/editor/
+  view_man.go`), aberto por um menu "Manual" próprio (tecla M) -
+  deliberadamente **fora** do menu "F1=Help" e da família
+  `neMenus`/`neHelpMenu` existente, que é uma reprodução fiel de um
+  editor de referência específico (NE2) e não deveria ganhar itens que
+  não fazem parte dela. Navegação real: `Up`/`Down`/`PgUp`/`PgDn`/
+  `Home`/`End` rolam, `Enter` numa linha de índice abre o tópico
+  (empilhando histórico), `Esc` volta um nível ou fecha quando não há
+  mais histórico. Modal enquanto aberto - nenhuma outra tecla do
+  editor chega ao documento.
+
+### Verificado
+
+- `internal/man`: parser de Markdown contra cada elemento suportado,
+  quebra de linha de parágrafos longos, `Lookup`/`Index` (incluindo
+  case-insensitive e tópico desconhecido).
+- `internal/cli`: `--man`/`man` sem tópico, com tópico válido, com
+  tópico inválido (console e `--man`), autocompletar de tópicos.
+- `internal/editor`: abertura do visualizador, navegação Up/Down,
+  Enter abrindo um tópico ligado e Esc voltando/fechando, e que o
+  visualizador é mesmo modal (uma tecla qualquer não alcança o
+  documento).
+- `go build`/`go vet`/`gofmt`/`go test ./...` limpos no repositório
+  inteiro.
+
 ## [1.47.0] — 2026-11-27 — bloco **NEW**, feature **editor-autocomplete** (build 0)
 
 **Autocomplete no WibEdit**, primeira metade do próximo passo já
