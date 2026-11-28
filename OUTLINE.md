@@ -8,8 +8,8 @@
 Data da primeira análise: 2026-11-05. Última atualização: 2026-11-27
 (nota: este parágrafo de estado ficou desatualizado em várias rodadas
 recentes - ver `resume.txt`, seção MARCOs, para o estado real mais
-recente; a versão publicada mais recente é a v1.51.0, bloco NEW,
-feature asm-basic-bridge).
+recente; a versão publicada mais recente é a v1.52.0, bloco NEW,
+feature asmsx-highlight).
 Estado: **v1.40.0 publicado** (GitHub Releases) — CLI/TUI/GUI com temas
 persistidos, TUI no visual retrô MS-DOS (ver Bloco 6), editor WibEdit
 integrado (`internal/editor`, menu Editor > Open, base do futuro
@@ -4085,6 +4085,86 @@ ainda não chamam nenhum desses comandos.
   arquivo.dmx` contra fixtures reais de `.asm`/`.bin`/`.sym`.
 
   Novo tópico `incbload` em `docs/man/badig.md` (`--man incbload`).
+
+- [x] **Destaque de sintaxe Z80/asMSX + manual no HELP** (2026-11-27,
+  v1.52.0) - Fase 6, pedida pelo usuário na sequência da Fase 5: colocar
+  `resource/asMSX/doc/asmsx.md` como opção do HELP do goBaDig, com
+  destaque de sintaxe tanto do Z80 quanto dos dados do asMSX, incluindo
+  os endereços especiais da BIOS e da área de sistema que o asMSX
+  suporta - e também no "man". Investigação prévia no `E:\msxide` do
+  próprio usuário (pedido explícito: "acho que no MSXIDE já tenho algo
+  parecido") não achou um destaque de sintaxe Z80 de fato (nenhuma
+  rotina `SyntaxColor`/`HighlightLine` em `src/editor.bas`) - o que
+  existe lá é só a mesma ideia de "abrir o manual do asmsx como ajuda"
+  (`MENU_CMD_HELP_ASMSX` → `OpenHelpDocument("asMSX", ...)`), já
+  replicada no goBaDig desde a v1.50.0 (`--man asmsx`). O trabalho novo
+  de verdade - destaque de sintaxe propriamente dito - não tinha
+  equivalente pra reaproveitar.
+
+  Novo dialeto de sintaxe `dialectASM` (`internal/editor/syntax.go`,
+  `dialectForPath(".asm")`), com tabelas novas em
+  `internal/editor/syntax_keywords_asm.go` (mnemônicos e registradores
+  Z80, diretivas do asMSX, funções numéricas da seção 2.3.2 do manual)
+  - distiladas do próprio manual do asMSX, não de nenhuma gramática
+  Sublime/VSCode já existente no repo (`badig/`), já que nenhuma cobre
+  Z80. `tokenizeLine` ganhou: as cinco formas de comentário que o
+  asmsx aceita (`;`/`//`/`--`/`/* */`/`{ }` - este último sobrepondo,
+  só pra este dialeto, o uso de `{nome}` como rótulo das 3 plataformas
+  BASIC); rótulos por `nome:` (incluindo os dois formatos locais,
+  `.nome:`/`@@nome:`); diretivas com ou sem o `.` opcional
+  (`.ORG`/`ORG` - "lembre-se, você pode usá-las sem o ponto antes",
+  asmsx.md seção 2.5); e as 4 convenções numéricas da seção 2.3.1
+  (`scanAsmNumber` novo - `0x1A` C, `$1A` Pascal, `1Ah` nativo do
+  assembler, binário/octal com sufixo `b`/`o`, todas detectadas por
+  sufixo em vez de reimplementar a base de cada uma, já que só a cor
+  importa aqui, não o valor).
+
+  Uma categoria de destaque nova, `synConstant` (cor própria,
+  `syntaxConstantStyle`), separada de rótulo/palavra-chave/função, só
+  pros ~268 **endereços predefinidos** que o asMSX resolve sozinho com
+  as diretivas `.BIOS` (124 rotinas da BIOS) e `.BIOSVARS` (144
+  variáveis de sistema) - extraídos uma vez de
+  `resource/asMSX/src/dura.y` (`msx_bios()`/`msx_bios_vars()`, as
+  mesmas funções que o próprio asMSX usa pra resolver esses nomes) pro
+  novo `internal/man/asmbios_data.go` (gerado por um `sed`/`awk`
+  descartável sobre o `.y`, não redigitado à mão) - mesmo padrão já
+  usado pro dicionário MSX (Fase 3): dado convertido uma vez de uma
+  fonte externa, versionado como literal Go.
+
+  "Também no man" (pedido explícito do usuário): novo
+  `internal/man/asmbios.go` - `FindAsmBiosSymbol` (busca exata
+  case-insensitive), `AsmBiosIndex` (pseudo-tópico `asmbios`, listando
+  tudo agrupado por rotina/variável) e `AsmBiosSymbol.Page`. `Lookup`
+  (`registry.go`) tenta isso **por último**, depois do dicionário MSX
+  BASIC e dos tópicos de `badig.md`/`asmsx.md` - alguns desses nomes
+  (`BEEP`, `CLS`) são ao mesmo tempo comando de BASIC e rotina da BIOS,
+  e num projeto que é primeiro um compilador de BASIC, `man beep` deve
+  continuar abrindo o comando, não o endereço (confirmado por teste:
+  `TestLookupPrefersMsxBasicCommandOverABiosRoutineOfTheSameName`).
+
+  "Opção do HELP" (pedido explícito): `Shift+F1` (`view_man.go`,
+  Fase 3) ganhou um terceiro ramo, `contextualHelpASM` - num `.asm`
+  aberto, sobre um nome predefinido abre a página daquele endereço;
+  em qualquer outra palavra, abre o manual completo do asMSX
+  (`man.Lookup("asmsx")`) **diretamente**, em vez de cair no índice
+  geral como o fallback da Fase 3 fazia pra ZX81/ZX Spectrum - o
+  manual do asmsx a uma tecla de distância de quem está editando o
+  `.asm`, exatamente o que foi pedido ("coloque o asmsx.md como opção
+  do HELP"). O menu `Manual` (`manual.open`) já listava "asmsx" no
+  índice geral desde a Fase 4 - isso não mudou, só ganhou esse atalho
+  mais direto.
+
+  Testes novos: `internal/man/asmbios_test.go` (contagem plausível da
+  tabela gerada, busca de rotina e de variável, nome desconhecido,
+  prioridade do comando de BASIC, pseudo-tópico e sua presença no
+  índice geral), `internal/editor/syntax_asm_test.go` (as 5 formas de
+  comentário, as 4 convenções numéricas, rótulos nos 3 formatos,
+  diretiva com/sem `.`, mnemônico/registrador/constante BIOS, um
+  rótulo que colide de nome com um mnemônico real - `DI:` -, e um
+  exemplo copiado literalmente do próprio manual do asMSX),
+  `internal/editor/view_man_test.go` (dois casos novos de `Shift+F1`
+  em `.asm`). `go build`/`go vet`/`go test ./...` limpos no repositório
+  inteiro.
 
 ### Bloco 7 — GUI (Fyne)
 
