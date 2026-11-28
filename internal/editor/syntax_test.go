@@ -17,6 +17,8 @@ func TestDialectForPath(t *testing.T) {
 		"game.azx":    dialectZX81,
 		"game.dzs":    dialectZXSpectrum,
 		"game.azs":    dialectZXSpectrum,
+		"rotina.asm":  dialectASM,
+		"ROTINA.ASM":  dialectASM,
 		"game.txt":    dialectNone,
 		"game.bmx":    dialectNone,
 		"":            dialectNone,

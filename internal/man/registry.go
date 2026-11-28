@@ -86,6 +86,15 @@ func Lookup(topic string) (Page, error) {
 	if page, ok := topics[key]; ok {
 		return page, nil
 	}
+	if key == asmBiosTopic {
+		return AsmBiosIndex(), nil
+	}
+	// Tried last: a handful of these predefined names (BEEP, CLS) are
+	// also MSX BASIC commands already resolved above, and that is the
+	// reading a bare "man beep" should get in this BASIC-first project.
+	if symbol, ok := FindAsmBiosSymbol(topic); ok {
+		return symbol.Page(), nil
+	}
 	return Page{}, fmt.Errorf("tópico de man desconhecido: %q (use \"man\" sem argumento para ver o índice)", topic)
 }
 
@@ -123,6 +132,12 @@ func Index() Page {
 	page.TOC = append(page.TOC, TOCEntry{Title: msxDictTopic, Line: len(page.Lines)})
 	page.Lines = append(page.Lines, Line{
 		Text:  fmt.Sprintf("- Dicionário MSX BASIC (%d verbetes)", len(msxDict)),
+		Style: StyleBullet,
+	})
+	page.Lines = append(page.Lines, Line{Text: "ASSEMBLY (asMSX)", Style: StyleHeading2})
+	page.TOC = append(page.TOC, TOCEntry{Title: asmBiosTopic, Line: len(page.Lines)})
+	page.Lines = append(page.Lines, Line{
+		Text:  fmt.Sprintf("- Endereços predefinidos .BIOS/.BIOSVARS (%d nomes)", len(asmBiosByName)),
 		Style: StyleBullet,
 	})
 	return page

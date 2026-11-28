@@ -3,6 +3,8 @@ package edit
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/wilsonpilon/goBaDig/internal/man"
 )
 
 // syntaxDialect is the BASIC Dignified dialect a document's syntax
@@ -19,12 +21,16 @@ const (
 	dialectMSX
 	dialectZX81
 	dialectZXSpectrum
+	dialectASM
 )
 
 // dialectForPath picks a dialect from a file's extension - both the
 // Dignified source extension and the classic (numbered-listing)
 // output extension for each platform, since a user can open either
-// in WibEdit (F4 on any file, not just sources).
+// in WibEdit (F4 on any file, not just sources). ".asm" is asMSX's own
+// source extension (Fase 4/5 of OUTLINE.md's plan) - not a Dignified
+// dialect (internal/dialect.go deliberately excludes it), but WibEdit
+// highlights it anyway since it is a file type a project can contain.
 func dialectForPath(path string) syntaxDialect {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".dmx", ".amx":
@@ -33,6 +39,8 @@ func dialectForPath(path string) syntaxDialect {
 		return dialectZX81
 	case ".dzs", ".azs":
 		return dialectZXSpectrum
+	case ".asm":
+		return dialectASM
 	}
 	return dialectNone
 }
@@ -58,6 +66,7 @@ const (
 	synString
 	synNumber
 	synLabel
+	synConstant
 )
 
 // syntaxSpan is one highlighted run within a single line's own text,
@@ -108,6 +117,40 @@ func tokenizeLine(dialect syntaxDialect, text string) []syntaxSpan {
 		case c == '#' && i+1 < n && text[i+1] == '#':
 			spans = append(spans, syntaxSpan{i, n, synComment})
 			i = n
+		case dialect == dialectASM && c == ';':
+			spans = append(spans, syntaxSpan{i, n, synComment})
+			i = n
+		case dialect == dialectASM && c == '/' && i+1 < n && text[i+1] == '/':
+			spans = append(spans, syntaxSpan{i, n, synComment})
+			i = n
+		case dialect == dialectASM && c == '-' && i+1 < n && text[i+1] == '-':
+			spans = append(spans, syntaxSpan{i, n, synComment})
+			i = n
+		// Same-line only: /* ... */ left unclosed on this line is a
+		// known, deliberate gap (see the func doc comment above on
+		// stateless-across-lines scanning), same tradeoff as every
+		// other multi-line construct this highlighter doesn't track.
+		case dialect == dialectASM && c == '/' && i+1 < n && text[i+1] == '*':
+			start := i
+			if end := strings.Index(text[i:], "*/"); end >= 0 {
+				i += end + 2
+			} else {
+				i = n
+			}
+			spans = append(spans, syntaxSpan{start, i, synComment})
+		// asMSX uses "{ }" as a Pascal-style comment delimiter (asmsx.md
+		// section 2.6) - checked ahead of the unconditional "{" case
+		// below, which is a different dialect's label-anchor syntax.
+		case dialect == dialectASM && c == '{':
+			start := i
+			i++
+			for i < n && text[i] != '}' {
+				i++
+			}
+			if i < n {
+				i++
+			}
+			spans = append(spans, syntaxSpan{start, i, synComment})
 		case c == '"':
 			start := i
 			i++
@@ -135,6 +178,38 @@ func tokenizeLine(dialect syntaxDialect, text string) []syntaxSpan {
 				i++
 			}
 			spans = append(spans, syntaxSpan{start, i, synNumber})
+		// Pascal-style "$8a" hex (asmsx.md section 2.3.1); a bare "$"
+		// (the current-address pseudo-variable) is left uncolored.
+		case dialect == dialectASM && c == '$' && i+1 < n && isHexDigit(text[i+1]):
+			start := i
+			i++
+			for i < n && isHexDigit(text[i]) {
+				i++
+			}
+			spans = append(spans, syntaxSpan{start, i, synNumber})
+		// A directive used with its optional leading "." (asmsx.md:
+		// "you can use them without first point character"), or a
+		// "."-prefixed local label (asmsx.md section 2.2, the other
+		// convention besides the "@@" prefix autocomplete doesn't need
+		// to special-case - it already falls through to the plain
+		// word branch below and gets colored there once its own ":"
+		// is seen).
+		case dialect == dialectASM && c == '.' && i+1 < n && isWordStart(text[i+1]):
+			start := i
+			i++
+			wordStart := i
+			i = scanWord(text, i)
+			bare := strings.ToUpper(text[wordStart:i])
+			switch {
+			case asmsxDirectives[bare]:
+				spans = append(spans, syntaxSpan{start, i, synKeyword})
+			case i < n && text[i] == ':':
+				spans = append(spans, syntaxSpan{start, i, synLabel})
+			}
+		case dialect == dialectASM && isDigit(c):
+			start := i
+			i = scanAsmNumber(text, i)
+			spans = append(spans, syntaxSpan{start, i, synNumber})
 		case isDigit(c):
 			start := i
 			i = scanNumber(text, i)
@@ -142,13 +217,24 @@ func tokenizeLine(dialect syntaxDialect, text string) []syntaxSpan {
 		case isWordStart(c):
 			start := i
 			i = scanWord(text, i)
-			if i < n && text[i] == '$' {
+			if dialect != dialectASM && i < n && text[i] == '$' {
 				i++
 			}
 			word := text[start:i]
 			if strings.EqualFold(word, "REM") {
 				spans = append(spans, syntaxSpan{start, n, synComment})
 				i = n
+				continue
+			}
+			// A trailing ":" immediately after the word, with no
+			// space, is asmsx's own label-definition syntax (asmsx.md
+			// section 2.2) - checked ahead of lookupWord so a label
+			// that happens to share a mnemonic/directive/BIOS name
+			// still colors as a label, not as whatever it collides
+			// with (asmsx itself resolves this the same way: the
+			// trailing colon is what makes it a label).
+			if dialect == dialectASM && i < n && text[i] == ':' {
+				spans = append(spans, syntaxSpan{start, i, synLabel})
 				continue
 			}
 			if kind := lookupWord(dialect, word); kind != synNone {
@@ -218,6 +304,54 @@ func scanWord(text string, i int) int {
 	return i
 }
 
+// scanAsmNumber scans one of asmsx.md's four numeric-literal
+// conventions (section 2.3.1), given that text[i] is already known to
+// be a decimal digit (asmsx requires a numeric literal using the
+// trailing-letter conventions to start with a digit, same rule this
+// relies on to avoid colliding with a hex-looking label like "FFh"):
+//
+//   - "0x8a" (C-style hex): a literal "0x"/"0X" prefix, then hex digits.
+//   - a decimal float: digits, ".", more digits (no exponent letter in
+//     asmsx's own grammar, unlike the BASIC dialects' scanNumber).
+//   - digits followed by a single trailing radix letter - hex "h"/"H",
+//     octal "o"/"O" or binary "b"/"B". Hex digits (a-f/A-F) are
+//     consumed greedily before checking for this suffix, which is what
+//     lets "0ffh" scan as one token instead of stopping at "0ff" and
+//     leaving a stray "h".
+//   - a plain decimal (or C-style leading-zero octal, "077" -
+//     highlighted the same as decimal; telling them apart isn't needed
+//     for coloring purposes) when none of the above suffixes follow.
+func scanAsmNumber(text string, i int) int {
+	n := len(text)
+	if text[i] == '0' && i+1 < n && (text[i+1] == 'x' || text[i+1] == 'X') {
+		i += 2
+		for i < n && isHexDigit(text[i]) {
+			i++
+		}
+		return i
+	}
+	for i < n && isHexDigit(text[i]) {
+		i++
+	}
+	if i < n && text[i] == '.' {
+		i++
+		for i < n && isDigit(text[i]) {
+			i++
+		}
+		return i
+	}
+	if i < n && (text[i] == 'h' || text[i] == 'H' || text[i] == 'o' || text[i] == 'O' ||
+		text[i] == 'b' || text[i] == 'B') {
+		i++
+	}
+	return i
+}
+
+// asmBiosNames are asMSX's predefined ".BIOS"/".BIOSVARS" symbol names
+// (internal/man), cached once (built from a map copy on every
+// keystroke would be wasteful) for lookupWord's dialectASM case below.
+var asmBiosNames = man.AsmBiosSymbolNames()
+
 func lookupWord(dialect syntaxDialect, word string) syntaxKind {
 	upper := strings.ToUpper(word)
 	switch dialect {
@@ -240,6 +374,16 @@ func lookupWord(dialect syntaxDialect, word string) syntaxKind {
 			return synFunction
 		}
 		if zxSpectrumKeywords[upper] {
+			return synKeyword
+		}
+	case dialectASM:
+		if asmBiosNames[upper] {
+			return synConstant
+		}
+		if asmsxNumericFunctions[upper] {
+			return synFunction
+		}
+		if z80Mnemonics[upper] || z80Registers[upper] || asmsxDirectives[upper] {
 			return synKeyword
 		}
 	}

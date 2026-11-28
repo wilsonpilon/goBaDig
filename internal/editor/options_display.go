@@ -68,6 +68,7 @@ func setDisplayPalette(profile int) {
 	syntaxStringStyle = syntaxStringStyle.Background(contentBackgroundColor)
 	syntaxNumberStyle = syntaxNumberStyle.Background(contentBackgroundColor)
 	syntaxLabelStyle = syntaxLabelStyle.Background(contentBackgroundColor)
+	syntaxConstantStyle = syntaxConstantStyle.Background(contentBackgroundColor)
 }
 
 // syntaxStyleFor returns the display style for a highlight category,
@@ -87,6 +88,8 @@ func syntaxStyleFor(kind syntaxKind) (tcell.Style, bool) {
 		return syntaxNumberStyle, true
 	case synLabel:
 		return syntaxLabelStyle, true
+	case synConstant:
+		return syntaxConstantStyle, true
 	default:
 		return tcell.StyleDefault, false
 	}

@@ -183,6 +183,52 @@ func TestShiftF1FallsBackToTheGeneralIndexOutsideMsx(t *testing.T) {
 	}
 }
 
+func TestShiftF1OnAsmOpensTheBiosSymbolUnderTheCursor(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rotina.asm")
+	if err := os.WriteFile(path, []byte("\tcall CHPUT"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	editor.area.document.cursor = documentPosition{line: 0, character: 8}
+
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModShift))
+	if editor.manView == nil {
+		t.Fatal("Shift+F1 on a .asm file did not open the Manual viewer")
+	}
+	if got := editor.manView.page().Title; got != "CHPUT" {
+		t.Fatalf("opened page title = %q, want CHPUT", got)
+	}
+}
+
+func TestShiftF1OnAsmWithNoKnownSymbolOpensTheAsmsxManual(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rotina.asm")
+	if err := os.WriteFile(path, []byte("\tld a,1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	editor, app, _ := newTestEditor(t, 80, 25, nil)
+	if err := editor.OpenFile(path); err != nil {
+		t.Fatal(err)
+	}
+	editor.area.document.cursor = documentPosition{line: 0, character: 1}
+
+	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModShift))
+	if editor.manView == nil {
+		t.Fatal("Shift+F1 on a .asm file did not open the Manual viewer")
+	}
+	wantPage, err := man.Lookup("asmsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := editor.manView.page().Title; got != wantPage.Title {
+		t.Fatalf("opened page title = %q, want the asmsx manual's own title %q", got, wantPage.Title)
+	}
+}
+
 func TestPlainF1StillOpensTheHelpMenuUnaffectedByShiftF1(t *testing.T) {
 	editor, app, _ := newTestEditor(t, 80, 25, nil)
 	sendEditorKey(editor, app, tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))

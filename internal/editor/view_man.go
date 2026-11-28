@@ -77,8 +77,17 @@ func isShiftF1(event *tcell.EventKey) bool {
 // plan registered in OUTLINE.md alongside autocomplete/man); ZX81 and
 // ZX Spectrum fall back to the general index instead of doing nothing
 // - a deliberate v1 shortcut, not a missing feature, since neither
-// has an equivalent source to build a dictionary from.
+// has an equivalent source to build a dictionary from. A .asm file
+// (Fase 6) gets its own lookup: a predefined BIOS/system-area name
+// under the cursor opens straight to that symbol; anything else opens
+// the asMSX manual itself (man.Lookup("asmsx")) rather than the
+// general index - the one manual relevant to a .asm file, one
+// keystroke away instead of buried in "Manual" > scroll > asmsx.
 func (e *Editor) contextualHelp() {
+	if e.area.dialect == dialectASM {
+		e.contextualHelpASM()
+		return
+	}
 	if e.area.dialect != dialectMSX {
 		e.manDisplay()
 		return
@@ -99,6 +108,21 @@ func (e *Editor) contextualHelp() {
 		return
 	}
 	e.openManView(entry.Page())
+}
+
+func (e *Editor) contextualHelpASM() {
+	if word := wordAtCursor(e.area.document); word != "" {
+		if symbol, ok := man.FindAsmBiosSymbol(word); ok {
+			e.openManView(symbol.Page())
+			return
+		}
+	}
+	page, err := man.Lookup("asmsx")
+	if err != nil {
+		e.manDisplay()
+		return
+	}
+	e.openManView(page)
 }
 
 // manDisplay opens the Manual viewer at its index - the "Manual" menu

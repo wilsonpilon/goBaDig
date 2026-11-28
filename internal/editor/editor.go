@@ -921,6 +921,7 @@ var syntaxCommentStyle = tcell.StyleDefault.Foreground(tcell.ColorGray).Backgrou
 var syntaxStringStyle = tcell.StyleDefault.Foreground(tcell.ColorLime).Background(tcell.ColorBlack)
 var syntaxNumberStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).Background(tcell.ColorBlack)
 var syntaxLabelStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(tcell.ColorBlack)
+var syntaxConstantStyle = tcell.StyleDefault.Foreground(tcell.ColorOrange).Background(tcell.ColorBlack)
 
 type editorMenuBar struct {
 	*tview.Box
