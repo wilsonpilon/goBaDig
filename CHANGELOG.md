@@ -35,6 +35,25 @@ exata do pacote.
 
 ---
 
+## [1.52.0] — 2026-11-27 — bloco **NEW**, feature **asmsx-highlight** (build 0)
+
+Destaque de sintaxe para arquivos `.asm` (Z80/asMSX) no WibEdit, e
+integração do manual do asMSX no sistema de "HELP"/`man`: novo dialeto
+de sintaxe (mnemônicos e registradores Z80, diretivas do asMSX com ou
+sem o `.` opcional, rótulos `nome:`/`.nome:`/`@@nome:`, as cinco formas
+de comentário do asMSX e as quatro convenções numéricas da seção 2.3.1
+do manual), com uma cor própria para os ~268 **endereços predefinidos
+da BIOS e da área de sistema** (`CHPUT`, `HIMEM` etc. - diretivas
+`.BIOS`/`.BIOSVARS`, extraídos de `resource/asMSX/src/dura.y`). Em um
+`.asm` aberto, `Shift+F1` abre direto a página de um desses endereços
+sob o cursor, ou o manual completo do asMSX (`man asmsx`) em qualquer
+outra palavra - um atalho de um toque, em vez do índice geral. Novo
+`--man asmbios`/console `man asmbios` lista todos os endereços, e `--man
+<nome>` resolve um deles diretamente quando não é também um comando de
+BASIC já conhecido. Ver `docs/releases/v1.52.0.md`.
+
+---
+
 ## [1.51.0] — 2026-11-27 — bloco **NEW**, feature **asm-basic-bridge** (build 0)
 
 Ponte entre um programa Assembly já compilado com o asMSX e o programa

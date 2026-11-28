@@ -179,7 +179,10 @@ traz **suporte ao compilador Assembly ASMSX** dentro de projetos MSX
 BASIC (`compile arquivo.asm`, opção `ASMSX_PATH`, manual embutido) —
 ver seção 6 abaixo. **`v1.51.0`** liga esse `.bin` de volta ao BASIC
 com a macro **`[INCBLOAD]`** (`BLOAD`+`DEFUSR` automáticos, endereço
-descoberto a partir do `.asm`) — ver seção 6 abaixo.
+descoberto a partir do `.asm`) — ver seção 6 abaixo. **`v1.52.0`**
+traz **destaque de sintaxe para `.asm`** no WibEdit (Z80/asMSX,
+inclusive os endereços predefinidos da BIOS/área de sistema) e liga o
+manual do asMSX direto no `Shift+F1` — ver seções 5 e 9.
 
 ## 4. Compilar a partir do código-fonte
 
@@ -259,7 +262,18 @@ goBaDig será construída. Desde a `v1.46.0`, abrir um arquivo
 Spectrum) já vem com **destaque de sintaxe** próprio daquele dialeto
 — palavras-chave, funções, comentários, strings, números e labels
 (`{nome}`) cada um com sua própria cor; qualquer outro arquivo abre
-sem destaque, como texto comum. Desde a `v1.47.0`, o WibEdit também
+sem destaque, como texto comum. Desde a `v1.52.0`, um arquivo `.asm`
+(Z80/asMSX, ver "Compilando Assembly com ASMSX" acima) também ganha
+destaque próprio: mnemônicos e registradores Z80, diretivas do asMSX
+(com ou sem o `.` opcional - `.ORG`/`ORG`), rótulos (`nome:`, incluindo
+os locais `.nome:`/`@@nome:`), comentários nas cinco formas que o
+asMSX aceita (`;`, `//`, `--`, `/* */`, `{ }`) e números nas quatro
+convenções numéricas da seção 2.3.1 do manual do asMSX (`0x1A`, `$1A`,
+`1Ah`, binário/octal com sufixo `b`/`o`) — e, numa cor própria,
+separada das demais, os **endereços predefinidos da BIOS e da área de
+sistema** que o asMSX resolve sozinho com as diretivas `.BIOS`/
+`.BIOSVARS` (`CHPUT`, `HIMEM` etc. — ver "Sistema de ajuda" abaixo).
+Desde a `v1.47.0`, o WibEdit também
 tem **autocomplete por prefixo**: ao digitar 3+ letras que combinem
 com uma palavra-chave/função do dialeto do arquivo aberto, uma lista
 de sugestões aparece ancorada no cursor; `Tab`/`Enter` completa,
@@ -284,6 +298,13 @@ reconhecido como o atalho clássico para `PRINT`); uma palavra fora do
 dicionário mostra um aviso em vez de abrir qualquer coisa. Em ZX81/ZX
 Spectrum (sem dicionário equivalente), `Shift+F1` cai no índice geral
 do manual em vez de não fazer nada.
+
+Desde a `v1.52.0`, `Shift+F1` também funciona com um arquivo `.asm`
+aberto: sobre um nome predefinido da BIOS/área de sistema (`CHPUT`,
+`HIMEM` etc.), abre direto a página daquele endereço; em qualquer
+outra palavra, abre o **manual completo do asMSX** (`--man asmsx`)
+diretamente, em vez do índice geral — o atalho que coloca o manual do
+compilador a uma tecla de distância de quem está editando o `.asm`.
 
 Na TUI, o menu **`File > File Manager`** (desde a `v1.41.0`, menu
 consolidado na `v1.42.0` - era um menu `Files` separado) abre o
@@ -683,8 +704,13 @@ Suporte planejado, por ordem de prioridade (ver `OUTLINE.md`, Bloco 8):
   (sintaxe, diretivas, parâmetros de linha de comando), e desde a
   `v1.51.0`, `--man incbload` documenta a macro `[INCBLOAD]` que liga
   o `.bin` do asMSX de volta ao BASIC - ver "6.
-  Converter um programa Dignified" acima — ver `docs/RESOURCES.md` e
-  `OUTLINE.md`, seção 10.7.
+  Converter um programa Dignified" acima. Desde a `v1.52.0`, `--man
+  asmbios`/console `man asmbios` lista todos os endereços predefinidos
+  do asMSX (rotinas da BIOS e variáveis de sistema, diretivas
+  `.BIOS`/`.BIOSVARS`), e `--man <nome>` resolve diretamente um desses
+  nomes (ex. `--man chput`, `--man himem`) quando não é também um
+  comando de BASIC já conhecido (nesse caso o comando de BASIC vence)
+  — ver `docs/RESOURCES.md` e `OUTLINE.md`, seção 10.7.
 - **Console** (`--cli`): `man [tópico]` é o mesmo índice/referência do
   `--man`, com autocompletar Tab dos tópicos disponíveis.
 - **TUI**: além da ajuda tradicional via menu `Help > About`, o
